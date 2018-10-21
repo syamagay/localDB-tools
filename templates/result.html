@@ -1,0 +1,11 @@
+{% extends "layout.html" %}    <!-- これで元になるHTML(laytout.html)を指定 -->
+{% block body %}    <!-- layout.htmlのbodyというブロックを以下で置き換える -->
+  <h2>The result is </h2>
+  <ul class=entries>
+  {% for result in results %}
+    <li><h2>{{ result.name }}</h2>{{ result.birthday }}
+  {% else %}
+    <li><em>No match.</em>
+  {% endfor %}
+  </ul>
+{% endblock %}
