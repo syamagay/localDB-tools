@@ -3,32 +3,13 @@
 {% block body %}    <!-- layout.htmlのbodyというブロックを以下で置き換える -->
   <h1>Welcome to database for Yarr</h1>
 
-  <form action="{{ url_for('add_entry') }}" method=post class=add-entry>
-    <dl>
-      <dt>Name:
-      <dd><input type=text size=20 name=name>
-      <dt>Birthday:
-      <dd><input type=date name=birthday>
-      <dd><input type=submit value=Submit>
-    </dl>
-  </form>
-
-  <form action="{{ url_for('filter_entry') }}" method=post class=add-entry>
-    <h3>Search X whose birthday is </h3>
-    <dl>
-      <dt>From:
-      <dd><input type=date name=start>
-      <dt>End:
-      <dd><input type=date name=end>
-      <dd><input type=submit value=Search>
-    </dl>
-  </form>
-
-  <ul class=entries>
-  {% for entry in entries %}
-    <li><h2>{{ entry.name }}</h2>{{ entry.birthday }}
+  <form action="{{ url_for('index_entry') }}" method=post class=entries>
+	<li><h2>Collections</h2>
+  {% for col in collections %}
+    <h3><button name="col" value={{col.collection}}>{{col.collection}}</button></h3>
   {% else %}
-    <li><em>No entries.</em>
+    <li><em>something errors</em>
   {% endfor %}
-  </ul>
+  </form>
+
 {% endblock %}

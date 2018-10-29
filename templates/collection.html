@@ -1,0 +1,32 @@
+{% extends "layout.html" %}    <!-- これで元になるHTML(laytout.html)を指定 -->
+
+{% block body%}
+	collection is {{collection}}
+  <ul class=entries>
+  {% for name in index %}
+    <li><h3>{{name.value}}
+    {% for col in collections %}
+      <form action="{{ url_for('open_entry') }}" method=post class=entries>  
+      <input type="hidden" name="col" value={{collection}}>
+      <input type="hidden" name="doc" value={{name.value}}>
+      <button name="col_open" value={{col.collection}}>{{col.collection}}</button>
+      </form>
+    {% endfor %}
+    </h3>
+  {% else %}
+    <li><em>something errors</em>
+  {% endfor %}
+
+  {% if names %}
+    <hr noshade>
+  {% endif %}
+  {% for docs in names %}
+    <li><h4>{{docs.key}} :  {{docs.value}}</h4>
+  {% endfor %}
+
+  <button type="button" onclick="location.href='{{ url_for('show_entry') }}'">HOME</button>
+  </ul>
+
+{% endblock %}
+
+
