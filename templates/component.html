@@ -1,0 +1,35 @@
+{% extends "layout.html" %}    <!-- これで元になるHTML(laytout.html)を指定 -->
+
+{% block body %}    <!-- layout.htmlのbodyというブロックを以下で置き換える -->
+  <h1>Welcome to database for Yarr</h1>
+
+  <table>
+    <tr>
+      <th>Module</th>
+      <th>Chip</th>
+    </tr>
+    <tr>
+      <th rowspan="2">果物類</th>
+      <td>りんご</td>
+    </tr>
+    <tr>
+      <!-- 上のセルが伸張してくるのでここのthはなし -->
+      <td>なつみかん</td>
+    </tr>
+    <tr>
+      <th>宇宙食</th>
+      <td>何でしょう</td>
+      <!-- 左のセルが伸張してくるのでこのtdはなし -->
+    </tr>
+  </table>
+
+
+
+	<li><h2>Collections</h2>
+  {% for col in components %}
+    <h3>{{col.sNum}}</h3>
+  {% else %}
+    <li><em>something errors</em>
+  {% endfor %}
+
+{% endblock %}

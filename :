@@ -79,10 +79,9 @@ def show_component():
 
 @app.route('/testRun', methods=['GET','POST'])
 def show_result():
-    logging.log(100,"show_result")
     #componentId = request.form['component']
-    runNumber=""
     tType=""
+    runNumber=""
     componentId = '5bd6696580437e37d626f815'
     docs = mongo.db.componentTestRun.find({"component": componentId}).sort('$natural', pymongo.DESCENDING)
     tests = []
@@ -93,16 +92,15 @@ def show_result():
         for item in doc_t:
             tests.append({"testType":item['testType'], "runNumber":item['runNumber']})
 
-    return render_template('kubota.html', tests=tests, contents=contents, runNumber=runNumber, tType=tType)
+    return render_template('testresult.html', tests=tests, contents=contents, runNumber=runNumber, tType=tType)
 
-@app.route('/testRun_result', methods=['GET','POST'])
+@app.route('/testRun', methods=['GET','POST'])
 def show_result_item():
     #componentId = request.form['component']
-    logging.log(100,"b_show_result_item")
-    runNumber = request.form['runNumber']
     tType = request.form['tType']
-    logging.log(100,"show_result_item")
-    componentId = '5bd6696580437e37d626f815'
+    runNumber = request.form['runNumber']
+    logging.log(100,runNumber)
+    componentId = '5bd7b16580437e4e19182175'
     docs = mongo.db.componentTestRun.find({"component": componentId}).sort('$natural', pymongo.DESCENDING)
     tests = []
     contents = []
@@ -110,6 +108,7 @@ def show_result_item():
         testRunId = bson.objectid.ObjectId(doc['testRun'])
         doc_t = mongo.db.testRun.find({"_id": testRunId}).sort('$natural',pymongo.DESCENDING)
         for item in doc_t:
+            logging.log(100,item['runNumber'])
             tests.append({"testType":item['testType'],"runNumber":item['runNumber']})
             if int(item['runNumber']) == int(runNumber):
                 logging.log(100,"hit")
@@ -123,9 +122,9 @@ def show_result_item():
                             url = img.bin_to_image(data['contentType'],byte)
                             contents.append({"testType":item['testType'],"url":url,"filename":data['filename'],"contentType":data['contentType']})
 
-    return render_template('kubota.html', tests=tests, contents=contents, runNumber=runNumber, tType=tType)
+    return render_template('testresult.html', tests=tests, contents=contents, runNumber=runNumber, tType=tType)
 
-@app.route('/add', methods=['GET','POST'])
+@app.route('/add', methods=['POST'])
 def add_entry():
     mongo.db.user.insert({"name": request.form['name'], "birthday": parse(request.form['birthday'])})
     flash('New entry was successfully posted')

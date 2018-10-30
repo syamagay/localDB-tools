@@ -1,0 +1,29 @@
+{% extends "layout.html" %}    <!-- これで元になるHTML(laytout.html)を指定 -->
+{% block body %}    <!-- layout.htmlのbodyというブロックを以下で置き換える -->
+  <ul class=entries>
+  {% for result in tests %}
+    <form action="{{ url_for('show_result_item') }}" method=post class=entries>  
+      <input type="hidden" name="tType" value={{result.testType}}>
+      <button name="tType" value={{result.testType}}>{{result.testType}}
+      </button>
+    </form>
+    {% if result.testType == tType %}
+      {% for result in contents %}
+        {% if result.contentType == 'pdf' %}
+          <!--object data={{result.url}} type="application/pdf" width="20%" height="20%"-->
+          <iframe src={{result.url}} width="20%" height="20%">
+          </iframe>
+          <!--/object!-->
+        {% elif result.contentType == 'png' %}
+          <object data={{result.url}} type="image/png" width="20%" height="20%">
+            <img src={{result.url}} width="20%" height="20%">
+            </img>
+          </object>
+        {% endif %}
+      {% endfor %}
+    {% endif %}
+  {% else %}
+    <li><em>No match.</em>
+  {% endfor %}
+  </ul>
+{% endblock %}

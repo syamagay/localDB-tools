@@ -1,12 +1,26 @@
 <!doctype html>
-<title>Database for Yarr</title>
-<link rel=stylesheet type=text/css href="{{ url_for('static', filename='style.css') }}"> <!-- static/style.cssを読み込む -->
+<html lang="en">
+  {% include "parts/head.html" %}
+  <head><title>Database for Yarr</title></head>
+  
+  <body data-spy="scroll" data-target="#pb-navbar" data-offset="200">
+    {% include "parts/nav.html" %}
+  
+    <div class="container">
+      <div class="row align-items-center justify-content-center">
+        <div class="col">
+    
+        {% for message in get_flashed_messages() %}
+          <div class=flash>{{ message }}</div>
+        {% endfor %}
 
-<div class=page>
+        </div>
+      </div>
+    </div>
 
-  {% for message in get_flashed_messages() %}
-    <div class=flash>{{ message }}</div>
-  {% endfor %}
-
-  {% block body %}{% endblock %}    <!-- このブロックが参照時に置き換えられる -->
-</div>
+    {% block body %}{% endblock %}    <!-- このブロックが参照時に置き換えられる -->
+  
+    {% include "parts/footer.html" %}
+    {% include "parts/loader.html" %}
+  </body>
+</html>

@@ -1,0 +1,15 @@
+{% extends "layout.html" %}    <!-- これで元になるHTML(laytout.html)を指定 -->
+
+{% block body%}
+	collection is {{collection}}
+  <ul class=entries>
+  <button type="button" onclick="location.href='{{ image }}'">image</button>
+  <button type="button" onclick="location.href='{{ url_for('show_entry') }}'">HOME</button>
+  {% for docs in names %}
+    <li><h4>{{docs.key}} :  {{docs.value}}</h4>
+  {% endfor %}
+  </ul>
+
+{% endblock %}
+
+
