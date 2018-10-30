@@ -1,4 +1,4 @@
-import pymongo, json, bson.objectid, logging, doc, img, base64, item
+import pymongo, json, bson.objectid, logging, img, base64
 from collections import OrderedDict
 import pprint
 from flask import Flask, current_app, request, flash,redirect,url_for,render_template
@@ -31,7 +31,7 @@ def show_modules_and_chips():
         for child_entry in child_entries:
             query = {"_id": ObjectId(child_entry['child'])}
             chip_entry = mongo.db.component.find_one(query) # Find child component
-            chips.append({"_id": str(chip_entry["_id"]), "serialNumber": chip_entry["serialNumber"], "componentType": chip_entry["componentType"], "datetime": chip_entry["sys"]["cts"]})
+            chips.append({"_id": str(chip_entry["_id"]), "serialNumber": chip_entry["serialNumber"], "componentType": chip_entry["componentType"], "datetime": chip_entry["sys"]["cts"].strftime("%Y-%m-%d %H:%M:%S")})
 
         modules.append({"_id": str(module_entry["_id"]), "serialNumber": module_entry["serialNumber"], "chips": chips})
 
@@ -54,11 +54,43 @@ def show_component():
 
     return render_template('component.html', contents=contents)
 
-@app.route('/testRun', methods=['GET','POST'])
+@app.route('/module', methods=['GET','POST'])
+def show_summary():
+    serialNumber = request.args.get('serialNumber')
+    moduleId = request.args.get('id')
+
+    docs = mongo.db.childParentRelation.find({"parent": moduleId}).sort('$natural', pymongo.DESCENDING)
+    index = []
+    figure = []
+    for doc in docs:
+        childId = bson.objectid.ObjectId(doc['child'])
+        doc_c = mongo.db.component.find({"_id": childId})
+        for item in doc_c:
+            index.append({"_id": childId, 'chip': item['serialNumber'], "componentType": item['componentType']})
+
+        doc_t = mongo.db.componentTestRun.find({"component":doc['child']})
+        for item in doc_t:
+            testRun = bson.objectid.ObjectId(item['testRun'])
+            doc_s = mongo.db.testRun.find({"_id":testRun, "testType": "selftrigger"})
+            for item_s in doc_s:
+                list_t = item_s['attachments']
+                for data in list_t:
+                    if data['contentType'] == 'png':
+                        code = bson.objectid.ObjectId(data['code'])
+                        doc_b = mongo.db.fs.chunks.find({"files_id":code}).sort('$natural',pymongo.DESCENDING)
+                        for data_b in doc_b:
+                            byte = base64.b64encode(data_b['data']).decode()
+                            url = img.bin_to_image(data['contentType'],byte)
+                            figure.append({"url":url})
+                         
+    return render_template('module.html', index=index, moduleId=moduleId, serialNumber=serialNumber, figure=figure)
+
+@app.route('/chip', methods=['GET','POST'])
 def show_result():
+    serialNumber = request.args.get('serialNumber')
     componentId = request.args.get('id')
-    runNumber=""
-    testType=""
+    Id=""
+
     docs = mongo.db.componentTestRun.find({"component": componentId}).sort('$natural', pymongo.DESCENDING)
     index = []
     results = []
@@ -98,19 +130,18 @@ def show_result():
                                      "cool":"",
                                      "stage":"" }})
 
-    return render_template('testresult.html', index=index, results=results, runNumber=runNumber, testType=testType, componentId=componentId)
-    #return render_template('kubota.html', index=index, results=results, runNumber=runNumber, testType=testType)
+    return render_template('chip.html', index=index, results=results, componentId=componentId, Id=Id, serialNumber=serialNumber)
 
-@app.route('/testRun_result', methods=['GET','POST'])
+@app.route('/chip_result', methods=['GET','POST'])
 def show_result_item():
-    componentId = request.form['componentId']
-    runNumber = request.form['runNumber']
-    testType = request.form['testType']
-    logging.log(100,"show_result_item")
-    #componentId = request.args.get('id')
-    docs = mongo.db.componentTestRun.find({"component": componentId}).sort('$natural', pymongo.DESCENDING)
+    Id = bson.objectid.ObjectId(request.args.get('Id'))
+    serialNumber = request.args.get('serialNumber')
+    componentId = request.args.get('componentId')
     index = []
     results = []
+
+    docs = mongo.db.componentTestRun.find({"component": componentId}).sort('$natural', pymongo.DESCENDING)
+
     for doc in docs:
         testRunId = bson.objectid.ObjectId(doc['testRun'])
         doc_t = mongo.db.testRun.find({"_id": testRunId}).sort('$natural',pymongo.DESCENDING)
@@ -147,7 +178,7 @@ def show_result_item():
                                      "cool":"",
                                      "stage":"" }})
 
-            if int(item['runNumber']) == int(runNumber):
+            if (item['_id']) == Id:
                 logging.log(100,"hit")
                 list_t = item['attachments']
                 for data in list_t:
@@ -162,7 +193,7 @@ def show_result_item():
                                              "filename":data['filename'],
                                              "contentType":data['contentType'] })
 
-    return render_template('testresult.html', index=index, results=results, runNumber=runNumber, testType=testType, componentId=componentId)
+    return render_template('chip.html', index=index, results=results, componentId=componentId, Id=Id, serialNumber=serialNumber)
 
 @app.route('/add', methods=['GET','POST'])
 def add_entry():

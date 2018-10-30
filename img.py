@@ -1,12 +1,19 @@
-import logging 
+from binascii import a2b_base64
+from pdf2image import convert_from_path
+import logging, base64 
 
 def bin_to_image(typ, binary):
-#def bin_to_image():
-    #typ = 'png'
     if typ == 'png':
-      data = 'data:image/png;base64,' + binary
+        data = 'data:image/png;base64,' + binary
     if typ == 'pdf':
-      data = 'data:application/pdf;base64,' + binary
-    #logging.log(100,data)
-    #logging.info('info')
+        file_pdf = open('/tmp/image.pdf','wb')
+        binData=a2b_base64(binary)
+        file_pdf.write(binData)
+        file_pdf.close()
+        path = '/tmp/testimage.pdf'
+        image = convert_from_path(path)
+        image[0].save('/tmp/image.png', 'png')
+        binary_png = open('/tmp/image.png','rb')
+        byte = base64.b64encode(binary_png.read()).decode()
+        data = 'data:image/png;base64,' + byte
     return data

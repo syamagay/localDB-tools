@@ -1,0 +1,46 @@
+{% extends "layout.html" %}    <!-- これで元になるHTML(laytout.html)を指定 -->
+{% block body %}    <!-- layout.htmlのbodyというブロックを以下で置き換える -->
+
+
+  <div class="container">
+    <div class="row align-items-center justify-content-center">
+      <div class="col">
+
+        <h1>Module Summary : {{serialNumber}}</h1>
+    
+        <table class="table table-sm table-hover table-striped">
+          <thead>
+            <tr>
+              <th scope="col">FE type</th>
+              <th scope="col">Chips</th>
+              <th scope="col">Source Scan</th>
+		        </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td>
+                {{index[0]['componentType']}}
+              </td>
+              <td>
+                {% for item in index %}
+                  <a href="{{ url_for('show_result', id=item['_id'], serialNumber=item['chip']) }}">{{item.chip}}</a><br>
+                {% endfor %}
+              </td>
+              <td>
+                  <p style="display: inline"><figure>
+                    <center>
+                    <figcaption>source</figcaption>
+                    <a href={{figure[0].url}} target="_brank">
+                      <img src={{figure[0].url}} title={{figure[0].filename}} width="100" height="100">
+                      </img>
+                    </a>
+                    </center>
+                  </figure></p>
+              </td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+{% endblock %}
