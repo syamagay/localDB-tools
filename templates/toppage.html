@@ -32,6 +32,7 @@
             <tr>
               <th scope="col">Module</th>
               <th scope="col">Chips</th>
+              <th scope="col">FE type</th>
               <th scope="col">Created date</th>
             </tr>
           </thead>
@@ -44,7 +45,9 @@
                     <td rowspan=4><a href="hogehoge">{{ module["serialNumber"] }}</a></td>
                   {% endif %}
                     {% if var.update({'is_first_chip': false}) %}{% endif %}
-                    <td><a href="hogehoge">{{ chip["serialNumber"] }}</a></td>
+                    <td><a href="{{ url_for('show_result', id=chip["_id"]) }}">{{ chip["serialNumber"] }}</a></td>
+                    <td>{{ chip["componentType"] }}</td>
+                    <td>{{ chip["datetime"] }}</td>
                 </tr>
               {% endfor %}
             {% endfor %}

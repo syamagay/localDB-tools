@@ -4,6 +4,7 @@ import pprint
 from flask import Flask, current_app, request, flash,redirect,url_for,render_template
 from flask_pymongo import PyMongo
 from dateutil.parser import parse
+import json # JSON
 from bson.objectid import ObjectId # Convert str to ObjectId
 
 app = Flask(__name__)
@@ -11,6 +12,19 @@ app.secret_key = 'secret'
 app.config["MONGO_URI"] = "mongodb://localhost:27017/yarrdb"
 mongo = PyMongo(app)
 
+#@app.route('/', methods=['GET'])
+#def show_entry():
+#    collectionNames = mongo.db.collection_names()
+#    collections = []
+#    for col in collectionNames:
+#        collections.append({"collection": col})
+#
+#    users = mongo.db.user.find().sort('$natural', pymongo.DESCENDING).limit(10)
+#    entries = []
+#    for row in users:
+#        entries.append({"name": row['name'], "birthday": row['birthday'].strftime("%Y/%m/%d")})
+#  
+#    return render_template('toppage.html', entries=entries, collections=collections)
 @app.route('/', methods=['GET'])
 def show_modules_and_chips():
     query = {"componentType": "Module"}
@@ -20,20 +34,30 @@ def show_modules_and_chips():
     for row in component:
         module_entries.append({"_id": row['_id'], "serialNumber": row['serialNumber'], "datetime": row['sys']['cts'].strftime("%Y/%m/%d-%H:%M:%S")})
 
+    j = 0
     for module_entry in module_entries:
+        #print(module_entry["serialNumber"])
         query = {"parent": str(module_entry['_id'])}
         cprelation = mongo.db.childParentRelation.find(query)
         child_entries = []
         for row in cprelation:
             child_entries.append({"child": row['child'], "datetime": row['sys']['cts'].strftime("%Y/%m/%d-%H:%M:%S")})
 
+        module = []
+        #module["module"] = { "_id": str(module_entry["_id"]), "serialNumber": module_entry["serialNumber"]}
+
+        i = 0
         chips = []
         for child_entry in child_entries:
             query = {"_id": ObjectId(child_entry['child'])}
             chip_entry = mongo.db.component.find_one(query) # Find child component
-            chips.append({"_id": str(chip_entry["_id"]), "serialNumber": chip_entry["serialNumber"], "componentType": chip_entry["componentType"], "datetime": chip_entry["sys"]["cts"]})
+            #print("\t"+chip_entry['serialNumber'])
+            chips.append({"_id": str(chip_entry["_id"]), "serialNumber": chip_entry["serialNumber"], "componentType": chip_entry["componentType"]})
+            i+=1
 
         modules.append({"_id": str(module_entry["_id"]), "serialNumber": module_entry["serialNumber"], "chips": chips})
+        j+=1
+
 
     return render_template('toppage.html', modules=modules)
 
@@ -54,117 +78,81 @@ def show_component():
 
     return render_template('component.html', contents=contents)
 
-@app.route('/testRun', methods=['GET','POST'])
+@app.route('/testRun', methods=['GET'])
 def show_result():
-    componentId = request.args.get('id')
-    runNumber=""
-    testType=""
-    docs = mongo.db.componentTestRun.find({"component": componentId}).sort('$natural', pymongo.DESCENDING)
     index = []
     results = []
+    resultInfo = []
+    #resultInfo.append({"componentId":request.form['componentId']})
+    resultInfo.append({"componentId":'5bd6696580437e37d626f815'})
+    resultInfo.append({"runNumber":""})
+    resultInfo.append({"_id":""})
+    #componentId = request.form['componentId']
+
+    docs = mongo.db.componentTestRun.find({"component": resultInfo['componentId']}).sort('$natural', pymongo.DESCENDING)
+
     for doc in docs:
         testRunId = bson.objectid.ObjectId(doc['testRun'])
-        doc_t = mongo.db.testRun.find({"_id": testRunId}).sort('$natural',pymongo.DESCENDING)
-        for item in doc_t:
-            if 'environment' in item:
-                if 'hv' in item['environment']:
-                    index.append({ "_id":item['_id'],
-                                   "testType":item['testType'], 
-                                   "runNumber":item['runNumber'], 
-                                   "datetime":item['date'].strftime("%Y/%m/%d-%H:%M:%S"),
-                                   "institution":item['institution'],
-                                   "environment":
-                                       { "hv":item['environment']['hv'],
-                                         "cool":item['environment']['cool'],
-                                         "stage":item['environment']['stage'] }})
-                else: 
-                    index.append({ "_id":item['_id'],
-                                   "testType":item['testType'], 
-                                   "runNumber":item['runNumber'], 
-                                   "datetime":item['date'].strftime("%Y/%m/%d-%H:%M:%S"),
-                                   "institution":item['institution'],
-                                   "environment":
-                                       { "hv":"",
-                                         "cool":"",
-                                         "stage":"" }})
-            else:
-                index.append({ "_id":item['_id'],
-                               "testType":item['testType'], 
-                               "runNumber":item['runNumber'], 
-                               "datetime":item['date'].strftime("%Y/%m/%d-%H:%M:%S"),
-                               "institution":item['institution'],
-                               "environment":
-                                   { "hv":"",
-                                     "cool":"",
-                                     "stage":"" }})
+        docTest = mongo.db.testRun.find({"_id": testRunId}).sort('$natural',pymongo.DESCENDING)
 
-    return render_template('testresult.html', index=index, results=results, runNumber=runNumber, testType=testType, componentId=componentId)
-    #return render_template('kubota.html', index=index, results=results, runNumber=runNumber, testType=testType)
+        for item in docTest:
+            index.append({ "_id":item['_id'],
+                           "testType":item['testType'], 
+                           "runNumber":item['runNumber'], 
+                           "datetime":item['date'].strftime("%Y/%m/%d-%H:%M:%S"),
+                           "institution":item['institution'],
+                           "environment":
+                               { "hv":item['hv'],
+                                 "cool":item['cool'],
+                                 "stage":item['stage'] }})
 
-@app.route('/testRun_result', methods=['GET','POST'])
+    return render_template('testresult.html', index=index, results=results, resultInfo=resultInfo)
+
+@app.route('/testRun', methods=['GET','POST'])
 def show_result_item():
-    componentId = request.form['componentId']
-    runNumber = request.form['runNumber']
-    testType = request.form['testType']
-    logging.log(100,"show_result_item")
-    #componentId = request.args.get('id')
-    docs = mongo.db.componentTestRun.find({"component": componentId}).sort('$natural', pymongo.DESCENDING)
     index = []
     results = []
+    resultInfo = []
+    #resultInfo.append({"componentId":request.form[resultInfo['componentId']]})
+    resultInfo.append({"componentId":'5bd6696580437e37d626f815'})
+    resultInfo.append({"runNumber":request.form[resultInfo['runNumber']]})
+    resultInfo.append({"_id":request.form[resultInfo['_id']]})
+
+    docs = mongo.db.componentTestRun.find({"component": resultInfo['componentId']}).sort('$natural', pymongo.DESCENDING)
     for doc in docs:
         testRunId = bson.objectid.ObjectId(doc['testRun'])
-        doc_t = mongo.db.testRun.find({"_id": testRunId}).sort('$natural',pymongo.DESCENDING)
-        for item in doc_t:
-            if 'environment' in item:
-                if 'hv' in item['environment']:
-                    index.append({ "_id":item['_id'],
-                                   "testType":item['testType'], 
-                                   "runNumber":item['runNumber'], 
-                                   "datetime":item['date'].strftime("%Y/%m/%d-%H:%M:%S"),
-                                   "institution":item['institution'],
-                                   "environment":
-                                       { "hv":item['environment']['hv'],
-                                         "cool":item['environment']['cool'],
-                                         "stage":item['environment']['stage'] }})
-                else: 
-                    index.append({ "_id":item['_id'],
-                                   "testType":item['testType'], 
-                                   "runNumber":item['runNumber'], 
-                                   "datetime":item['date'].strftime("%Y/%m/%d-%H:%M:%S"),
-                                   "institution":item['institution'],
-                                   "environment":
-                                       { "hv":"",
-                                         "cool":"",
-                                         "stage":"" }})
-            else:
-                index.append({ "_id":item['_id'],
-                               "testType":item['testType'], 
-                               "runNumber":item['runNumber'], 
-                               "datetime":item['date'].strftime("%Y/%m/%d-%H:%M:%S"),
-                               "institution":item['institution'],
-                               "environment":
-                                   { "hv":"",
-                                     "cool":"",
-                                     "stage":"" }})
+        docTest = mongo.db.testRun.find({"_id": testRunId}).sort('$natural',pymongo.DESCENDING)
 
-            if int(item['runNumber']) == int(runNumber):
-                logging.log(100,"hit")
-                list_t = item['attachments']
-                for data in list_t:
-                    if data['contentType'] == 'pdf' or data['contentType'] == 'png':
-                        code = bson.objectid.ObjectId(data['code'])
-                        doc_b = mongo.db.fs.chunks.find({"files_id":code}).sort('$natural',pymongo.DESCENDING)
-                        for data_b in doc_b:
-                            byte = base64.b64encode(data_b['data']).decode()
-                            url = img.bin_to_image(data['contentType'],byte)
+        for item in docTest:
+            index.append({ "_id":item['_id'],
+                           "testType":item['testType'], 
+                           "runNumber":item['runNumber'], 
+                           "datetime":item['date'].strftime("%Y/%m/%d-%H:%M:%S"),
+                           "institution":item['institution'],
+                           "environment":
+                               { "hv":item['hv'],
+                                 "cool":item['cool'],
+                                 "stage":item['stage'] }})
+
+            if int(item['runNumber']) == int(resultInfo['runNumber']):
+                docAtt = item['attachments']
+
+                for itemAtt in docAtt: 
+                    if itemAtt['contentType'] == 'pdf' or itemAtt['contentType'] == 'png':
+                        code = bson.objectid.ObjectId(itemAtt['code'])
+                        docBin = mongo.db.fs.chunks.find({"files_id":code}).sort('$natural',pymongo.DESCENDING)
+
+                        for itemBin in docBin:
+                            byte = base64.b64encode(itemBin['data']).decode()
+                            url = img.bin_to_image(itemAtt['contentType'],byte)
                             results.append({ "testType":item['testType'],
                                              "url":url,
-                                             "filename":data['filename'],
-                                             "contentType":data['contentType'] })
+                                             "filename":itenAtt['filename'],
+                                             "contentType":itemAtt['contentType'] })
 
-    return render_template('testresult.html', index=index, results=results, runNumber=runNumber, testType=testType, componentId=componentId)
+    return render_template('testresult.html', index=index, results=results, resultInfo=resultInfo)
 
-@app.route('/add', methods=['GET','POST'])
+@app.route('/add', methods=['POST'])
 def add_entry():
     mongo.db.user.insert({"name": request.form['name'], "birthday": parse(request.form['birthday'])})
     flash('New entry was successfully posted')
@@ -259,8 +247,8 @@ def show_image():
     return render_template('pdf.html',image=image) 
 
 if __name__ == '__main__':
-    #app.run(host='127.0.0.1') # change hostID
-    app.run(host='192.168.11.140') # change hostID
+    app.run(host='127.0.0.1') # change hostID
+    #app.run(host='192.168.11.140') # change hostID
 
 #@app.route('/index/open/document', methods=['POST'])
 #def open_document():

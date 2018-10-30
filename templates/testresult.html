@@ -1,33 +1,88 @@
 {% extends "layout.html" %}    <!-- これで元になるHTML(laytout.html)を指定 -->
 {% block body %}    <!-- layout.htmlのbodyというブロックを以下で置き換える -->
-  <ul class=entries>
-  {% for result in tests %}
-    <form action="{{ url_for('show_result_item') }}" method=post class=entries>  
-      <input type="hidden" name="tType" value={{result.testType}}>
-      <input type="hidden" name="runNumber" value={{result.runNumber}}>
-      <button type="submit">{{result.testType}}
-      </button>
-    </form>
-    {{tType}}
-    {% if result.testType == tType %}
-      <h3>test1</h3>
-      {% for data in contents %}
-        <h3>test</h3>
-        {% if data.contentType == 'pdf' %}
-          <!--object data={{data.url}} type="application/pdf" width="20%" height="20%"-->
-          <iframe src={{data.url}} width="20%" height="20%">
-          </iframe>
-          <!--/object!-->
-        {% elif data.contentType == 'png' %}
-          <object data={{data.url}} type="image/png" width="20%" height="20%">
-            <img src={{data.url}} width="20%" height="20%">
-            </img>
-          </object>
-        {% endif %}
-      {% endfor %}
-    {% endif %}
-  {% else %}
-    <li><em>No match.</em>
-  {% endfor %}
-  </ul>
+
+
+  <div class="container">
+    <div class="row align-items-center justify-content-center">
+      <div class="col">
+
+        <h1>Test Result</h1>
+    
+        <table class="table table-sm table-hover table-striped">
+          <thead>
+            <tr>
+              <th scope="col" colspan="8">chip serial number</th>
+            </tr>
+            <tr>
+              <th scope="col" rowspan=”2″>Date</th>
+              <th scope="col" rowspan=”2″>Run number</th>
+              <th scope="col" rowspan=”2″>Test type</th>
+              <th scope="col" rowspan=”2″>Institution</th>
+              <th scope="col" colspan="3">Environment</th>
+              <th scope="col" rowspan=”2″>Data</th>
+		        <tr>
+		        </tr>
+              <th scope="col"></th>
+              <th scope="col"></th>
+              <th scope="col"></th>
+              <th scope="col"></th>
+              <th scope="col">HV</th>
+              <th scope="col">COOL</th>
+              <th scope="col">STAGE</th>
+              <th scope="col"></th>
+		        </tr>
+          </thead>
+          <tbody>
+            {% for item in index %}
+              <tr>
+                <td>{{ item.datetime }}</td>
+                <td>{{ item.runNumber }}</td>
+                <td>
+                  <form action="{{ url_for('show_result_item') }}" method=post class=entries>  
+                    <input type="hidden" name="testType" value={{item.testType}}>
+                    <input type="hidden" name="componentId" value={{componentId}}>
+                    <input type="hidden" name="_id" value={{item._id}}>
+                    <input type="hidden" name="runNumber" value={{item.runNumber}}>
+                    <button type="submit">{{item.testType}}
+                    </button>
+                  </form>
+                </td>
+                <td>{{ item.institution }}</td>
+                <td>{{ item.environment.hv }}</td>
+                <td>{{ item.environment.cool }}</td>
+                <td>{{ item.environment.stage }}</td>
+                <td>
+                  {% if item.testType == testType %}
+                    {% for result in results %}
+                      {% if result.contentType == 'pdf' %}
+                        <iframe src={{result.url}} width="20%" height="20%">
+                        </iframe>
+                      {% elif result.contentType == 'png' %}
+                        <object data={{result.url}} type="image/png" width="20%" height="20%">
+                          <img src={{result.url}} width="20%" height="20%">
+                          </img>
+                        </object>
+                      {% endif %}
+                    {% endfor %}
+                  {% endif %}
+                </td>
+              </tr>
+            {% else %}
+              <tr>
+                <td>No match.</td>
+                <td>No match.</td>
+                <td>No match.</td>
+                <td>No match.</td>
+                <td>No match.</td>
+                <td>No match.</td>
+                <td>No match.</td>
+                <td>No match.</td>
+              </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+
+      </div>
+    </div>
+  </div>
 {% endblock %}
