@@ -10,7 +10,7 @@ def bin_to_image(typ, binary):
         binData=a2b_base64(binary)
         file_pdf.write(binData)
         file_pdf.close()
-        path = '/tmp/testimage.pdf'
+        path = '/tmp/image.pdf'
         image = convert_from_path(path)
         image[0].save('/tmp/image.png', 'png')
         binary_png = open('/tmp/image.png','rb')

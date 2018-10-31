@@ -179,7 +179,6 @@ def show_result_item():
                                      "stage":"" }})
 
             if (item['_id']) == Id:
-                logging.log(100,"hit")
                 list_t = item['attachments']
                 for data in list_t:
                     if data['contentType'] == 'pdf' or data['contentType'] == 'png':
@@ -290,43 +289,5 @@ def show_image():
     return render_template('pdf.html',image=image) 
 
 if __name__ == '__main__':
-    #app.run(host='127.0.0.1') # change hostID
-    app.run(host='192.168.11.140') # change hostID
+    app.run(host='127.0.0.1') # change hostID
 
-#@app.route('/index/open/document', methods=['POST'])
-#def open_document():
-#
-#    collection = request.form['col']
-#    document = bson.objectid.ObjectId(request.form['doc'])
-#
-#    # collection Name
-#    collectionNames = mongo.db.collection_names()
-#    collections = []
-#    collections.append({"collection": collection})
-#    for col in collectionNames:
-#      if col != collection:
-#        collections.append({"collection": col})
-#
-#    # key and value
-#    #key = 'files_id'
-#    #if collection == collection_open:
-#    key = '_id'
-#
-#    names = []
-#    #items = mongo.db[collection_open].find({key: document}).limit(10)
-#    items = mongo.db[collection].find({key: document}).limit(10)
-#    image = ""
-#    for item in items:
-##      if collection_open == 'fs.chunck':
-##        byte=base64.b64encode(item['data']).decode()
-##        #image=img.bin_to_image('png', byte)
-##        image=img.bin_to_image('pdf', byte)
-##        logging.log(100,image)
-##        #image=byte
-#      datas = [k for k, v in item.items()]
-#      for data in datas:
-#        names.append({"key": data, "value": item[data]})
-#    logging.info('info')
-#    
-#    return render_template('document.html', collection=collection, collections=collections, names=names, image=image) 
-#
