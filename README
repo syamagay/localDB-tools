@@ -3,7 +3,12 @@
 1, requirements
 - mongodb 
 - python 3.4.3
-- 
+  * pip install --upgrade pip
+  * pip install --upgrade pillow
+  * pip install pymongo
+  * pip install pdf2image
+  * pip install Flask-PyMongo
+  * pip install python-dateutil 
 
 2, preparetion
  > 1, git clone this source
