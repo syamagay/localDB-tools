@@ -8,7 +8,8 @@ from bson.objectid import ObjectId # Convert str to ObjectId
 
 app = Flask(__name__)
 app.secret_key = 'secret'
-app.config["MONGO_URI"] = "mongodb://localhost:27017/yarrdb"
+#app.config["MONGO_URI"] = "mongodb://localhost:27017/yarrdb"
+app.config["MONGO_URI"] = "mongodb://localhost:28000/yarrdb"
 mongo = PyMongo(app)
 
 @app.route('/', methods=['GET'])
@@ -18,20 +19,29 @@ def show_modules_and_chips():
     modules = []
     module_entries = []
     for row in component:
-        module_entries.append({"_id": row['_id'], "serialNumber": row['serialNumber'], "datetime": row['sys']['cts'].strftime("%Y/%m/%d-%H:%M:%S")})
+        module_entries.append({"_id": row['_id']
+                               ,"serialNumber": row['serialNumber'] 
+                               ,"datetime": row['sys']['cts'].strftime("%Y/%m/%d-%H:%M:%S")
+                               })
 
     for module_entry in module_entries:
         query = {"parent": str(module_entry['_id'])}
         cprelation = mongo.db.childParentRelation.find(query)
         child_entries = []
         for row in cprelation:
-            child_entries.append({"child": row['child'], "datetime": row['sys']['cts'].strftime("%Y/%m/%d-%H:%M:%S")})
+            child_entries.append({"child": row['child']
+                                  ,"datetime": row['sys']['cts'].strftime("%Y/%m/%d-%H:%M:%S")
+                                  })
 
         chips = []
         for child_entry in child_entries:
             query = {"_id": ObjectId(child_entry['child'])}
             chip_entry = mongo.db.component.find_one(query) # Find child component
-            chips.append({"_id": str(chip_entry["_id"]), "serialNumber": chip_entry["serialNumber"], "componentType": chip_entry["componentType"], "datetime": chip_entry["sys"]["cts"].strftime("%Y-%m-%d %H:%M:%S")})
+            chips.append({"_id": str(chip_entry["_id"])
+                          ,"serialNumber": chip_entry["serialNumber"]
+                          ,"componentType": chip_entry["componentType"]
+                          ,"datetime": chip_entry["sys"]["cts"].strftime("%Y-%m-%d %H:%M:%S")
+                          })
 
         modules.append({"_id": str(module_entry["_id"]), "serialNumber": module_entry["serialNumber"], "chips": chips})
 
@@ -91,7 +101,7 @@ def show_result():
     componentId = request.args.get('id')
     Id=""
 
-    docs = mongo.db.componentTestRun.find({"component": componentId}).sort('$natural', pymongo.DESCENDING)
+    docs = mongo.db.componentTestRun.find({"component": componentId}).sort('runNumber',pymongo.DESCENDING)
     index = []
     results = []
     for doc in docs:
@@ -289,5 +299,43 @@ def show_image():
     return render_template('pdf.html',image=image) 
 
 if __name__ == '__main__':
-    app.run(host='127.0.0.1') # change hostID
+    #app.run(host='127.0.0.1') # change hostID
+    app.run(host='192.168.1.43') # change hostID
 
+#@app.route('/index/open/document', methods=['POST'])
+#def open_document():
+#
+#    collection = request.form['col']
+#    document = bson.objectid.ObjectId(request.form['doc'])
+#
+#    # collection Name
+#    collectionNames = mongo.db.collection_names()
+#    collections = []
+#    collections.append({"collection": collection})
+#    for col in collectionNames:
+#      if col != collection:
+#        collections.append({"collection": col})
+#
+#    # key and value
+#    #key = 'files_id'
+#    #if collection == collection_open:
+#    key = '_id'
+#
+#    names = []
+#    #items = mongo.db[collection_open].find({key: document}).limit(10)
+#    items = mongo.db[collection].find({key: document}).limit(10)
+#    image = ""
+#    for item in items:
+##      if collection_open == 'fs.chunck':
+##        byte=base64.b64encode(item['data']).decode()
+##        #image=img.bin_to_image('png', byte)
+##        image=img.bin_to_image('pdf', byte)
+##        logging.log(100,image)
+##        #image=byte
+#      datas = [k for k, v in item.items()]
+#      for data in datas:
+#        names.append({"key": data, "value": item[data]})
+#    logging.info('info')
+#    
+#    return render_template('document.html', collection=collection, collections=collections, names=names, image=image) 
+#

@@ -12,6 +12,7 @@
           <thead>
             <tr>
               <th scope="col" rowspan="2">Date</th>
+              <th scope="col" rowspan="2">Run Number</th>
               <th scope="col" rowspan="2">Test type</th>
               <th scope="col" rowspan="2">Institution</th>
               <th scope="col" colspan="3">Environment</th>
@@ -26,6 +27,7 @@
             {% for item in index %}
               <tr>
                 <td>{{ item.datetime }}</td>
+                <td>{{ item.runNumber }}</td>
                 <td>
                   <a href="{{ url_for('show_result_item', componentId=componentId, Id=item['_id'], serialNumber=serialNumber) }}">{{item.testType}}</a>
                 </td>
@@ -36,7 +38,7 @@
               </tr>
              {% if item._id == Id %}
                 <tr>
-                  <td colspan="6">
+                  <td colspan="7">
                       <p style="display: inline"><figure>
                       {% for result in results %}
                         <center>
@@ -53,6 +55,7 @@
               {% endif %}
             {% else %}
               <tr>
+                <td>No match.</td>
                 <td>No match.</td>
                 <td>No match.</td>
                 <td>No match.</td>
