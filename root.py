@@ -65,7 +65,8 @@ for map_type in datDict[scan_type] :
     for i in range(4) :
 
         # Open Files
-        filename = scanDirs[0]+"/"+mod_name+"_chipId"+str(i+1)+"_"+map_type[0]+".dat"
+        #filename = scanDirs[0]+"/"+mod_name+"_chipId"+str(i+1)+"_"+map_type[0]+".dat"
+        filename = "/tmp/"+mod_name+"_chipId"+str(i+1)+"_"+map_type[0]+".dat"
         try :
             f = open(filename)
         except :

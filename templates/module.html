@@ -33,7 +33,7 @@
                     <center>
                     <figcaption>source</figcaption>
                     {% for figure in figures %}
-                      <a href="{{ url_for('analysis_root', id=module[0]['_id'], scan=figure.url) }}">{{figure.url}}</a><br>
+                      <a href="{{ url_for('analysis_root', serialNumber=module[0]['serialNumber'], scan=figure }}">{{figure}}</a><br>
                     {% else %}
                       No match.
                     {% endfor %}

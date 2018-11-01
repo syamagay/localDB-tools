@@ -72,8 +72,9 @@ def show_module():
                        "componentType": chip['componentType'] })
 
         query = {"component": child['child'], "testType": "selftrigger"}
-        for scan in scanList:
-            figures.append({"url": scan})
+#        for scan in scanList:
+#            figures.append({"url": scan})
+        
 #        scan_entries = mongo.db.componentTestRun.find(query)
 #        for scan in scan_entries:
 #            query = {"_id":bson.objectid.ObjectId(scan['testRun'])}
@@ -87,26 +88,23 @@ def show_module():
 #                    url = img.bin_to_image(data['contentType'],byte)
 #                    figures.append({ "url": url })
 
-    return render_template('module.html', index=index, module=module, figures=figures)
+    return render_template('module.html', index=index, module=module, figures=scanList)
 
 @app.route('/analysis', methods=['GET','POST'])
 def analysis_root():
-    chip = []
+    chip_entries = []
     dat = []
+    runNumber = []
     query = { "parent": request.args.get('id') }
+    mod_name = request.args.get('serialNumber')
+    scan_type = request.args.get('scan')
+    #query = { "_id": bson.objectid.ObjectId(request.args.get('id')) }
     child_entries = mongo.db.childParentRelation.find(query)
-    if child_entries.count() != 4:
-        return render_template('error.html', dat=dat)
     for child in child_entries:
-        chip.append({ "component": child['child'] })
-
-    query = { '$or': chip, "testType": request.args.get('scan') }
-    scan_entries = mongo.db.componentTestRun.find(query).sort('runNumber',pymongo.DESCENDING)
-    i = 0
-    j = 0
-    data_dat = {}
-    for scan in scan_entries:
-        if i != 4:
+        query = { "component": child['child'] }
+        scan_entries = mongo.db.componentTestRun.find(query)
+        for scan in scan_entries:
+            runNumber.append(scan['runNumber'])
             query = { "_id": bson.objectid.ObjectId(scan['testRun']) }
             result = mongo.db.testRun.find_one(query)
             data_entries = result['attachments']
@@ -114,12 +112,13 @@ def analysis_root():
                 if data['contentType'] == 'dat':
                     query = {"files_id": bson.objectid.ObjectId(data['code'])}
                     binary = mongo.db.fs.chunks.find_one(query)
-                    data_dat.update({'chip{}'.format(i): str(binary)})
-            i += 1
-        else:
-            dat.append(data_dat)
-            i = 0
-            j += 1
+                    f = open('/tmp/{}.dat'.format(scan['filename']),"w")
+                    f.write(binary['code']
+
+    runNumber = list(set(runNumber))
+    print(runNumber)
+    #for num_scan in runNumber:
+    #    drawScan(mod_name, scan_type, nam_scan) 
                 
     return render_template('error.html', dat=dat)
 
