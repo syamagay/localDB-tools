@@ -6,7 +6,7 @@
     <div class="row align-items-center justify-content-center">
       <div class="col">
 
-        <h1>Chip Summary : {{serialNumber}}</h1>
+        <h1>Chip Summary : {{chip[0]['serialNumber']}}</h1>
     
         <table class="table table-sm table-hover table-striped">
           <thead>
@@ -29,14 +29,14 @@
                 <td>{{ item.datetime }}</td>
                 <td>{{ item.runNumber }}</td>
                 <td>
-                  <a href="{{ url_for('show_result_item', componentId=componentId, Id=item['_id'], serialNumber=serialNumber) }}">{{item.testType}}</a>
+                  <a href="{{ url_for('show_result_item', componentId=chip[0]['component'], Id=item['_id'], serialNumber=chip[0]['serialNumber']) }}">{{item.testType}}</a>
                 </td>
                 <td>{{ item.institution }}</td>
                 <td>{{ item.environment.hv }}</td>
                 <td>{{ item.environment.cool }}</td>
                 <td>{{ item.environment.stage }}</td>
               </tr>
-             {% if item._id == Id %}
+             {% if item._id == chip[0]['_id'] %}
                 <tr>
                   <td colspan="7">
                       <p style="display: inline"><figure>

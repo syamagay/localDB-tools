@@ -24,23 +24,27 @@ datDict = { "selftrigger" : [("OccupancyMap-0", "#Hit"),],
             "digitalscan" : [("OccupancyMap", "Occupancy"), ("EnMask", "EnMask")],
             "analogscan" : [("OccupancyMap", "Occupancy"), ("EnMask", "EnMask")]}
 
+def drawScan(scan_type, mod_name):
+    if scan_type in datDict:
+        
+    else:
 
-##########
-# Scan number
-num_scan  = raw_input('Enter the scan number ->  ')
-if int(num_scan) < 0 : raise ValueError("Invalid scan number")
-
-
-##########
-# Scan directory
-inDir = "ScanData/"
-
-scanDirs=glob.glob(inDir+"%06d"%int(num_scan)+"_*")
-if len(scanDirs) != 1 : raise ValueError("Valid directory not found")
-
+###########
+## Scan number
+#num_scan  = raw_input('Enter the scan number ->  ')
+#if int(num_scan) < 0 : raise ValueError("Invalid scan number")
+#
+#
+###########
+## Scan directory
+#inDir = "ScanData/"
+#
+#scanDirs=glob.glob(inDir+"%06d"%int(num_scan)+"_*")
+#if len(scanDirs) != 1 : raise ValueError("Valid directory not found")
+#
 # TODO : More sophisticated way
-scan_type = scanDirs[0].split("_")[1]
-mod_name = os.path.basename( glob.glob(scanDirs[0]+"/*_chipId1.json.after")[0] ).split("_")[0]
+#scan_type = scanDirs[0].split("_")[1]
+#mod_name = os.path.basename( glob.glob(scanDirs[0]+"/*_chipId1.json.after")[0] ).split("_")[0]
 
 
 ############
