@@ -1,4 +1,4 @@
-import pymongo, json, bson.objectid, logging, img, base64
+import pymongo, json, bson.objectid, logging, img, base64, os, root
 from collections import OrderedDict
 import pprint
 from flask import Flask, current_app, request, flash,redirect,url_for,render_template
@@ -57,8 +57,9 @@ def show_modules_and_chips():
 @app.route('/module', methods=['GET','POST'])
 def show_module():
     index = []
-    figures = []
+    scanIndex = []
     module = []
+    chips = []
     module.append({ "_id": request.args.get('id'),
                     "serialNumber": request.args.get('serialNumber') })
 
@@ -67,14 +68,22 @@ def show_module():
     for child in child_entries:
         query = { "_id": bson.objectid.ObjectId(child['child']) }
         chip = mongo.db.component.find_one(query)
+        chips.append({"component": child['child']})
         index.append({ "_id": bson.objectid.ObjectId(child['child']),
                        "chip": chip['serialNumber'],
                        "componentType": chip['componentType'] })
 
-        query = {"component": child['child'], "testType": "selftrigger"}
-        for scan in scanList:
-            figures.append({"url": scan})
-#        scan_entries = mongo.db.componentTestRun.find(query)
+    for scan in scanList:
+        query = {'$or': chips, "testType": scan}
+        run_entries = mongo.db.componentTestRun.find(query)
+        runNumber = []
+        for run in run_entries:
+            runNumber.append(run['runNumber'])
+        runNumber=sorted(list(set(runNumber)))
+        scanIndex.append({"testType": scan, "runNumber": runNumber})
+
+            #figures.append({"url": scan})
+        
 #        for scan in scan_entries:
 #            query = {"_id":bson.objectid.ObjectId(scan['testRun'])}
 #            result = mongo.db.testRun.find_one(query)
@@ -87,41 +96,36 @@ def show_module():
 #                    url = img.bin_to_image(data['contentType'],byte)
 #                    figures.append({ "url": url })
 
-    return render_template('module.html', index=index, module=module, figures=figures)
+    return render_template('module.html', index=index, module=module, figures=scanIndex)
 
 @app.route('/analysis', methods=['GET','POST'])
 def analysis_root():
-    chip = []
+    chip_entries = []
     dat = []
+    runNumber = request.args.get('runNumber')
     query = { "parent": request.args.get('id') }
+    mod_name = request.args.get('serialNumber')
+    scan_type = request.args.get('scan')
     child_entries = mongo.db.childParentRelation.find(query)
-    if child_entries.count() != 4:
-        return render_template('error.html', dat=dat)
     for child in child_entries:
-        chip.append({ "component": child['child'] })
+        query = { "component": child['child'], "runNumber": int(runNumber) }
+        scan = mongo.db.componentTestRun.find_one(query)
+        
+        if not os.path.isdir('/tmp/{}'.format(runNumber)):
+            os.mkdir('/tmp/{}'.format(runNumber))
+        query = { "_id": bson.objectid.ObjectId(scan['testRun']) }
+        result = mongo.db.testRun.find_one(query)
+        data_entries = result['attachments']
+        for data in data_entries:
+            if data['contentType'] == 'dat':
+                query = {"files_id": bson.objectid.ObjectId(data['code'])}
+                binary = mongo.db.fs.chunks.find_one(query)
+                f = open('/tmp/{0}/{1}.dat'.format(runNumber, data['filename']),"w")
+                f.write(binary['data'])
 
-    query = { '$or': chip, "testType": request.args.get('scan') }
-    scan_entries = mongo.db.componentTestRun.find(query).sort('runNumber',pymongo.DESCENDING)
-    i = 0
-    j = 0
-    data_dat = {}
-    for scan in scan_entries:
-        if i != 4:
-            query = { "_id": bson.objectid.ObjectId(scan['testRun']) }
-            result = mongo.db.testRun.find_one(query)
-            data_entries = result['attachments']
-            for data in data_entries:
-                if data['contentType'] == 'dat':
-                    query = {"files_id": bson.objectid.ObjectId(data['code'])}
-                    binary = mongo.db.fs.chunks.find_one(query)
-                    data_dat.update({'chip{}'.format(i): str(binary)})
-            i += 1
-        else:
-            dat.append(data_dat)
-            i = 0
-            j += 1
+    root.drawScan(mod_name, scan_type, runNumber) 
                 
-    return render_template('error.html', dat=dat)
+    return render_template('error.html')
 
     #return redirect(url_for('show_summary'))
     #return 0 
