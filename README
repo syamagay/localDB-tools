@@ -1,0 +1,29 @@
+-- User guide --
+
+1, requirements
+- mongodb 
+- python 3.4.3 with pyenv
+  * pip install pillow
+  * pip install pymongo
+  * pip install pdf2image
+  * pip install Flask-PyMongo
+  * pip install python-dateutil 
+(- python 2 with pyenv)
+
+2, preparetion
+ > 1, git clone this source
+      git clone https://gitlab.cern.ch/akubota/web-app-db-yarr.git
+ > 2, modify some points
+      in app.py
+        app.config["MONGO_URI"] = "mongodb://<IP address>:<port>/<dbName>" 
+        * IP address : "localhost" or IP address of server with mongodb
+        * port : TCP port used by mongodb (default:27017)
+        * dbName : select database to show
+       
+        app.run(host='<IP address>')
+        * IP address : "127.0.0.1" or IP address of server with mongodb
+ > 3, run 
+      <in running mongodb>
+      pyenv local 3.4.3
+      python app.py
+      
