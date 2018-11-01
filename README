@@ -23,7 +23,7 @@
         app.run(host='<IP address>')
         * IP address : "127.0.0.1" or IP address of server with mongodb
  > 3, run 
-      <in running mongodv>
+      <in running mongodb>
       pyenv local 3.4.3
       python app.py
       
