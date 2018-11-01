@@ -3,18 +3,14 @@
 ### K. Yajima
 ###############
 
-
 import glob
 import sys, os
 sys.path.append( os.path.dirname(os.path.abspath(__file__)) + "/PlotTools" )
 
-
 from PlotHelpers import gHelper as PH
 import PlotFromHistos.SimplePlots as Plot
 
-
 import ROOT
-
 
 ##########
 # Variables
@@ -69,7 +65,7 @@ for map_type in datDict[scan_type] :
         try :
             f = open(filename)
         except :
-            print("File not found : " + filename)
+            print "File not found : " + filename
             continue
 
         # Readlines
