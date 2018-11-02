@@ -36,7 +36,7 @@
               {% for figure in figures %}
               <td>
                 {% for fig in figure['runNumber'] %}
-                  <a href="{{ url_for('analysis_root', id=module[0]['_id'], serialNumber=module[0]['serialNumber'], scan=figure['testType'], runNumber=fig) }}">{{fig}}</a><br>
+                  <a href="{{ url_for('analysis_root', id=module[0]['_id'], runNumber=fig) }}">{{fig}}</a><br>
                 {% else %}
                   No match.
                 {% endfor %}

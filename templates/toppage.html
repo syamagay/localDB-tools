@@ -42,7 +42,7 @@
               {% for chip in module["chips"] %}
                 <tr>
                   {% if var.is_first_chip %}
-                    <td rowspan=4><a href="{{ url_for('show_module', id=module["_id"], serialNumber=module["serialNumber"]) }}">{{ module["serialNumber"] }}</a></td>
+                    <td rowspan=4><a href="{{ url_for('show_module', id=module["_id"]) }}">{{ module["serialNumber"] }}</a></td>
                   {% endif %}
                     {% if var.update({'is_first_chip': false}) %}{% endif %}
                     <td><a href="{{ url_for('show_result', id=chip["_id"], serialNumber=chip["serialNumber"]) }}">{{ chip["serialNumber"] }}</a></td>

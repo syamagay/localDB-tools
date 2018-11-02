@@ -60,8 +60,10 @@ def show_module():
     scanIndex = []
     module = []
     chips = []
+    query = { "_id": bson.objectid.ObjectId(request.args.get('id')) }
+    module_entry = mongo.db.component.find_one(query)
     module.append({ "_id": request.args.get('id'),
-                    "serialNumber": request.args.get('serialNumber') })
+                    "serialNumber": module_entry['serialNumber'] })
 
     query = { "parent": module[0]['_id'] } 
     child_entries = mongo.db.childParentRelation.find(query).sort('$natural', pymongo.ASCENDING)
@@ -85,20 +87,11 @@ def show_module():
                            "url": "", 
                            "mapType": "" })
 
+    #if request.args.get('root') == true:
+    #    root_entry = request.args.get('scan')
+        
             #figures.append({"url": scan})
         
-#        for scan in scan_entries:
-#            query = {"_id":bson.objectid.ObjectId(scan['testRun'])}
-#            result = mongo.db.testRun.find_one(query)
-#            data_entries = result['attachments']
-#            for data in data_entries:
-#                if data['contentType'] == 'png':
-#                    query = { "files_id": bson.objectid.ObjectId(data['code']) }
-#                    binary = mongo.db.fs.chunks.find_one(query)
-#                    byte = base64.b64encode(binary['data']).decode()
-#                    url = img.bin_to_image(data['contentType'],byte)
-#                    figures.append({ "url": url })
-
     return render_template('module.html', index=index, module=module, figures=scanIndex)
 
 @app.route('/analysis', methods=['GET','POST'])
@@ -106,10 +99,12 @@ def analysis_root():
     chip_entries = []
     dat = []
     scanIndex = []
+    module_id = request.args.get('id')
     runNumber = request.args.get('runNumber')
-    query = { "parent": request.args.get('id') }
-    mod_name = request.args.get('serialNumber')
-    scan_type = request.args.get('scan')
+    query = { "_id": bson.objectid.ObjectId(module_id) }
+    module_entry = mongo.db.component.find_one(query)
+    mod_name = module_entry['serialNumber']
+    query = { "parent": module_id }
     child_entries = mongo.db.childParentRelation.find(query)
     for child in child_entries:
         query = { "component": child['child'], "runNumber": int(runNumber) }
@@ -119,6 +114,7 @@ def analysis_root():
             os.mkdir('/tmp/{}'.format(runNumber))
         query = { "_id": bson.objectid.ObjectId(scan['testRun']) }
         result = mongo.db.testRun.find_one(query)
+        scan_type = result['testType']
         data_entries = result['attachments']
         for data in data_entries:
             if data['contentType'] == 'dat':
@@ -126,37 +122,20 @@ def analysis_root():
                 binary = mongo.db.fs.chunks.find_one(query)
                 f = open('/tmp/{0}/{1}.dat'.format(runNumber, data['filename']),"w")
                 f.write(binary['data'])
+                f.close()
 
     num_plot=root.drawScan(mod_name, scan_type, runNumber) 
     for plot in num_plot:
-        url = img.bin_to_image('png',plot.base64)
+        url = img.bin_to_image('png',plot['base64'])
     
-        scanIndex.append({ "testType": plot.scan_type, 
-                           "mapType": plot.map_type, 
-                           "runNumber": plot.num_scan, 
+        scanIndex.append({ "testType": plot['scan_type'], 
+                           "mapType": plot['map_type'], 
+                           "runNumber": plot['num_scan'], 
                            "url": url })
-        print(url)
 
-#                if data['contentType'] == 'pdf' or data['contentType'] == 'png':
-#                    query = {"files_id": bson.objectid.ObjectId(data['code'])}
-#                    binary = mongo.db.fs.chunks.find_one(query)
-#                    byte = base64.b64encode(binary['data']).decode()
-#                    url = img.bin_to_image(data['contentType'],byte)
-#                    results.append({ "testType":result['testType'],
-#                                     "url":url,
-#                                     "filename":data['filename'],
-#                                     "contentType":data['contentType'] })
-#
+    return render_template('error.html', dat=scanIndex)
 
-#        num_plot.append({ "mod_name": mod_name,
-#                          "num_scan": num_scan,
-#                          "scan_type": scan_type,
-#                          "map_type": map_type[0] })
-#
-
-    return render_template('error.html')
-
-    #return redirect(url_for('show_summary'))
+   #return redirect(url_for('show_summary', id=module_id, root=true, scan=scanIndex))
     #return 0 
 
 @app.route('/chip', methods=['GET','POST'])

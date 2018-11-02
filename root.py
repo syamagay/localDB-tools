@@ -28,6 +28,7 @@ datDict = { "selftrigger" : [("OccupancyMap-0", "#Hit"),],
 def drawScan(mod_name, scan_type, num_scan):
     if int(num_scan) < 0 : raise ValueError("Invalid scan number")
 
+    ROOT.gROOT.SetBatch()
 ###########
 ## Scan number
 #num_scan  = raw_input('Enter the scan number ->  ')
@@ -108,7 +109,8 @@ def drawScan(mod_name, scan_type, num_scan):
         path_plot = mod_name+"_"+map_type[0]
         #Plot.Plot1D_fromHistos(h1, False, num_scan+"_"+mod_name+"_"+map_type[0]+"_Dist", "#Ch.")
         Plot.Plot2D_fromHistos(h2, True, path_plot, map_type[1])
-        binary_png = open(path_dir+"/"+path_plot,'rb')
+
+        binary_png = open(path_dir+"/"+path_plot+".png",'rb')
         code_base64 = base64.b64encode(binary_png.read()).decode()
         binary_png.close()
 
