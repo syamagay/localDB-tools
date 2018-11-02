@@ -108,6 +108,7 @@ def Plot2D_fromHistos(histo, logZ=False, fileName="", zTitle="Events") :
     histo.GetYaxis().SetTitleOffset(1.0)
     histo.GetZaxis().SetTitleOffset(0.9)
     histo.GetZaxis().SetTitle(zTitle)
+    histo.GetZaxis().SetRangeUser(0,1000)
 
     ####################
     ## Drawing
@@ -125,9 +126,9 @@ def Plot2D_fromHistos(histo, logZ=False, fileName="", zTitle="Events") :
     fileName = fileName.replace("/","_")
     PH.SavePlot( canvas, fileName )
 
+    print("close")
     canvas.Close()
-
-
+    print("closed")
 
 def PlotTGraphs(graphs, logY=False, fileName="",
                 xTitle="xAxis", yTitle="yAxis",

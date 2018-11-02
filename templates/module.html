@@ -11,11 +11,26 @@
         <table class="table table-sm table-hover table-striped">
           <thead>
             <tr>
+              {% for d in data %}
+          　　<td>
+                 <figure>
+                 <figcaption>{{d.mapType}}</figcaption>
+                 <a href={{d.url}} target="_brank">
+                   <img src={{d.url}} title={{d.mapType}} width="50%" height="50%">
+                   </img>
+                 </a>
+                 </figure>
+          　　</td>
+              {% else %}
+                No match.
+              {% endfor %}
+            </tr>
+            <tr>
               <th scope="col">FE type</th>
               <th scope="col">Chips</th>
-              {% for figure in figures %}
+              {% for s in scan %}
                 <th scope="col">
-                  {{figure['testType']}}
+                  {{s['testType']}}
                 </th>
               {% else %}
               {% endfor %}
@@ -33,10 +48,10 @@
                   No match.
                 {% endfor %}
               </td>
-              {% for figure in figures %}
+              {% for s in scan %}
               <td>
-                {% for fig in figure['runNumber'] %}
-                  <a href="{{ url_for('analysis_root', id=module[0]['_id'], serialNumber=module[0]['serialNumber'], scan=figure['testType'], runNumber=fig) }}">{{fig}}</a><br>
+                {% for fig in s['runNumber'] %}
+                  <a href="{{ url_for('analysis_root', id=module[0]['_id'], runNumber=fig) }}">{{fig}}</a><br>
                 {% else %}
                   No match.
                 {% endfor %}
