@@ -73,6 +73,7 @@ def show_module():
                        "chip": chip['serialNumber'],
                        "componentType": chip['componentType'] })
 
+<<<<<<< HEAD
     for scan in scanList:
         query = {'$or': chips, "testType": scan}
         run_entries = mongo.db.componentTestRun.find(query)
@@ -84,6 +85,13 @@ def show_module():
 
             #figures.append({"url": scan})
         
+=======
+        query = {"component": child['child'], "testType": "selftrigger"}
+#        for scan in scanList:
+#            figures.append({"url": scan})
+        
+#        scan_entries = mongo.db.componentTestRun.find(query)
+>>>>>>> a07ea0861e32eb58450a8300c26aa9c628e9b73a
 #        for scan in scan_entries:
 #            query = {"_id":bson.objectid.ObjectId(scan['testRun'])}
 #            result = mongo.db.testRun.find_one(query)
@@ -96,7 +104,11 @@ def show_module():
 #                    url = img.bin_to_image(data['contentType'],byte)
 #                    figures.append({ "url": url })
 
+<<<<<<< HEAD
     return render_template('module.html', index=index, module=module, figures=scanIndex)
+=======
+    return render_template('module.html', index=index, module=module, figures=scanList)
+>>>>>>> a07ea0861e32eb58450a8300c26aa9c628e9b73a
 
 @app.route('/analysis', methods=['GET','POST'])
 def analysis_root():
