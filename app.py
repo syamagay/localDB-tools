@@ -56,10 +56,14 @@ def show_modules_and_chips():
 def show_module():
     index = []
     scanIndex = []
+    dataIndex = []
     module = []
     chips = []
     query = { "_id": bson.objectid.ObjectId(request.args.get('id')) }
     module_entry = mongo.db.component.find_one(query)
+    scanType = ""
+    runNumber = ""
+    mod_name = module_entry['serialNumber']
     module.append({ "_id": request.args.get('id'),
                     "serialNumber": module_entry['serialNumber'] })
 
@@ -84,14 +88,23 @@ def show_module():
                            "runNumber": runNumber, 
                            "url": "", 
                            "mapType": "" })
+    try:
+        runNumber = request.args.get('run')
+        scanType = request.args.get('scan')
+        num_plot=root.drawScan(mod_name, scanType, runNumber) 
+        for plot in num_plot:
+            url = img.bin_to_image('png',plot['base64'])
+        
+            dataIndex.append({ "testType": plot['scan_type'], 
+                               "mapType": plot['map_type'], 
+                               "runNumber": plot['num_scan'], 
+                               "url": url })
+    except: print("test")
 
-    return render_template('module.html', index=index, module=module, figures=scanIndex)
+    return render_template('module.html', index=index, module=module, scan=scanIndex, data=dataIndex)
 
 @app.route('/analysis', methods=['GET','POST'])
 def analysis_root():
-    chip_entries = []
-    dat = []
-    scanIndex = []
     module_id = request.args.get('id')
     runNumber = request.args.get('runNumber')
     query = { "_id": bson.objectid.ObjectId(module_id) }
@@ -107,7 +120,7 @@ def analysis_root():
             os.mkdir('/tmp/{}'.format(runNumber))
         query = { "_id": bson.objectid.ObjectId(scan['testRun']) }
         result = mongo.db.testRun.find_one(query)
-        scan_type = result['testType']
+        scanType = result['testType']
         data_entries = result['attachments']
         for data in data_entries:
             if data['contentType'] == 'dat':
@@ -117,16 +130,7 @@ def analysis_root():
                 f.write(binary['data'])
                 f.close()
 
-    num_plot=root.drawScan(mod_name, scan_type, runNumber) 
-    for plot in num_plot:
-        url = img.bin_to_image('png',plot['base64'])
-    
-        scanIndex.append({ "testType": plot['scan_type'], 
-                           "mapType": plot['map_type'], 
-                           "runNumber": plot['num_scan'], 
-                           "url": url })
-
-    return render_template('root_result.html', dat=scanIndex)
+    return redirect(url_for('show_module', id=module_id, run=runNumber, scan=scanType))
 
 @app.route('/chip', methods=['GET','POST'])
 def show_result():
