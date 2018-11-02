@@ -9,6 +9,7 @@ sys.path.append( os.path.dirname(os.path.abspath(__file__)) + "/PlotTools" )
 
 from PlotHelpers import gHelper as PH
 import PlotFromHistos.SimplePlots as Plot
+import base64
 
 import ROOT
 
@@ -47,13 +48,14 @@ def drawScan(mod_name, scan_type, num_scan):
 
 ############
 # Main loop
+    num_plot = []
     for map_type in datDict[scan_type] :
     
         print mod_name, map_type, num_scan
     
-        h1 = ROOT.TH1D(mod_name+"_"+map_type[0]+"_Dist_"+num_scan,
-                       mod_name+"_"+map_type[0]+"_Dist_"+num_scan+";"+map_type[1],
-                       1000, 0, 1000)
+#        h1 = ROOT.TH1D(mod_name+"_"+map_type[0]+"_Dist_"+num_scan,
+#                       mod_name+"_"+map_type[0]+"_Dist_"+num_scan+";"+map_type[1],
+#                       1000, 0, 1000)
     
         h2 = ROOT.TH2D(mod_name+"_"+map_type[0]+"_"+num_scan,
                        mod_name+"_"+map_type[0]+"_"+num_scan+";Column;Row",
@@ -89,7 +91,7 @@ def drawScan(mod_name, scan_type, num_scan):
                 elif i==3 : col = NUM_COL
     
                 for word in words :
-                    h1.Fill(float(word))
+                    #h1.Fill(float(word))
                     h2.SetBinContent(col+1, row+1, float(word))
     
                     if   i==0 or i==1 : col = col - 1
@@ -100,7 +102,19 @@ def drawScan(mod_name, scan_type, num_scan):
     
             f.close()
     
-        PH.outDir = "/tmp/" + "%06d"%int(num_scan) + "_" + scan_type
-    
-        Plot.Plot1D_fromHistos(h1, False, num_scan+"_"+mod_name+"_"+map_type[0]+"_Dist", "#Ch.")
-        Plot.Plot2D_fromHistos(h2, False, num_scan+"_"+mod_name+"_"+map_type[0], map_type[1])
+        path_dir = "/tmp/" + num_scan + "_" + scan_type
+        PH.outDir = path_dir
+
+        path_plot = mod_name+"_"+map_type[0]
+        #Plot.Plot1D_fromHistos(h1, False, num_scan+"_"+mod_name+"_"+map_type[0]+"_Dist", "#Ch.")
+        Plot.Plot2D_fromHistos(h2, True, path_plot, map_type[1])
+        binary_png = open(path_dir+"/"+path_plot,'rb')
+        code_base64 = base64.b64encode(binary_png.read()).decode()
+        binary_png.close()
+
+        num_plot.append({ "mod_name": mod_name,
+                          "num_scan": num_scan,
+                          "scan_type": scan_type,
+                          "map_type": map_type[0],
+                          "base64": code_base64 })
+    return num_plot

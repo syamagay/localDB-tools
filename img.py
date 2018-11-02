@@ -15,5 +15,6 @@ def bin_to_image(typ, binary):
         image[0].save('/tmp/image.png', 'png')
         binary_png = open('/tmp/image.png','rb')
         byte = base64.b64encode(binary_png.read()).decode()
+        binary_png.close()
         data = 'data:image/png;base64,' + byte
     return data

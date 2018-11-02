@@ -80,7 +80,10 @@ def show_module():
         for run in run_entries:
             runNumber.append(run['runNumber'])
         runNumber=sorted(list(set(runNumber)))
-        scanIndex.append({"testType": scan, "runNumber": runNumber})
+        scanIndex.append({ "testType": scan, 
+                           "runNumber": runNumber, 
+                           "url": "", 
+                           "mapType": "" })
 
             #figures.append({"url": scan})
         
@@ -102,6 +105,7 @@ def show_module():
 def analysis_root():
     chip_entries = []
     dat = []
+    scanIndex = []
     runNumber = request.args.get('runNumber')
     query = { "parent": request.args.get('id') }
     mod_name = request.args.get('serialNumber')
@@ -123,8 +127,33 @@ def analysis_root():
                 f = open('/tmp/{0}/{1}.dat'.format(runNumber, data['filename']),"w")
                 f.write(binary['data'])
 
-    root.drawScan(mod_name, scan_type, runNumber) 
-                
+    num_plot=root.drawScan(mod_name, scan_type, runNumber) 
+    for plot in num_plot:
+        url = img.bin_to_image('png',plot.base64)
+    
+        scanIndex.append({ "testType": plot.scan_type, 
+                           "mapType": plot.map_type, 
+                           "runNumber": plot.num_scan, 
+                           "url": url })
+        print(url)
+
+#                if data['contentType'] == 'pdf' or data['contentType'] == 'png':
+#                    query = {"files_id": bson.objectid.ObjectId(data['code'])}
+#                    binary = mongo.db.fs.chunks.find_one(query)
+#                    byte = base64.b64encode(binary['data']).decode()
+#                    url = img.bin_to_image(data['contentType'],byte)
+#                    results.append({ "testType":result['testType'],
+#                                     "url":url,
+#                                     "filename":data['filename'],
+#                                     "contentType":data['contentType'] })
+#
+
+#        num_plot.append({ "mod_name": mod_name,
+#                          "num_scan": num_scan,
+#                          "scan_type": scan_type,
+#                          "map_type": map_type[0] })
+#
+
     return render_template('error.html')
 
     #return redirect(url_for('show_summary'))
