@@ -1,0 +1,13 @@
+{% extends "layout.html" %}    <!-- これで元になるHTML(laytout.html)を指定 -->
+{% block body %}    <!-- layout.htmlのbodyというブロックを以下で置き換える -->
+  <div>
+  {% for data in dat %}
+   <a href={{data.url}} target="_brank">
+     <img src={{data.url}} title={{data.mapType}} width="30%" height="30%">
+     </img>
+   </a>
+  {% else %}
+    No match.
+  {% endfor %}
+  </div>
+{% endblock %}

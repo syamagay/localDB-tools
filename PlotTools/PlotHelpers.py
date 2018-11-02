@@ -31,7 +31,8 @@ class PlotHelpers(Singleton) :
     """
     def __init__(self) :
         self.outDir = os.path.dirname(os.path.abspath(__file__)) + "/Data/TestDir"
-        self.saveExts = ["pdf", "png"]
+        #self.saveExts = ["pdf", "png"]
+        self.saveExts = ["png"]
 
         # For ATLAS label
         self.iLabel = None
