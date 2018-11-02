@@ -29,23 +29,6 @@ def drawScan(mod_name, scan_type, num_scan):
     if int(num_scan) < 0 : raise ValueError("Invalid scan number")
 
     ROOT.gROOT.SetBatch()
-###########
-## Scan number
-#num_scan  = raw_input('Enter the scan number ->  ')
-#if int(num_scan) < 0 : raise ValueError("Invalid scan number")
-#
-#
-###########
-## Scan directory
-#inDir = "ScanData/"
-#
-#scanDirs=glob.glob(inDir+"%06d"%int(num_scan)+"_*")
-#if len(scanDirs) != 1 : raise ValueError("Valid directory not found")
-#
-# TODO : More sophisticated way
-#scan_type = scanDirs[0].split("_")[1]
-#mod_name = os.path.basename( glob.glob(scanDirs[0]+"/*_chipId1.json.after")[0] ).split("_")[0]
-
 
 ############
 # Main loop
@@ -66,7 +49,7 @@ def drawScan(mod_name, scan_type, num_scan):
         for i in range(4) :
     
             # Open Files
-            #filename = scanDirs[0]+"/"+mod_name+"_chipId"+str(i+1)+"_"+map_type[0]+".dat"
+#            filename = scanDirs[0]+"/"+mod_name+"_chipId"+str(i+1)+"_"+map_type[0]+".dat"
             filename = "/tmp/"+num_scan+"/"+mod_name+"_chipId"+str(i+1)+"_"+map_type[0]+".dat"
             print(filename)
             try :
@@ -107,7 +90,7 @@ def drawScan(mod_name, scan_type, num_scan):
         PH.outDir = path_dir
 
         path_plot = mod_name+"_"+map_type[0]
-        #Plot.Plot1D_fromHistos(h1, False, num_scan+"_"+mod_name+"_"+map_type[0]+"_Dist", "#Ch.")
+#        Plot.Plot1D_fromHistos(h1, False, num_scan+"_"+mod_name+"_"+map_type[0]+"_Dist", "#Ch.")
         Plot.Plot2D_fromHistos(h2, True, path_plot, map_type[1])
 
         binary_png = open(path_dir+"/"+path_plot+".png",'rb')

@@ -8,9 +8,7 @@ from bson.objectid import ObjectId # Convert str to ObjectId
 
 app = Flask(__name__)
 app.secret_key = 'secret'
-#app.config["MONGO_URI"] = "mongodb://localhost:27017/yarrdb"
-app.config["MONGO_URI"] = "mongodb://localhost:27000/yarrdb"
-#app.config["MONGO_URI"] = "mongodb://localhost:28000/yarrdb"
+app.config["MONGO_URI"] = "mongodb://localhost:27017/yarrdb"
 mongo = PyMongo(app)
 
 scanList = [ "selftrigger",
@@ -87,11 +85,6 @@ def show_module():
                            "url": "", 
                            "mapType": "" })
 
-    #if request.args.get('root') == true:
-    #    root_entry = request.args.get('scan')
-        
-            #figures.append({"url": scan})
-        
     return render_template('module.html', index=index, module=module, figures=scanIndex)
 
 @app.route('/analysis', methods=['GET','POST'])
@@ -133,10 +126,7 @@ def analysis_root():
                            "runNumber": plot['num_scan'], 
                            "url": url })
 
-    return render_template('error.html', dat=scanIndex)
-
-   #return redirect(url_for('show_summary', id=module_id, root=true, scan=scanIndex))
-    #return 0 
+    return render_template('root_result.html', dat=scanIndex)
 
 @app.route('/chip', methods=['GET','POST'])
 def show_result():
@@ -337,5 +327,4 @@ def show_image():
     return render_template('pdf.html',image=image) 
 
 if __name__ == '__main__':
-    #app.run(host='127.0.0.1') # change hostID
-    app.run(host='192.168.1.43') # change hostID
+    app.run(host='127.0.0.1') # change hostID
