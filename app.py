@@ -1,4 +1,10 @@
-import pymongo, json, bson.objectid, logging, img, base64, os, root
+try:
+    import root
+    useRoot=True
+except:
+    useRoot=False
+    
+import pymongo, json, bson.objectid, logging, img, base64, os
 from collections import OrderedDict
 import pprint
 from flask import Flask, current_app, request, flash,redirect,url_for,render_template
@@ -90,18 +96,25 @@ def show_module():
                            "runNumber": runNumber, 
                            "url": "", 
                            "mapType": "" })
-    try:
-        runNumber = request.args.get('run')
-        scanType = request.args.get('scan')
-        num_plot=root.drawScan(mod_name, scanType, runNumber) 
-        for plot in num_plot:
-            url = img.bin_to_image('png',plot['base64'])
-        
-            dataIndex.append({ "testType": plot['scan_type'], 
-                               "mapType": plot['map_type'], 
-                               "runNumber": plot['num_scan'], 
-                               "url": url })
-    except: print("test")
+    runNumber = request.args.get('run')
+    scanType = request.args.get('scan')
+    if runNumber != None:
+        if useRoot:
+            num_plot=root.drawScan(mod_name, scanType, runNumber) 
+            for plot in num_plot:
+                url = img.bin_to_image('png',plot['base64'])
+            
+                dataIndex.append({ "testType": plot['scan_type'], 
+                                   "mapType": plot['map_type'], 
+                                   "runNumber": plot['num_scan'], 
+                                   "url": url })
+        else:
+             dataIndex.append({ "testType": "",
+                               "mapType": "No Root Software",
+                               "runNumber": "",
+                               "url": "" }) 
+    else:
+        print("test")
 
     return render_template('module.html', index=index, module=module, scan=scanIndex, data=dataIndex)
 

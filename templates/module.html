@@ -13,16 +13,18 @@
             <tr>
               {% for d in data %}
           　　<td>
-                 <figure>
-                 <figcaption>{{d.mapType}}</figcaption>
-                 <a href={{d.url}} target="_brank">
-                   <img src={{d.url}} title={{d.mapType}} width="50%" height="50%">
-                   </img>
-                 </a>
-                 </figure>
+                 {% if d['url'] != None %}
+                   {{d.mapType}}
+                 {% else %}
+                   <figure>
+                   <figcaption>{{d.mapType}}</figcaption>
+                   <a href={{d.url}} target="_brank">
+                     <img src={{d.url}} title={{d.mapType}} width="50%" height="50%">
+                     </img>
+                   </a>
+                   </figure>
+                 {% endif %}
           　　</td>
-              {% else %}
-                No match.
               {% endfor %}
             </tr>
             <tr>
