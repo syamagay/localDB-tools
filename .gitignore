@@ -14,7 +14,9 @@ pyvenv.cfg
 .venv
 pip-selfcheck.json
 .python-version
-__pycache__
-app_lazu.py
+__pycache__/
+*.pyc
+*.pdf
+*.root
 
 # End of https://www.gitignore.io/api/virtualenv
