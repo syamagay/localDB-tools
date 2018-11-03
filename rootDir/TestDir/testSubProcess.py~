@@ -1,7 +1,0 @@
-import subprocess
- 
-cmd = "ls -l"
-subprocess.call(cmd.split())
-
-cmd = "/usr/bin/python ../YARR_PyAna/drawFei4ModuleMap.py"
-subprocess.call(cmd.split())
