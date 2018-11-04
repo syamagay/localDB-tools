@@ -1,4 +1,5 @@
 {% extends "layout.html" %}    <!-- これで元になるHTML(laytout.html)を指定 -->
+  
 {% block body %}    <!-- layout.htmlのbodyというブロックを以下で置き換える -->
 
 
@@ -7,15 +8,49 @@
       <div class="col">
 
         <h1>Chip Summary : {{chip[0]['serialNumber']}}</h1>
-    
-        <table class="table table-sm table-hover table-striped">
+
+        {% if results[0] == _brank %}
+        {% else %}
+        <table class="table table-sm table-hover table-striped" style="font-size: 10pt;">
           <thead>
             <tr>
-              <th scope="col" rowspan="2">Date</th>
-              <th scope="col" rowspan="2">Run Number</th>
-              <th scope="col" rowspan="2">Test type</th>
-              <th scope="col" rowspan="2">Institution</th>
-              <th scope="col" colspan="3">Environment</th>
+              <th scope="col" colspan="4">Run Number : {{results[0]['runNumber']}}&ensp;&ensp;Test Type : {{results[0]['testType']}}</th>
+		        </tr>
+          </thead>
+          <tbody>
+            {% for result in results %}
+              {% if loop.index == 1 %}
+                <tr>
+              {% elif loop.index %4 == 1 %}
+                </tr>
+                <tr>
+              {% else %}
+              {% endif %}
+              <td>
+                <center>
+                <a href={{result.url}} target="_brank">
+                  <img src={{result.url}} title={{result.filename}} width="150" height="150">
+                  </img>
+                </a>
+                <p>
+                  {{result.filename}}
+                </p>
+                </center>
+              </td>
+            {% endfor %}
+            </tr>
+          </tbody>
+        </table>
+        {% endif %}
+    
+        <table class="table table-sm table-hover table-striped" style="font-size: 10pt;">
+          <thead>
+            <tr>
+              <th scope="col" rowspan="2" width="100">Run Number</th>
+              <th scope="col" rowspan="2" width="80">Test type</th>
+              <th scope="col" rowspan="2" width="100">Institution</th>
+              <th scope="col" colspan="3" width="300">Environment</th>
+              <th scope="col" rowspan="2" width="150">Date</th>
 		        </tr>
 		        <tr>
               <th scope="col">HV[V]</th>
@@ -26,7 +61,6 @@
           <tbody>
             {% for item in index %}
               <tr>
-                <td>{{ item.datetime }}</td>
                 <td>{{ item.runNumber }}</td>
                 <td>
                   <a href="{{ url_for('show_result_item', componentId=chip[0]['component'], Id=item['_id'], serialNumber=chip[0]['serialNumber']) }}">{{item.testType}}</a>
@@ -35,24 +69,8 @@
                 <td>{{ item.environment.hv }}</td>
                 <td>{{ item.environment.cool }}</td>
                 <td>{{ item.environment.stage }}</td>
+                <td>{{ item.datetime }}</td>
               </tr>
-             {% if item._id == chip[0]['_id'] %}
-                <tr>
-                  <td colspan="7">
-                      <p style="display: inline"><figure>
-                      {% for result in results %}
-                        <center>
-                        <figcaption>{{result.filename}}</figcaption>
-                        <a href={{result.url}} target="_brank">
-                          <img src={{result.url}} title={{result.filename}} width="30%" height="30%">
-                          </img>
-                        </a>
-                        </center>
-                      {% endfor %}
-                      </figure></p>
-                  </td>
-                </tr>
-              {% endif %}
             {% else %}
               <tr>
                 <td>No match.</td>

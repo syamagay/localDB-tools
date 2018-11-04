@@ -7,60 +7,68 @@
       <div class="col">
 
         <h1>Module Summary : {{module[0]['serialNumber']}}</h1>
-    
-        <table class="table table-sm table-hover table-striped">
+
+        {% if data[0]['testType'] == _brank %}
+        {% else %}
+          {% include "result_module.html" %}
+        {% endif %}
+
+        <table class="table table-sm table-hover table-striped" style="font-size: 10pt;">
+          <h4>Index</h4>
           <thead>
             <tr>
-              {% for d in data %}
-          　　<td>
-                 {% if d['url'] != None %}
-                   {{d.mapType}}
-                 {% else %}
-                   <figure>
-                   <figcaption>{{d.mapType}}</figcaption>
-                   <a href={{d.url}} target="_brank">
-                     <img src={{d.url}} title={{d.mapType}} width="50%" height="50%">
-                     </img>
-                   </a>
-                   </figure>
-                 {% endif %}
-          　　</td>
-              {% endfor %}
+              <th scope="col" width="100">Item</th>
+              <th scope="col"></th>
             </tr>
-            <tr>
-              <th scope="col">FE type</th>
-              <th scope="col">Chips</th>
-              {% for s in scan %}
-                <th scope="col">
-                  {{s['testType']}}
-                </th>
-              {% else %}
-              {% endfor %}
-		        </tr>
           </thead>
           <tbody>
             <tr>
               <td>
+                FE type
+              </td>
+              <td>
                 {{index[0]['componentType']}}
+              </td>
+            </tr>
+            <tr>
+              <td>
+                Chips
               </td>
               <td>
                 {% for item in index %}
-                  <a href="{{ url_for('show_result', id=item['_id'], serialNumber=item['chip']) }}">{{item.chip}}</a><br>
+                  <a href="{{ url_for('show_result', id=item['_id'], serialNumber=item['chip']) }}">{{item.number}}</a>&ensp;
                 {% else %}
                   No match.
                 {% endfor %}
               </td>
-              {% for s in scan %}
+            </tr>
+          </tbody>
+        </table>
+
+        <table class="table table-sm table-hover table-striped" style="font-size: 10pt;">
+          <h4>Scan result</h4>
+          <thead>
+            <tr>
+              <th scope="col" width="100">Scan type</th>
+              <th scope="col">Run number</th>
+            </tr>
+          </thead>
+          <tbody>
+            {% for s in scan %}
+            <tr>
+              <td>
+                {{s['testType']}}
+              </td>
               <td>
                 {% for fig in s['runNumber'] %}
-                  <a href="{{ url_for('analysis_root', id=module[0]['_id'], runNumber=fig) }}">{{fig}}</a><br>
+                  <a href="{{ url_for('analysis_root', id=module[0]['_id'], runNumber=fig) }}">{{fig}}</a>&ensp;
                 {% else %}
                   No match.
                 {% endfor %}
               </td>
-              {% else %}
-              {% endfor %}
-            </tr>
+		        </tr>
+            {% else %}
+            {% endfor %}
           </tbody>
         </table>
       </div>

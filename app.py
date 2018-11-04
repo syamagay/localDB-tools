@@ -1,10 +1,8 @@
 try:
     import root
-    useRoot=True
 except:
-    useRoot=False
-    
-import pymongo, json, bson.objectid, logging, img, base64, os
+    pass 
+import pymongo, json, bson.objectid, logging, img, base64, os, func, ast 
 from collections import OrderedDict
 import pprint
 from flask import Flask, current_app, request, flash,redirect,url_for,render_template
@@ -14,17 +12,15 @@ from bson.objectid import ObjectId # Convert str to ObjectId
 
 app = Flask(__name__)
 app.secret_key = 'secret'
-#app.config["MONGO_URI"] = "mongodb://localhost:27017/yarrdb"
 app.config["MONGO_URI"] = "mongodb://localhost:27000/yarrdb"
-#app.config["MONGO_URI"] = "mongodb://localhost:28000/yarrdb"
 mongo = PyMongo(app)
 
-scanList = [ "selftrigger",
-             "noisescan",
-             "totscan",
-             "thresholdscan",
-             "digitalscan",
-             "analogscan" ]
+scanList = { "selftrigger" : [("OccupancyMap-0", "#Hit"),],
+            "noisescan" : [("NoiseOccupancy","NoiseOccupancy"), ("NoiseMask", "NoiseMask")],
+            "totscan" : [("MeanTotMap", "Mean[ToT]"), ("SigmaTotMap", "Sigma[ToT]")],
+            "thresholdscan" : [("ThresholdMap", "Threshold[e]"), ("NoiseMap", "Noise[e]")],
+            "digitalscan" : [("OccupancyMap", "Occupancy"), ("EnMask", "EnMask")],
+            "analogscan" : [("OccupancyMap", "Occupancy"), ("EnMask", "EnMask")]}
 
 @app.route('/', methods=['GET'])
 def show_modules_and_chips():
@@ -35,7 +31,7 @@ def show_modules_and_chips():
     for row in component:
         module_entries.append({ "_id": row['_id'],
                                 "serialNumber": row['serialNumber'], 
-                                "datetime": row['sys']['cts'].strftime("%Y/%m/%d-%H:%M:%S") })
+                                "datetime":func.setTime(row['sys']['cts']) })
 
     for module_entry in module_entries:
         query = {"parent": str(module_entry['_id'])}
@@ -43,7 +39,7 @@ def show_modules_and_chips():
         child_entries = []
         for row in cprelation:
             child_entries.append({ "child": row['child'],
-                                   "datetime": row['sys']['cts'].strftime("%Y/%m/%d-%H:%M:%S") })
+                                   "datetime":func.setTime(row['sys']['cts']) })
 
         chips = []
         for child_entry in child_entries:
@@ -51,8 +47,9 @@ def show_modules_and_chips():
             chip_entry = mongo.db.component.find_one(query) # Find child component
             chips.append({ "_id": str(chip_entry["_id"]),
                            "serialNumber": chip_entry["serialNumber"],
+                           "number": chip_entry["serialNumber"].split("_")[1],
                            "componentType": chip_entry["componentType"],
-                           "datetime": chip_entry["sys"]["cts"].strftime("%Y-%m-%d %H:%M:%S") })
+                           "datetime":func.setTime(chip_entry['sys']['cts']) })
 
         modules.append({ "_id": str(module_entry["_id"]),
                          "serialNumber": module_entry["serialNumber"],
@@ -67,10 +64,9 @@ def show_module():
     dataIndex = []
     module = []
     chips = []
+
     query = { "_id": bson.objectid.ObjectId(request.args.get('id')) }
     module_entry = mongo.db.component.find_one(query)
-    scanType = ""
-    runNumber = ""
     mod_name = module_entry['serialNumber']
     module.append({ "_id": request.args.get('id'),
                     "serialNumber": module_entry['serialNumber'] })
@@ -82,6 +78,7 @@ def show_module():
         chip = mongo.db.component.find_one(query)
         chips.append({"component": child['child']})
         index.append({ "_id": bson.objectid.ObjectId(child['child']),
+                       "number": chip["serialNumber"].split("_")[1],
                        "chip": chip['serialNumber'],
                        "componentType": chip['componentType'] })
 
@@ -94,61 +91,130 @@ def show_module():
         runNumber=sorted(list(set(runNumber)))
         scanIndex.append({ "testType": scan, 
                            "runNumber": runNumber, 
-                           "url": "", 
-                           "mapType": "" })
-    runNumber = request.args.get('run')
-    scanType = request.args.get('scan')
-    if runNumber != None:
-        if useRoot:
-            num_plot=root.drawScan(mod_name, scanType, runNumber) 
-            for plot in num_plot:
-                url = img.bin_to_image('png',plot['base64'])
-            
-                dataIndex.append({ "testType": plot['scan_type'], 
-                                   "mapType": plot['map_type'], 
-                                   "runNumber": plot['num_scan'], 
-                                   "url": url })
-        else:
-             dataIndex.append({ "testType": "",
-                               "mapType": "No Root Software",
-                               "runNumber": "",
-                               "url": "" }) 
-    else:
-        print("test")
+                           "url": "" })
+
+    # redirect from analysis_root
+    try:
+        scan=request.args.get('scan')
+        for mapType in scanList[scan]:
+            file1D="/tmp/"+scan+"/"+mapType[0]+"_Dist.png" 
+            binary_png = open(file1D,'rb')
+            code_base64 = base64.b64encode(binary_png.read()).decode()
+            binary_png.close()
+            url = img.bin_to_image('png',code_base64)
+            dataIndex.append({ "testType": scan, 
+                               "mapType": mapType[0], 
+                               "runNumber": int(request.args.get('run')), 
+                               "url": url })
+            file2D="/tmp/"+scan+"/"+mapType[0]+".png" 
+            binary_png = open(file2D,'rb')
+            code_base64 = base64.b64encode(binary_png.read()).decode()
+            binary_png.close()
+            url = img.bin_to_image('png',code_base64)
+            dataIndex.append({ "testType": scan, 
+                               "mapType": mapType[0], 
+                               "runNumber": int(request.args.get('run')), 
+                               "url": url })
+    except:
+        dataIndex.append({"test":"test"})
+
+#    try:
+#        mapInfo = ast.literal_eval(request.args.get('mapInfo').encode())
+#        if mapInfo['runNumber'] != None:
+#            try:
+#                #num_plot = root.drawScan(mod_name, mapInfo['scanType'], mapInfo['runNumber'], mapInfo['setLog'], mapInfo['maxValue'], mapInfo['mapType'])
+#                num_plot = root.drawScan(mod_name, mapInfo['scanType'], mapInfo['runNumber'], mapInfo['setLog'], mapInfo['maxValue'], mapInfo['mapType'])
+#                for plot in num_plot:
+#                    url = img.bin_to_image('png',plot['base64'])
+#                
+#                    dataIndex.append({ "testType": plot['scan_type'], 
+#                                       "mapType": plot['map_type'], 
+#                                       "runNumber": plot['num_scan'], 
+#                                       "url": url })
+#            except:
+#                dataIndex.append({ "testType": mapInfo['scanType'],
+#                                   "mapType": "No Root Software",
+#                                   "runNumber": mapInfo['runNumber'] })
+#    except:
+#        dataIndex.append({"test":"test"})
 
     return render_template('module.html', index=index, module=module, scan=scanIndex, data=dataIndex)
 
 @app.route('/analysis', methods=['GET','POST'])
 def analysis_root():
     module_id = request.args.get('id')
-    runNumber = request.args.get('runNumber')
     query = { "_id": bson.objectid.ObjectId(module_id) }
     module_entry = mongo.db.component.find_one(query)
     mod_name = module_entry['serialNumber']
+
     query = { "parent": module_id }
     child_entries = mongo.db.childParentRelation.find(query)
     for child in child_entries:
-        query = { "component": child['child'], "runNumber": int(runNumber) }
+        query = { "component": child['child'], "runNumber": int(request.args.get('runNumber')) }
         scan = mongo.db.componentTestRun.find_one(query)
         
-        if not os.path.isdir('/tmp/{}'.format(runNumber)):
-            os.mkdir('/tmp/{}'.format(runNumber))
+        if not os.path.isdir('/tmp/data'):
+            os.mkdir('/tmp/data')
+
         query = { "_id": bson.objectid.ObjectId(scan['testRun']) }
         result = mongo.db.testRun.find_one(query)
         scanType = result['testType']
+
         data_entries = result['attachments']
         for data in data_entries:
             if data['contentType'] == 'dat':
                 query = {"files_id": bson.objectid.ObjectId(data['code'])}
                 binary = mongo.db.fs.chunks.find_one(query)
-                f = open('/tmp/{0}/{1}.dat'.format(runNumber, data['filename']),"w")
+                f = open('/tmp/data/{}.dat'.format(data['filename'].split("_")[1]+"_"+data['filename'].split("_")[2]),"w")
                 f.write(binary['data'])
                 f.close()
 
-    #return render_template('error.html', dat=scanIndex)
+    mapList = {}
+    for mapType in scanList[scanType]:
+        mapList.update({mapType[0]:True})
 
-    return redirect(url_for('show_module', id=module_id, run=runNumber, scan=scanType))
-    #return 0 
+    try:
+        root.drawScan(str(mod_name), str(scanType), str(request.args.get('runNumber')), "", "", mapList)
+    except:
+        pass
+
+    runNumber=request.args.get('runNumber')
+    #mapInfo = { "runNumber": int(request.args.get('runNumber')),
+    #            "scanType": str(scanType),
+    #            "mapType": mapList,
+    #            "maxValue": "",
+    #            "setLog": "" }
+
+    return redirect(url_for('show_module', id=module_id, scan=scanType, run=runNumber))
+
+@app.route('/reanalysis', methods=['POST'])
+def reanalysis_root():
+    module_id = request.form['id']
+    query = { "_id": bson.objectid.ObjectId(module_id) }
+    module_entry = mongo.db.component.find_one(query)
+    mod_name = module_entry['serialNumber']
+    
+    mapList = {}
+    for mapType in scanList[request.form['scanType']]:
+        if mapType[0] == request.form['mapType']:
+            mapList.update({mapType[0]:True})
+        else:
+            mapList.update({mapType[0]:False})
+
+    scanType = request.form['scanType']
+    runNumber=request.form['runNumber']
+    try:
+        root.drawScan(str(mod_name), str(scanType), str(runNumber), bool(request.form.get('log', False)), int(request.form.get('max',1000)), mapList)
+    except:
+        pass
+
+#    mapInfo = { "runNumber": request.form['runNumber'],
+#                "scanType": request.form['scanType'],
+#                "mapType": mapList,
+#                "maxValue": int(request.form.get('max',1000)),
+#                "setLog": bool(request.form.get('log', False)) }
+
+    return redirect(url_for('show_module', id=module_id, scan=scanType, run=runNumber))
 
 @app.route('/chip', methods=['GET','POST'])
 def show_result():
@@ -166,7 +232,7 @@ def show_result():
                 index.append({ "_id":result['_id'],
                                "testType":result['testType'],
                                "runNumber":result['runNumber'],
-                               "datetime":result['date'].strftime("%Y/%m/%d-%H:%M:%S"),
+                               "datetime":func.setTime(result['date']),
                                "institution":result['institution'],
                                "environment":
                                    { "hv":result['environment']['hv'],
@@ -176,7 +242,7 @@ def show_result():
                 index.append({ "_id":result['_id'],
                                "testType":result['testType'],
                                "runNumber":result['runNumber'],
-                               "datetime":result['date'].strftime("%Y/%m/%d-%H:%M:%S"),
+                               "datetime":func.setTime(result['date']),
                                "institution":result['institution'],
                                "environment":
                                    { "hv":"",
@@ -186,7 +252,7 @@ def show_result():
             index.append({ "_id":result['_id'],
                            "testType":result['testType'],
                            "runNumber":result['runNumber'],
-                           "datetime":result['date'].strftime("%Y/%m/%d-%H:%M:%S"),
+                           "datetime":func.setTime(result['date']),
                            "institution":result['institution'],
                            "environment":
                                { "hv":"",
@@ -200,7 +266,9 @@ def show_result_item():
     index = []
     results = []
     chip = []
-    chip.append({"component": request.args.get('componentId'), "serialNumber": request.args.get('serialNumber'), "_id": bson.objectid.ObjectId(request.args.get('Id'))})
+    chip.append({ "component": request.args.get('componentId'), 
+                  "serialNumber": request.args.get('serialNumber'), 
+                  "_id": bson.objectid.ObjectId(request.args.get('Id')) })
     
     query = {"component": chip[0]['component']} 
     scan_entries = mongo.db.componentTestRun.find(query).sort('runNumber',pymongo.DESCENDING)
@@ -212,7 +280,7 @@ def show_result_item():
                 index.append({ "_id":result['_id'],
                                "testType":result['testType'], 
                                "runNumber":result['runNumber'], 
-                               "datetime":result['date'].strftime("%Y/%m/%d-%H:%M:%S"),
+                               "datetime":func.setTime(result['date']),
                                "institution":result['institution'],
                                "environment":
                                    { "hv":result['environment']['hv'],
@@ -222,7 +290,7 @@ def show_result_item():
                 index.append({ "_id":result['_id'],
                                "testType":result['testType'], 
                                "runNumber":result['runNumber'], 
-                               "datetime":result['date'].strftime("%Y/%m/%d-%H:%M:%S"),
+                               "datetime":func.setTime(result['date']),
                                "institution":result['institution'],
                                "environment":
                                    { "hv":"",
@@ -232,7 +300,7 @@ def show_result_item():
             index.append({ "_id":result['_id'],
                            "testType":result['testType'], 
                            "runNumber":result['runNumber'], 
-                           "datetime":result['date'].strftime("%Y/%m/%d-%H:%M:%S"),
+                           "datetime":func.setTime(result['date']),
                            "institution":result['institution'],
                            "environment":
                                { "hv":"",
@@ -247,10 +315,11 @@ def show_result_item():
                     binary = mongo.db.fs.chunks.find_one(query)
                     byte = base64.b64encode(binary['data']).decode()
                     url = img.bin_to_image(data['contentType'],byte)
-                    results.append({ "testType":result['testType'],
-                                     "url":url,
-                                     "filename":data['filename'],
-                                     "contentType":data['contentType'] })
+                    results.append({ "testType": result['testType'],
+                                     "runNumber": result['runNumber'],
+                                     "url": url,
+                                     "filename": data['filename'].split("_")[2],
+                                     "contentType": data['contentType'] })
 
     return render_template('chip.html', index=index, results=results, chip=chip)
 

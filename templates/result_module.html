@@ -1,0 +1,51 @@
+<table class="table table-sm table-hover table-striped" style="font-size: 10pt;">
+  <h4>Result</h4>
+  <thead>
+    <tr>
+      <th scope="col">Run Number : {{data[0]['runNumber']}}&ensp;&ensp;Test Type : {{data[0]['testType']}}</th>
+    </tr>
+  </thead>
+  <tbody>
+    {% for d in data %}
+    {% if loop.index %2 == 1 %}
+      <tr>
+    {% endif %}
+      <td>
+        <p>
+        <center>
+        {% if d['url'] == _brank %}
+          {{d.testType}}
+        {% else %}
+          <p>
+            {{d.mapType}}
+          </p>
+          <p>
+          <a href={{d.url}} target="_brank">
+            <img src={{d.url}} title={{d.mapType}} width="300" height="300">
+            </img>
+          </a>
+        {% endif %}
+        </center>
+        </p>
+      </td>
+      {% if loop.index %2  == 0 %}
+      <td>
+        <p>
+        <center>
+          <form action="{{ url_for('reanalysis_root') }}" method=post class=entries>  
+            <input type="hidden" name="id" value={{module[0]['_id']}}>
+            <input type="hidden" name="runNumber" value={{data[0]['runNumber']}}>
+            <input type="hidden" name="scanType" value={{data[0]['testType']}}>
+            <input type="hidden" name="mapType" value={{d['mapType']}}>
+            <p># Hit range max <input type = "txt" name = "max" value = "1000" size="4"></p>
+            <p><input type = "checkbox" name = "log" value = "True"> Set log scale</p>
+            <p><input type = "submit" value = "Make histogram"></p>
+          </form>
+        </center>
+        </p>
+      </td>
+      </tr>
+      {% endif %}
+    {% endfor %}
+  </tbody>
+</table>

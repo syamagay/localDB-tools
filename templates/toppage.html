@@ -8,15 +8,6 @@
 
         <h1>Welcome to database for Yarr</h1>
 
-        <form action="{{ url_for('index_entry') }}" method=post class=entries>
-        <li><h2>Collections</h2>
-        {% for col in collections %}
-          <h3><button class="btn btn-primary btn-lg btn-block pb_btn-pill  btn-shadow-blue" name="col" value={{col.collection}}>{{col.collection}}</button></h3>
-        {% else %}
-          <li><em>something errors</em>
-        {% endfor %}
-        </form>
-
       </div>
     </div>
   </div>
@@ -27,33 +18,31 @@
 
         <h1>Summary</h1>
     
-        <table class="table table-sm table-hover table-striped">
+        <table class="table table-sm table-hover table-striped" style="font-size: 12pt;">
           <thead>
             <tr>
-              <th scope="col">Module</th>
-              <th scope="col">Chips</th>
-              <th scope="col">FE type</th>
-              <th scope="col">Created date</th>
+              <th scope="col" width="110">Module</th>
+              <th scope="col" width="300">Chips</th>
+              <th scope="col" width="110">FE type</th>
+              <th scope="col" width="300">Created date</th>
             </tr>
           </thead>
           <tbody>
             {% for module in modules %}
-              {% set var = {'is_first_chip': true} %}
-              {% for chip in module["chips"] %}
-                <tr>
-                  {% if var.is_first_chip %}
-                    <td rowspan=4><a href="{{ url_for('show_module', id=module["_id"]) }}">{{ module["serialNumber"] }}</a></td>
-                  {% endif %}
-                    {% if var.update({'is_first_chip': false}) %}{% endif %}
-                    <td><a href="{{ url_for('show_result', id=chip["_id"], serialNumber=chip["serialNumber"]) }}">{{ chip["serialNumber"] }}</a></td>
-                    <td>{{ chip["componentType"] }}</td>
-                    <td>{{ chip["datetime"] }}</td>
-                </tr>
-              {% endfor %}
+              <tr>
+                <td><a href="{{ url_for('show_module', id=module["_id"]) }}">{{ module["serialNumber"] }}</a></td>
+                <td>
+                {% for chip in module["chips"] %}
+                  <a href="{{ url_for('show_result', id=chip["_id"], serialNumber=chip["serialNumber"]) }}">{{ chip["number"] }}
+                  </a>&ensp;
+                {% endfor %}
+                </td>
+                <td>{{ module["chips"][0]["componentType"] }}</td>
+                <td>{{ module["chips"][0]["datetime"] }}</td>
+              </tr>
             {% endfor %}
           </tbody>
         </table>
-
       </div>
     </div>
   </div>
