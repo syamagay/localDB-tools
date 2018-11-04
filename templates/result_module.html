@@ -2,11 +2,11 @@
   <h4>Result</h4>
   <thead>
     <tr>
-      <th scope="col">Run Number : {{data[0]['runNumber']}}&ensp;&ensp;Test Type : {{data[0]['testType']}}</th>
+      <th scope="col">Run Number : {{module['dataIndex'][0]['runNumber']}}&ensp;&ensp;Test Type : {{module['dataIndex'][0]['testType']}}</th>
     </tr>
   </thead>
   <tbody>
-    {% for d in data %}
+    {% for d in module['dataIndex'] %}
     {% if loop.index %2 == 1 %}
       <tr>
     {% endif %}
@@ -33,9 +33,9 @@
         <p>
         <center>
           <form action="{{ url_for('reanalysis_root') }}" method=post class=entries>  
-            <input type="hidden" name="id" value={{module[0]['_id']}}>
-            <input type="hidden" name="runNumber" value={{data[0]['runNumber']}}>
-            <input type="hidden" name="scanType" value={{data[0]['testType']}}>
+            <input type="hidden" name="id" value={{module['_id']}}>
+            <input type="hidden" name="runNumber" value={{module['dataIndex'][0]['runNumber']}}>
+            <input type="hidden" name="testType" value={{module['dataIndex'][0]['testType']}}>
             <input type="hidden" name="mapType" value={{d['mapType']}}>
             <p># Hit range max <input type = "txt" name = "max" value = "1000" size="4"></p>
             <p><input type = "checkbox" name = "log" value = "True"> Set log scale</p>

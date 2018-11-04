@@ -6,9 +6,9 @@
     <div class="row align-items-center justify-content-center">
       <div class="col">
 
-        <h1>Module Summary : {{module[0]['serialNumber']}}</h1>
+        <h1>Module Summary : {{module['serialNumber']}}</h1>
 
-        {% if data[0]['testType'] == _brank %}
+        {% if module['dataIndex'][0]['testType'] == _brank %}
         {% else %}
           {% include "result_module.html" %}
         {% endif %}
@@ -27,7 +27,7 @@
                 FE type
               </td>
               <td>
-                {{index[0]['componentType']}}
+                {{module['index'][0]['componentType']}}
               </td>
             </tr>
             <tr>
@@ -35,7 +35,7 @@
                 Chips
               </td>
               <td>
-                {% for item in index %}
+                {% for item in module['index'] %}
                   <a href="{{ url_for('show_result', id=item['_id'], serialNumber=item['chip']) }}">{{item.number}}</a>&ensp;
                 {% else %}
                   No match.
@@ -54,14 +54,14 @@
             </tr>
           </thead>
           <tbody>
-            {% for s in scan %}
+            {% for s in module['scanIndex'] %}
             <tr>
               <td>
                 {{s['testType']}}
               </td>
               <td>
                 {% for fig in s['runNumber'] %}
-                  <a href="{{ url_for('analysis_root', id=module[0]['_id'], runNumber=fig) }}">{{fig}}</a>&ensp;
+                  <a href="{{ url_for('analysis_root', id=module['_id'], runNumber=fig) }}">{{fig}}</a>&ensp;
                 {% else %}
                   No match.
                 {% endfor %}

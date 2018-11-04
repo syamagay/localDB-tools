@@ -25,19 +25,18 @@ datDict = { "selftrigger" : [("OccupancyMap-0", "#Hit"),],
             "digitalscan" : [("OccupancyMap", "Occupancy"), ("EnMask", "EnMask")],
             "analogscan" : [("OccupancyMap", "Occupancy"), ("EnMask", "EnMask")]}
 
-#def drawScan(mod_name, scan_type, num_scan, log, Max, map_reanalysis):
 def drawScan(mod_name, scan_type, num_scan, log, Max, map_list):
     if int(num_scan) < 0 : raise ValueError("Invalid scan number")
 
     ROOT.gROOT.SetBatch()
+
+    max_value = []
 
 ############
 # Main loop
     #num_plot = []
 
     for map_type in datDict[scan_type]:
-        print(map_type[0])
-        print(map_list[map_type[0]])
         if map_list[map_type[0]]: 
             h1 = ROOT.TH1D(mod_name+"_"+map_type[0]+"_Dist_"+num_scan,
                            mod_name+"_"+map_type[0]+"_Dist_"+num_scan+";"+map_type[1],
@@ -51,8 +50,6 @@ def drawScan(mod_name, scan_type, num_scan, log, Max, map_list):
             for i in range(4) :
         
                 # Open Files
-                #filename = "/tmp/"+num_scan+"/"+mod_name+"_chipId"+str(i+1)+"_"+map_type[0]+".dat"
-                #filename = "/tmp/data/"+mod_name+"_chipId"+str(i+1)+"_"+map_type[0]+".dat"
                 filename = "/tmp/data/chipId"+str(i+1)+"_"+map_type[0]+".dat"
                 try :
                     f = open(filename)
@@ -88,38 +85,15 @@ def drawScan(mod_name, scan_type, num_scan, log, Max, map_list):
                 f.close()
         
             path_dir = "/tmp/" + scan_type
-            print(path_dir)
             PH.outDir = path_dir
     
             path_plot = map_type[0]
             Plot.Plot1D_fromHistos(h1, log, path_plot+"_Dist", "#Ch.", "histo", Max)
             Plot.Plot2D_fromHistos(h2, log, path_plot, map_type[1], Max)
 
-        if Max == "":
-            Max = h2.GetBinContent(h2.GetMaximumBin())
+            if Max == "":
+                max_value.append({map_type[0]:int(h2.GetBinContent(h2.GetMaximumBin()))})
+            else:
+                max_value.append({map_type[0]:int(Max)})
 
-#        binary_png = open(path_dir+"/"+path_plot+"_Dist.png",'rb')
-#        code_base64 = base64.b64encode(binary_png.read()).decode()
-#        binary_png.close()
-
-        #num_plot.append({ "mod_name": mod_name,
-        #                  "num_scan": num_scan,
-        #                  "scan_type": scan_type,
-        #                  "map_type": map_type[0],
-        #                  "base64": code_base64,
-        #                  "maxValue": Max,
-        #                  "setLog": log })
-
-#        binary_png = open(path_dir+"/"+path_plot+".png",'rb')
-#        code_base64 = base64.b64encode(binary_png.read()).decode()
-#        binary_png.close()
-
-        #num_plot.append({ "mod_name": mod_name,
-        #                  "num_scan": num_scan,
-        #                  "scan_type": scan_type,
-        #                  "map_type": map_type[0],
-        #                  "base64": code_base64,
-        #                  "maxValue": Max,
-        #                  "setLog": log })
-
-    #return num_plot
+    #return max_value

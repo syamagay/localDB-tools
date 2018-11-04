@@ -33,7 +33,7 @@
                 <td><a href="{{ url_for('show_module', id=module["_id"]) }}">{{ module["serialNumber"] }}</a></td>
                 <td>
                 {% for chip in module["chips"] %}
-                  <a href="{{ url_for('show_result', id=chip["_id"], serialNumber=chip["serialNumber"]) }}">{{ chip["number"] }}
+                  <a href="{{ url_for('show_result', id=chip["_id"]) }}">{{ chip["number"] }}
                   </a>&ensp;
                 {% endfor %}
                 </td>

@@ -63,7 +63,7 @@
               <tr>
                 <td>{{ item.runNumber }}</td>
                 <td>
-                  <a href="{{ url_for('show_result_item', componentId=chip[0]['component'], Id=item['_id'], serialNumber=chip[0]['serialNumber']) }}">{{item.testType}}</a>
+                  <a href="{{ url_for('show_result_item', componentId=chip[0]['component'], Id=item['_id']) }}">{{item.testType}}</a>
                 </td>
                 <td>{{ item.institution }}</td>
                 <td>{{ item.environment.hv }}</td>
