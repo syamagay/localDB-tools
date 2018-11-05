@@ -4,7 +4,7 @@
 ###############
 
 import glob
-import sys, os
+import sys, os, func
 sys.path.append( os.path.dirname(os.path.abspath(__file__)) + "/PlotTools" )
 
 from PlotHelpers import gHelper as PH
@@ -30,7 +30,7 @@ def drawScan(mod_name, scan_type, num_scan, log, Max, map_list):
 
     ROOT.gROOT.SetBatch()
 
-    max_value = []
+    max_value = func.readJson("parameter.json") 
 
 ############
 # Main loop
@@ -92,8 +92,9 @@ def drawScan(mod_name, scan_type, num_scan, log, Max, map_list):
             Plot.Plot2D_fromHistos(h2, log, path_plot, map_type[1], Max)
 
             if Max == "":
-                max_value.append({map_type[0]:int(h2.GetBinContent(h2.GetMaximumBin()))})
+                max_value[scan_type][map_type[0]] = int(h2.GetBinContent(h2.GetMaximumBin()))
             else:
-                max_value.append({map_type[0]:int(Max)})
+                max_value[scan_type][map_type[0]] = int(Max)
 
+    func.writeJson("parameter.json",max_value)
     #return max_value

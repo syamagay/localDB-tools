@@ -1,0 +1,25 @@
+{
+    "analogscan": {
+        "EnMask": 1, 
+        "OccupancyMap": 200
+    }, 
+    "noisescan": {
+        "NoiseOccupancy": "100", 
+        "NoiseMask": "1"
+    }, 
+    "selftrigger": {
+        "OccupancyMap-0": "3000"
+    }, 
+    "digitalscan": {
+        "EnMask": "10", 
+        "OccupancyMap": "300000"
+    }, 
+    "thresholdscan": {
+        "NoiseMap": 1969, 
+        "ThresholdMap": 7948
+    }, 
+    "totscan": {
+        "SigmaTotMap": 14, 
+        "MeanTotMap": 14
+    }
+}

@@ -15,31 +15,31 @@ app.secret_key = 'secret'
 app.config["MONGO_URI"] = "mongodb://localhost:27000/yarrdb"
 mongo = PyMongo(app)
 
-scanList = { "selftrigger" : [("OccupancyMap-0", "#Hit"),],
-            "noisescan" : [("NoiseOccupancy","NoiseOccupancy"), ("NoiseMask", "NoiseMask")],
-            "totscan" : [("MeanTotMap", "Mean[ToT]"), ("SigmaTotMap", "Sigma[ToT]")],
-            "thresholdscan" : [("ThresholdMap", "Threshold[e]"), ("NoiseMap", "Noise[e]")],
-            "digitalscan" : [("OccupancyMap", "Occupancy"), ("EnMask", "EnMask")],
-            "analogscan" : [("OccupancyMap", "Occupancy"), ("EnMask", "EnMask")]}
+scanList = { "selftrigger"   : [("OccupancyMap-0", "#Hit"),],
+             "noisescan"     : [("NoiseOccupancy","NoiseOccupancy"), ("NoiseMask", "NoiseMask")],
+             "totscan"       : [("MeanTotMap", "Mean[ToT]"),         ("SigmaTotMap", "Sigma[ToT]")],
+             "thresholdscan" : [("ThresholdMap", "Threshold[e]"),    ("NoiseMap", "Noise[e]")],
+             "digitalscan"   : [("OccupancyMap", "Occupancy"),       ("EnMask", "EnMask")],
+             "analogscan"    : [("OccupancyMap", "Occupancy"),       ("EnMask", "EnMask")]}
 
 @app.route('/', methods=['GET'])
 def show_modules_and_chips():
-    query = {"componentType": "Module"}
+    query = { "componentType" : "Module" }
     component = mongo.db.component.find(query)
     modules = []
     module_entries = []
     for row in component:
-        module_entries.append({ "_id": row['_id'],
-                                "serialNumber": row['serialNumber'], 
-                                "datetime":func.setTime(row['sys']['cts']) })
+        module_entries.append({ "_id"          : row['_id'],
+                                "serialNumber" : row['serialNumber'], 
+                                "datetime"     : func.setTime(row['sys']['cts']) })
 
     for module_entry in module_entries:
         query = {"parent": str(module_entry['_id'])}
         cprelation = mongo.db.childParentRelation.find(query)
         child_entries = []
         for row in cprelation:
-            child_entries.append({ "child": row['child'],
-                                   "datetime":func.setTime(row['sys']['cts']) })
+            child_entries.append({ "child"    : row['child'],
+                                   "datetime" : func.setTime(row['sys']['cts']) })
 
         chips = []
         for child_entry in child_entries:
@@ -115,14 +115,17 @@ def show_module():
                 code_base64 = base64.b64encode(binary_png.read()).decode()
                 binary_png.close()
                 url = img.bin_to_image('png',code_base64)
+
+                max_value = func.readJson("parameter.json") 
                 module['dataIndex'].append({ "testType"  : testType, 
                                              "mapType"   : mapType[0], 
                                              "runNumber" : int(runNumber), 
-                                             "url"       : url })
+                                             "url"       : url, 
+                                             "maxValue"  : max_value[testType][mapType[0]] })
             except:
-                module['dataIndex'].append({ "testType"  : mapInfo['testType'],
+                module['dataIndex'].append({ "testType"  : testType,
                                              "mapType"   : "No Root Software",
-                                             "runNumber" : mapInfo['runNumber'] })
+                                             "runNumber" : int(runNumber) })
     except:
         module['dataIndex'].append({"test":"test"})
 
