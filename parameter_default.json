@@ -6,7 +6,7 @@
         ], 
         "OccupancyMap": [
             200, 
-            true
+            false 
         ]
     }, 
     "noisescan": {
@@ -21,7 +21,7 @@
     }, 
     "selftrigger": {
         "OccupancyMap-0": [
-            17995000, 
+            1000, 
             false
         ]
     }, 
@@ -31,17 +31,17 @@
             false
         ], 
         "OccupancyMap": [
-            134, 
+            1000, 
             false
         ]
     }, 
     "thresholdscan": {
         "NoiseMap": [
-            1969, 
+            1000, 
             false
         ], 
         "ThresholdMap": [
-            7948, 
+            1000, 
             false
         ]
     }, 
