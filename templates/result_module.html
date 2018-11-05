@@ -6,29 +6,29 @@
     </tr>
   </thead>
   <tbody>
-    {% for d in module['dataIndex'] %}
-    {% if d['url'] == _brank %}
+    {% if module['dataIndex'][0]['url'] == _brank %}
       <tr>
-      {{d.mapType}}
+        <td style="font-size: 14pt;">{{module['dataIndex'][0]['mapType']}}</td>
       </tr>
     {% else %}
-      {% if loop.index %2 == 1 %}
-        <tr>
-      {% endif %}
-      <td>
-        <p>
-        <center>
+      {% for d in module['dataIndex'] %}
+        {% if loop.index %2 == 1 %}
+          <tr>
+        {% endif %}
+        <td>
           <p>
-            {{d.mapType}}
+          <center>
+            <p>
+              {{d.mapType}}
+            </p>
+            <p>
+            <a href={{d.url}} target="_brank">
+              <img src={{d.url}} title={{d.mapType}} width="300" height="300">
+              </img>
+            </a>
+          </center>
           </p>
-          <p>
-          <a href={{d.url}} target="_brank">
-            <img src={{d.url}} title={{d.mapType}} width="300" height="300">
-            </img>
-          </a>
-        </center>
-        </p>
-      </td>
+        </td>
         {% if loop.index %2  == 0 %}
         <td>
           <p>
@@ -54,7 +54,7 @@
         </td>
         </tr>
         {% endif %}
-      {% endif %}
-    {% endfor %}
+      {% endfor %}
+    {% endif %}
   </tbody>
 </table>
