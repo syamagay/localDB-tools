@@ -92,9 +92,9 @@ def drawScan(mod_name, scan_type, num_scan, log, Max, map_list):
             Plot.Plot2D_fromHistos(h2, log, path_plot, map_type[1], Max)
 
             if Max == "":
-                max_value[scan_type][map_type[0]] = int(h2.GetBinContent(h2.GetMaximumBin()))
+                max_value[scan_type][map_type[0]] = [int(h2.GetBinContent(h2.GetMaximumBin())),log]
             else:
-                max_value[scan_type][map_type[0]] = int(Max)
+                max_value[scan_type][map_type[0]] = [int(Max),log]
 
     func.writeJson("parameter.json",max_value)
     #return max_value
