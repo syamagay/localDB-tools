@@ -121,7 +121,8 @@ def show_module():
                                              "mapType"   : mapType[0], 
                                              "runNumber" : int(runNumber), 
                                              "url"       : url, 
-                                             "maxValue"  : max_value[testType][mapType[0]] })
+                                             "setLog"    : max_value[testType][mapType[0]][1], 
+                                             "maxValue"  : max_value[testType][mapType[0]][0] })
             except:
                 module['dataIndex'].append({ "testType"  : testType,
                                              "mapType"   : "No Root Software",
@@ -164,7 +165,7 @@ def analysis_root():
     for mapType in scanList[testType]:
         mapList.update({ mapType[0] : True })
     try:
-        root.drawScan(thisModule['serialNumber'], testType, str(runNumber), "", "", mapList)
+        root.drawScan(thisModule['serialNumber'], testType, str(runNumber), False, "", mapList)
     except:
         pass
 
@@ -397,5 +398,4 @@ def show_image():
     return render_template('pdf.html',image=image) 
 
 if __name__ == '__main__':
-    #app.run(host='127.0.0.1') # change hostID
     app.run(host='192.168.1.43') # change hostID
