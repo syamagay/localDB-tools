@@ -12,7 +12,7 @@ from bson.objectid import ObjectId # Convert str to ObjectId
 
 app = Flask(__name__)
 app.secret_key = 'secret'
-app.config["MONGO_URI"] = "mongodb://localhost:27017/yarrdb"
+app.config["MONGO_URI"] = "mongodb://localhost:27000/yarrdb"
 mongo = PyMongo(app)
 
 scanList = { "selftrigger"   : [("OccupancyMap-0", "#Hit"),],
@@ -45,15 +45,15 @@ def show_modules_and_chips():
         for child_entry in child_entries:
             query = {"_id": ObjectId(child_entry['child'])}
             chip_entry = mongo.db.component.find_one(query) # Find child component
-            chips.append({ "_id": str(chip_entry["_id"]),
-                           "serialNumber": chip_entry["serialNumber"],
-                           "number": chip_entry["serialNumber"].split("_")[1],
-                           "componentType": chip_entry["componentType"],
-                           "datetime":func.setTime(chip_entry['sys']['cts']) })
+            chips.append({ "_id"           : str(chip_entry["_id"]),
+                           "serialNumber"  : chip_entry["serialNumber"],
+                           "number"        : chip_entry["serialNumber"].split("_")[1],
+                           "componentType" : chip_entry["componentType"],
+                           "datetime"      : func.setTime(chip_entry['sys']['cts']) })
 
-        modules.append({ "_id": str(module_entry["_id"]),
-                         "serialNumber": module_entry["serialNumber"],
-                         "chips": chips })
+        modules.append({ "_id"          : str(module_entry["_id"]),
+                         "serialNumber" : module_entry["serialNumber"],
+                         "chips"        : chips })
 
     return render_template('toppage.html', modules=modules)
 
@@ -76,10 +76,10 @@ def show_module():
         query = { "_id" : bson.objectid.ObjectId(child['child']) }
         thisChip = mongo.db.component.find_one(query)
         chips.append({ "component" : child['child'] })
-        module['index'].append({ "_id"          : bson.objectid.ObjectId(child['child']),
-                                 "number"       : thisChip["serialNumber"].split("_")[1],
-                                 "chip"         : thisChip['serialNumber'],
-                                 "componentType": thisChip['componentType'] })
+        module['index'].append({ "_id"           : bson.objectid.ObjectId(child['child']),
+                                 "number"        : thisChip["serialNumber"].split("_")[1],
+                                 "chip"          : thisChip['serialNumber'],
+                                 "componentType" : thisChip['componentType'] })
 
     for scan in scanList:
         query = { '$or' : chips, "testType" : scan }
@@ -94,8 +94,8 @@ def show_module():
 
     # redirect from analysis_root
     try:
-        runNumber = request.args.get('run')
-        query = { '$or' : chips , "runNumber" : int(runNumber) }
+        runNumber = int(request.args.get('run'))
+        query = { '$or' : chips , "runNumber" : runNumber }
         thisRun = mongo.db.componentTestRun.find_one(query)
         testType = thisRun['testType']
         for mapType in scanList[testType]:
@@ -107,7 +107,7 @@ def show_module():
                 url = img.bin_to_image('png',code_base64)
                 module['dataIndex'].append({ "testType"  : testType, 
                                              "mapType"   : mapType[0], 
-                                             "runNumber" : int(runNumber), 
+                                             "runNumber" : runNumber, 
                                              "url"       : url })
 
                 file2D = "/tmp/" + testType + "/" + mapType[0] + ".png" 
@@ -119,14 +119,14 @@ def show_module():
                 max_value = func.readJson("parameter.json") 
                 module['dataIndex'].append({ "testType"  : testType, 
                                              "mapType"   : mapType[0], 
-                                             "runNumber" : int(runNumber), 
+                                             "runNumber" : runNumber, 
                                              "url"       : url, 
                                              "setLog"    : max_value[testType][mapType[0]][1], 
                                              "maxValue"  : max_value[testType][mapType[0]][0] })
             except:
                 module['dataIndex'].append({ "testType"  : testType,
                                              "mapType"   : "No Root Software",
-                                             "runNumber" : int(runNumber) })
+                                             "runNumber" : runNumber })
     except:
         module['dataIndex'].append({"test":"test"})
 
@@ -135,7 +135,7 @@ def show_module():
 @app.route('/analysis', methods=['GET','POST'])
 def analysis_root():
     module_id = request.args.get('id')
-    runNumber = request.args.get('runNumber')
+    runNumber = int(request.args.get('runNumber'))
 
     query = { "_id" : bson.objectid.ObjectId(module_id) }
     thisModule = mongo.db.component.find_one(query)
@@ -143,7 +143,7 @@ def analysis_root():
     query = { "parent" : module_id }
     child_entries = mongo.db.childParentRelation.find(query)
     for child in child_entries:
-        query = { "component" : child['child'], "runNumber" : int(request.args.get('runNumber')) }
+        query = { "component" : child['child'], "runNumber" : runNumber }
         thisScan = mongo.db.componentTestRun.find_one(query)
 
         query = { "_id" : bson.objectid.ObjectId(thisScan['testRun']) }
@@ -192,116 +192,65 @@ def reanalysis_root():
 
     return redirect(url_for('show_module', id=module_id, run=runNumber))
 
-@app.route('/chip', methods=['GET','POST'])
-def show_result():
-    index = []
-    results = []
-    chip = []
-    query = {"_id": bson.objectid.ObjectId(request.args.get('id'))}
-    thisChip = mongo.db.component.find_one(query)
-    chip.append({"component": request.args.get('id'), "serialNumber": thisChip['serialNumber'], "_id": ""})
-    
-    query = {"component": chip[0]['component']} 
-    scan_entries = mongo.db.componentTestRun.find(query).sort('runNumber',pymongo.DESCENDING)
-    for scan in scan_entries:
-        result = mongo.db.testRun.find_one({"_id": bson.objectid.ObjectId(scan['testRun'])})
-        if 'environment' in result:
-            if 'hv' in result['environment']:
-                index.append({ "_id":result['_id'],
-                               "testType":result['testType'],
-                               "runNumber":result['runNumber'],
-                               "datetime":func.setTime(result['date']),
-                               "institution":result['institution'],
-                               "environment":
-                                   { "hv":result['environment']['hv'],
-                                     "cool":result['environment']['cool'],
-                                     "stage":result['environment']['stage'] }})
-            else: 
-                index.append({ "_id":result['_id'],
-                               "testType":result['testType'],
-                               "runNumber":result['runNumber'],
-                               "datetime":func.setTime(result['date']),
-                               "institution":result['institution'],
-                               "environment":
-                                   { "hv":"",
-                                     "cool":"",
-                                     "stage":"" }}) 
-        else:
-            index.append({ "_id":result['_id'],
-                           "testType":result['testType'],
-                           "runNumber":result['runNumber'],
-                           "datetime":func.setTime(result['date']),
-                           "institution":result['institution'],
-                           "environment":
-                               { "hv":"",
-                                 "cool":"",
-                                 "stage":"" }}) 
-
-    return render_template('chip.html', index=index, results=results, chip=chip)
-
 @app.route('/chip_result', methods=['GET','POST'])
-def show_result_item():
-    index = []
-    results = []
-    chip = []
-    query = {"_id": bson.objectid.ObjectId(request.args.get('componentId'))}
+def show_chip():
+    chip = {}
+    query = { "_id" : bson.objectid.ObjectId(request.args.get('id')) }
     thisChip = mongo.db.component.find_one(query)
-    chip.append({ "component": request.args.get('componentId'), 
-                  "serialNumber": thisChip['serialNumber'], 
-                  "_id": bson.objectid.ObjectId(request.args.get('Id')) })
-    
-    query = {"component": chip[0]['component']} 
-    scan_entries = mongo.db.componentTestRun.find(query).sort('runNumber',pymongo.DESCENDING)
-    for scan in scan_entries:
-        query = {"_id": bson.objectid.ObjectId(scan['testRun'])}
-        result = mongo.db.testRun.find_one(query)
-        if 'environment' in result:
-            if 'hv' in result['environment']:
-                index.append({ "_id":result['_id'],
-                               "testType":result['testType'], 
-                               "runNumber":result['runNumber'], 
-                               "datetime":func.setTime(result['date']),
-                               "institution":result['institution'],
-                               "environment":
-                                   { "hv":result['environment']['hv'],
-                                     "cool":result['environment']['cool'],
-                                     "stage":result['environment']['stage'] }})
-            else: 
-                index.append({ "_id":result['_id'],
-                               "testType":result['testType'], 
-                               "runNumber":result['runNumber'], 
-                               "datetime":func.setTime(result['date']),
-                               "institution":result['institution'],
-                               "environment":
-                                   { "hv":"",
-                                     "cool":"",
-                                     "stage":"" }})
-        else:
-            index.append({ "_id":result['_id'],
-                           "testType":result['testType'], 
-                           "runNumber":result['runNumber'], 
-                           "datetime":func.setTime(result['date']),
-                           "institution":result['institution'],
-                           "environment":
-                               { "hv":"",
-                                 "cool":"",
-                                 "stage":"" }})
+    try: runId = bson.objectid.ObjectId(request.args.get('runId')) 
+    except: runId = ""
 
-        if (result['_id']) == chip[0]['_id']:
-            data_entries = result['attachments']
+    chip.update({ "_id"           : request.args.get('id'), 
+                  "serialNumber"  : thisChip['serialNumber'],
+                  "componentType" : thisChip['componentType'],
+                  "run_id"        : runId,
+                  "scanIndex"     : [],
+                  "dataIndex"     : [] }) 
+    
+    for scan in scanList:
+        query = { "component" : chip['_id'], "testType" : scan }
+        run_entries = mongo.db.componentTestRun.find(query)
+        runIndex = []
+        for run in run_entries:
+            query = { "_id" : bson.objectid.ObjectId(run['testRun']) }
+            thisRun = mongo.db.testRun.find_one(query)
+            try:
+                runIndex.append({ "_id"         : thisRun['_id'],
+                                  "runNumber"   : thisRun['runNumber'],
+                                  "datetime"    : func.setTime(thisRun['date']),
+                                  "institution" : thisRun['institution'],
+                                  "environment" :
+                                      { "hv"    : thisRun['environment']['hv'],
+                                        "cool"  : thisRun['environment']['cool'],
+                                        "stage" : thisRun['environment']['stage'] }})
+            except:
+                runIndex.append({ "_id"         : thisRun['_id'],
+                                  "runNumber"   : thisRun['runNumber'],
+                                  "datetime"    : func.setTime(thisRun['date']),
+                                  "institution" : thisRun['institution'],
+                                  "environment" :
+                                      { "hv"    : "",
+                                        "cool"  : "",
+                                        "stage" : "" }}) 
+
+        chip['scanIndex'].append({ "testType" : scan,
+                                   "run"      : runIndex })
+
+        if (thisRun['_id']) == chip['run_id']:
+            data_entries = thisRun['attachments']
             for data in data_entries:
                 if data['contentType'] == 'pdf' or data['contentType'] == 'png':
-                    query = {"files_id": bson.objectid.ObjectId(data['code'])}
+                    query = { "files_id" : bson.objectid.ObjectId(data['code']) }
                     binary = mongo.db.fs.chunks.find_one(query)
                     byte = base64.b64encode(binary['data']).decode()
                     url = img.bin_to_image(data['contentType'],byte)
-                    results.append({ "testType": result['testType'],
-                                     "runNumber": result['runNumber'],
-                                     "url": url,
-                                     "filename": data['filename'].split("_")[2],
-                                     "contentType": data['contentType'] })
+                    chip['dataIndex'].append({ "testType"    : thisRun['testType'],
+                                               "runNumber"   : thisRun['runNumber'],
+                                               "url"         : url,
+                                               "filename"    : data['filename'].split("_")[2],
+                                               "contentType" : data['contentType'] })
 
-    return render_template('chip.html', index=index, results=results, chip=chip)
+    return render_template('chip.html', chip=chip)
 
 @app.route('/add', methods=['GET','POST'])
 def add_entry():
@@ -398,4 +347,4 @@ def show_image():
     return render_template('pdf.html',image=image) 
 
 if __name__ == '__main__':
-    app.run(host='127.0.0.1') # change hostID
+    app.run(host='192.168.1.43') # change hostID

@@ -18,7 +18,7 @@
 
         <h1>Summary</h1>
     
-        <table class="table table-sm table-hover table-striped" style="font-size: 12pt;">
+        <table class="table table-sm table-hover table-striped" style="font-size: 10pt;">
           <thead>
             <tr>
               <th scope="col" width="110">Module</th>
@@ -33,7 +33,7 @@
                 <td><a href="{{ url_for('show_module', id=module["_id"]) }}">{{ module["serialNumber"] }}</a></td>
                 <td>
                 {% for chip in module["chips"] %}
-                  <a href="{{ url_for('show_result', id=chip["_id"]) }}">{{ chip["number"] }}
+                  <a href="{{ url_for('show_chip', id=chip["_id"]) }}">{{ chip["number"] }}
                   </a>&ensp;
                 {% endfor %}
                 </td>

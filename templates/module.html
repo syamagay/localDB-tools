@@ -13,7 +13,7 @@
           {% include "result_module.html" %}
         {% endif %}
 
-        <table class="table table-sm table-hover table-striped" style="font-size: 12pt;">
+        <table class="table table-sm table-hover table-striped" style="font-size: 10pt;">
           <h4>Index</h4>
           <thead>
             <tr>
@@ -36,7 +36,7 @@
               </td>
               <td>
                 {% for item in module['index'] %}
-                  <a href="{{ url_for('show_result', id=item['_id'], serialNumber=item['chip']) }}">{{item.number}}</a>&ensp;
+                  <a href="{{ url_for('show_chip', id=item['_id'], serialNumber=item['chip']) }}">{{item.number}}</a>&ensp;
                 {% else %}
                   No match.
                 {% endfor %}
@@ -45,7 +45,7 @@
           </tbody>
         </table>
 
-        <table class="table table-sm table-hover table-striped" style="font-size: 12pt;">
+        <table class="table table-sm table-hover table-striped" style="font-size: 10pt;">
           <h4>Scan result</h4>
           <thead>
             <tr>
@@ -54,13 +54,13 @@
             </tr>
           </thead>
           <tbody>
-            {% for s in module['scanIndex'] %}
+            {% for scan in module['scanIndex'] %}
             <tr>
               <td>
-                {{s['testType']}}
+                {{scan['testType']}}
               </td>
               <td>
-                {% for fig in s['runNumber'] %}
+                {% for fig in scan['runNumber'] %}
                   <a href="{{ url_for('analysis_root', id=module['_id'], runNumber=fig) }}">{{fig}}</a>&ensp;
                 {% else %}
                   No match.
