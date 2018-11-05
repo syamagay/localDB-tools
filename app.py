@@ -12,7 +12,7 @@ from bson.objectid import ObjectId # Convert str to ObjectId
 
 app = Flask(__name__)
 app.secret_key = 'secret'
-app.config["MONGO_URI"] = "mongodb://localhost:27000/yarrdb"
+app.config["MONGO_URI"] = "mongodb://localhost:27017/yarrdb"
 mongo = PyMongo(app)
 
 scanList = { "selftrigger"   : [("OccupancyMap-0", "#Hit"),],
@@ -214,42 +214,41 @@ def show_chip():
         for run in run_entries:
             query = { "_id" : bson.objectid.ObjectId(run['testRun']) }
             thisRun = mongo.db.testRun.find_one(query)
+            env_dict = {}
             try:
-                runIndex.append({ "_id"         : thisRun['_id'],
-                                  "runNumber"   : thisRun['runNumber'],
-                                  "datetime"    : func.setTime(thisRun['date']),
-                                  "institution" : thisRun['institution'],
-                                  "environment" :
-                                      { "hv"    : thisRun['environment']['hv'],
-                                        "cool"  : thisRun['environment']['cool'],
-                                        "stage" : thisRun['environment']['stage'] }})
+                env_dict.update({ "hv"    : thisRun['environment']['hv'],
+                                  "cool"  : thisRun['environment']['cool'],
+                                  "stage" : thisRun['environment']['stage'] })
             except:
-                runIndex.append({ "_id"         : thisRun['_id'],
-                                  "runNumber"   : thisRun['runNumber'],
-                                  "datetime"    : func.setTime(thisRun['date']),
-                                  "institution" : thisRun['institution'],
-                                  "environment" :
-                                      { "hv"    : "",
-                                        "cool"  : "",
-                                        "stage" : "" }}) 
+                env_dict.update({ "hv"    : "", 
+                                  "cool"  : "", 
+                                  "stage" : "" })
+
+            runIndex.append({ "_id"         : thisRun['_id'],
+                              "runNumber"   : thisRun['runNumber'],
+                              "datetime"    : func.setTime(thisRun['date']),
+                              "institution" : thisRun['institution'],
+                              "environment" : env_dict })
+
+            if (thisRun['_id']) == chip['run_id']:
+                data_entries = thisRun['attachments']
+                for data in data_entries:
+                    if data['contentType'] == 'pdf' or data['contentType'] == 'png':
+                        query = { "files_id" : bson.objectid.ObjectId(data['code']) }
+                        binary = mongo.db.fs.chunks.find_one(query)
+                        byte = base64.b64encode(binary['data']).decode()
+                        url = img.bin_to_image(data['contentType'],byte)
+                        chip['dataIndex'].append({ "testType"    : thisRun['testType'],
+                                                   "runNumber"   : thisRun['runNumber'],
+                                                   "url"         : url,
+                                                   "filename"    : data['filename'].split("_")[2],
+                                                   "datetime"    : func.setTime(thisRun['date']),
+                                                   "environment" : env_dict,
+                                                   "contentType" : data['contentType'] })
+    
 
         chip['scanIndex'].append({ "testType" : scan,
                                    "run"      : runIndex })
-
-        if (thisRun['_id']) == chip['run_id']:
-            data_entries = thisRun['attachments']
-            for data in data_entries:
-                if data['contentType'] == 'pdf' or data['contentType'] == 'png':
-                    query = { "files_id" : bson.objectid.ObjectId(data['code']) }
-                    binary = mongo.db.fs.chunks.find_one(query)
-                    byte = base64.b64encode(binary['data']).decode()
-                    url = img.bin_to_image(data['contentType'],byte)
-                    chip['dataIndex'].append({ "testType"    : thisRun['testType'],
-                                               "runNumber"   : thisRun['runNumber'],
-                                               "url"         : url,
-                                               "filename"    : data['filename'].split("_")[2],
-                                               "contentType" : data['contentType'] })
-
     return render_template('chip.html', chip=chip)
 
 @app.route('/add', methods=['GET','POST'])

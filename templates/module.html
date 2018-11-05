@@ -13,64 +13,69 @@
           {% include "result_module.html" %}
         {% endif %}
 
-        <table class="table table-sm table-hover table-striped" style="font-size: 10pt;">
-          <h4>Index</h4>
-          <thead>
-            <tr>
-              <th scope="col" width="100">Item</th>
-              <th scope="col"></th>
-            </tr>
-          </thead>
-          <tbody>
-            <tr>
-              <td>
-                FE type
-              </td>
-              <td>
-                {{module['index'][0]['componentType']}}
-              </td>
-            </tr>
-            <tr>
-              <td>
-                Chips
-              </td>
-              <td>
-                {% for item in module['index'] %}
-                  <a href="{{ url_for('show_chip', id=item['_id'], serialNumber=item['chip']) }}">{{item.number}}</a>&ensp;
+        <div class="row">
+          <div class="col-md-4">
+            <table class="table table-sm table-hover table-bordered" style="font-size: 10pt;">
+              <h4>Index</h4>
+              <thead class="table-dark" style="background: #222222;">
+                <tr>
+                  <th scope="col" width="100">Item</th>
+                  <th scope="col"></th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr>
+                  <td>
+                    FE type
+                  </td>
+                  <td>
+                    {{module['index'][0]['componentType']}}
+                  </td>
+                </tr>
+                <tr>
+                  <td>
+                    Chips
+                  </td>
+                  <td>
+                    {% for item in module['index'] %}
+                      <a href="{{ url_for('show_chip', id=item['_id'], serialNumber=item['chip']) }}">{{item.number}}</a>&ensp;
+                    {% else %}
+                      No match.
+                    {% endfor %}
+                  </td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+          <div class="col-md-8">
+            <table class="table table-sm table-hover table-bordered" style="font-size: 10pt;">
+              <h4>Scan result</h4>
+              <thead class="table-dark" style="background: #222222;">
+                <tr>
+                  <th scope="col" width="100">Scan type</th>
+                  <th scope="col">Run number</th>
+                </tr>
+              </thead>
+              <tbody>
+                {% for scan in module['scanIndex'] %}
+                <tr>
+                  <td>
+                    {{scan['testType']}}
+                  </td>
+                  <td>
+                    {% for fig in scan['runNumber'] %}
+                      <a href="{{ url_for('analysis_root', id=module['_id'], runNumber=fig) }}">{{fig}}</a>&ensp;
+                    {% else %}
+                      No match.
+                    {% endfor %}
+                  </td>
+		            </tr>
                 {% else %}
-                  No match.
                 {% endfor %}
-              </td>
-            </tr>
-          </tbody>
-        </table>
-
-        <table class="table table-sm table-hover table-striped" style="font-size: 10pt;">
-          <h4>Scan result</h4>
-          <thead>
-            <tr>
-              <th scope="col" width="100">Scan type</th>
-              <th scope="col">Run number</th>
-            </tr>
-          </thead>
-          <tbody>
-            {% for scan in module['scanIndex'] %}
-            <tr>
-              <td>
-                {{scan['testType']}}
-              </td>
-              <td>
-                {% for fig in scan['runNumber'] %}
-                  <a href="{{ url_for('analysis_root', id=module['_id'], runNumber=fig) }}">{{fig}}</a>&ensp;
-                {% else %}
-                  No match.
-                {% endfor %}
-              </td>
-		        </tr>
-            {% else %}
-            {% endfor %}
-          </tbody>
-        </table>
+              </tbody>
+            </table>
+          </div>
+        </div>
       </div>
     </div>
   </div>
