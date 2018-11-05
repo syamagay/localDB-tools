@@ -1,88 +1,51 @@
-{% extends "layout.html" %}    <!-- これで元になるHTML(laytout.html)を指定 -->
-{% block body %}    <!-- layout.htmlのbodyというブロックを以下で置き換える -->
-  <div class="container">
-    <div class="row align-items-center justify-content-center">
-      <div class="col">
-  
-        <h1>Chip Summary : {{chip['serialNumber']}}</h1>
-  
-        {% if chip['dataIndex'][0] == _brank %}
-        {% else %}
-        <table class="table table-sm table-hover table-striped" style="font-size: 10pt;">
-          <thead>
-            <tr>
-              <th scope="col" colspan="4">Run Number : {{chip['dataIndex'][0]['runNumber']}}&ensp;&ensp;Test Type : {{chip['dataIndex'][0]['testType']}}</th>
-  	        </tr>
-          </thead>
-          <tbody>
-            {% for result in chip['dataIndex'] %}
-              {% if loop.index == 1 %}
-                <tr>
-              {% elif loop.index %4 == 1 %}
-                </tr>
-                <tr>
-              {% else %}
-              {% endif %}
-              <td>
-                <center>
-                <a href={{ result['url'] }} target="_brank">
-                  <img src={{ result['url'] }} title={{ result['filename'] }} width="150" height="150">
-                  </img>
-                </a>
-                <p>
-                  {{ result['filename'] }}
-                </p>
-                </center>
-              </td>
-            {% endfor %}
-            </tr>
-          </tbody>
-        </table>
-        {% endif %}
-    
-        <table class="table table-sm table-hover table-striped" style="font-size: 10pt;">
-          <thead>
-            <tr>
-              <th scope="col" rowspan="2" width="100">Run Number</th>
-              <th scope="col" rowspan="2" width="80">Test type</th>
-              <th scope="col" rowspan="2" width="100">Institution</th>
-              <th scope="col" colspan="3" width="300">Environment</th>
-              <th scope="col" rowspan="2" width="150">Date</th>
-  	        </tr>
-  	        <tr>
-              <th scope="col">HV[V]</th>
-              <th scope="col">temp[℃]</th>
-              <th scope="col">stage</th>
-  	        </tr>
-          </thead>
-          <tbody>
-            {% for item in chip['scanIndex'] %}
-              <tr>
-                <td>{{ item['runNumber'] }}</td>
-                <td>
-                  <a href="{{ url_for('show_chip', id=chip['_id'], runId=item['_id']) }}">{{ item['testType'] }}</a>
-                </td>
-                <td>{{ item['institution'] }}</td>
-                <td>{{ item['environment.hv'] }}</td>
-                <td>{{ item['environment.cool'] }}</td>
-                <td>{{ item['environment.stage'] }}</td>
-                <td>{{ item['datetime'] }}</td>
-              </tr>
-            {% else %}
-              <tr>
-                <td>No match.</td>
-                <td>No match.</td>
-                <td>No match.</td>
-                <td>No match.</td>
-                <td>No match.</td>
-                <td>No match.</td>
-                <td>No match.</td>
-              </tr>
-            {% endfor %}
-          </tbody>
-        </table>
-  
-      </div>
-    </div>
+<div class="container">
+  <div class="row align-items-top justify-content-center">
+    <table class="table table-sm table-hover table-bordered" style="font-size: 10pt;">
+      <h4 style="font-size: 12pt;">Result</h4>
+      <thead class="table-dark" style="background: #222222;">
+        <tr>
+          <th scope="col" class="text-center" rowspan="2">Run Number</th>
+          <th scope="col" class="text-center" rowspan="2">Test Type</th>
+          <th scope="col" class="text-center" colspan="3">Environment</th>
+        </tr>
+        <tr>
+          <th scope="col" class="text-center" width="200">HV[V]</th>
+          <th scope="col" class="text-center" width="200">Temp[℃]</th>
+          <th scope="col" class="text-center" width="200">stage</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td scope="col" align="center" >{{ chip['dataIndex'][0]['runNumber'] }}</td>
+          <td scope="col" align="center" >{{ chip['dataIndex'][0]['testType'] }}</td>
+          <td scope="col" align="center" >{{ chip['dataIndex'][0]['environment']['hv'] }}</td>
+          <td scope="col" align="center" >{{ chip['dataIndex'][0]['environment']['cool'] }}</td>
+          <td scope="col" align="center" >{{ chip['dataIndex'][0]['environment']['stage'] }}</td>
+        </tr>
+      </tbody>
+    </table>
   </div>
-{% endblock %}
+  <div class="row align-items-top justify-content-center">
+    {% for data in chip['dataIndex'] %}
+      {% if loop.index == 1 %}
+        <div class="row align-items-top justify-content-space-evenly">
+      {% elif loop.index %4 == 1 %}
+        </div>
+        <div class="row align-items-top justify-content-space-evenly">
+      {% else %}
+      {% endif %}
+      <div class="col">
+        <center>
+        <a href={{ data['url'] }} target="_brank">
+          <img src={{ data['url'] }} title={{ data['filename'] }} width="250" height="250">
+          </img>
+        </a>
+        <p>
+          {{ data['filename'] }}
+        </p>
+        </center>
+      </div>
+    {% endfor %}
+      </div>
+  </div>
+</div>

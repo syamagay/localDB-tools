@@ -1,8 +1,8 @@
-<table class="table table-sm table-hover table-striped" style="font-size: 10pt;">
+<table class="table table-sm table-hover table-bordered" style="font-size: 10pt;">
   <h4>Result</h4>
-  <thead>
+  <thead class="table-dark" style="background: #222222;">
     <tr>
-      <th scope="col">Run Number : {{module['dataIndex'][0]['runNumber']}}&ensp;&ensp;Test Type : {{module['dataIndex'][0]['testType']}}</th>
+      <th scope="col" colspan="3">Run Number : {{module['dataIndex'][0]['runNumber']}}&ensp;&ensp;Test Type : {{module['dataIndex'][0]['testType']}}</th>
     </tr>
   </thead>
   <tbody>
@@ -39,8 +39,8 @@
               <input type="hidden" name="runNumber" value={{module['dataIndex'][0]['runNumber']}}>
               <input type="hidden" name="testType" value={{module['dataIndex'][0]['testType']}}>
               <input type="hidden" name="mapType" value={{d['mapType']}}>
-              <p>Range max <input type = "txt" name = "max" value = {{d.maxValue}} size="4"></p>
-              <p><input type = "checkbox" name = "log" value = "True"> Set log scale</p>
+              <p style="font-size: 8pt;">Range max <input type = "txt" name = "max" value = {{d.maxValue}} size="4"></p>
+              <p style="font-size: 8pt;"><input type = "checkbox" name = "log" value = "True"> Set log scale</p>
               <p><input type = "submit" value = "Make histogram"></p>
             </form>
             <br>
