@@ -12,7 +12,7 @@ from PlotHelpers import gHelper as PH
 
 
 ##### Functions #####
-def Plot1D_fromHistos(histo, logY=False, fileName="", yTitle="Events", drawOpts="EP") :
+def Plot1D_fromHistos(histo, logY=False, fileName="", yTitle="Events", drawOpts="EP", xMax="") :
     """
     === Arguments ===
         [Name]     (=[Default])          : [Description]
@@ -50,7 +50,8 @@ def Plot1D_fromHistos(histo, logY=False, fileName="", yTitle="Events", drawOpts=
     histo.GetXaxis().SetTitleOffset(0.75)
     histo.GetYaxis().SetTitleOffset(1.0)
     histo.GetYaxis().SetTitle(yTitle)
-
+    if xMax != "":
+        histo.GetXaxis().SetRangeUser(0,xMax)
 
     ####################
     ## Drawing
@@ -69,7 +70,8 @@ def Plot1D_fromHistos(histo, logY=False, fileName="", yTitle="Events", drawOpts=
 
 
 
-def Plot2D_fromHistos(histo, logZ=False, fileName="", zTitle="Events") :
+def Plot2D_fromHistos(histo, logZ=False, fileName="", zTitle="Events", zMax="") :
+#def Plot2D_fromHistos(histo, logZ=False, fileName="", zTitle="Events") :
     """
     === Arguments ===
         [Name]     (=[Default])          : [Description]
@@ -108,7 +110,8 @@ def Plot2D_fromHistos(histo, logZ=False, fileName="", zTitle="Events") :
     histo.GetYaxis().SetTitleOffset(1.0)
     histo.GetZaxis().SetTitleOffset(0.9)
     histo.GetZaxis().SetTitle(zTitle)
-    histo.GetZaxis().SetRangeUser(0,1000)
+    if zMax != "":
+        histo.GetZaxis().SetRangeUser(0,zMax)
 
     ####################
     ## Drawing
@@ -126,9 +129,7 @@ def Plot2D_fromHistos(histo, logZ=False, fileName="", zTitle="Events") :
     fileName = fileName.replace("/","_")
     PH.SavePlot( canvas, fileName )
 
-    print("close")
     canvas.Close()
-    print("closed")
 
 def PlotTGraphs(graphs, logY=False, fileName="",
                 xTitle="xAxis", yTitle="yAxis",
