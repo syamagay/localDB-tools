@@ -87,9 +87,9 @@ def drawScan(mod_name, scan_type, num_scan, log, Max, map_list):
             path_dir = "/tmp/" + scan_type
             PH.outDir = path_dir
     
-            path_plot = map_type[0]
-            Plot.Plot1D_fromHistos(h1, log, path_plot+"_Dist", "#Ch.", "histo", Max)
-            Plot.Plot2D_fromHistos(h2, log, path_plot, map_type[1], Max)
+            path_plot = num_scan + "_" +  map_type[0]
+            Plot.Plot1D_fromHistos(h1, log, path_plot+"_1", "#Ch.", "histo", Max)
+            Plot.Plot2D_fromHistos(h2, log, path_plot+"_2", map_type[1], Max)
 
             if Max == "":
                 max_value[scan_type][map_type[0]] = [int(h2.GetBinContent(h2.GetMaximumBin())),log]

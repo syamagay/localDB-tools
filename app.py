@@ -2,18 +2,16 @@ try:
     import root
 except:
     pass 
-import pymongo, json, bson.objectid, logging, img, base64, os, func, ast 
+import bson.objectid, bson.binary 
+import pymongo, json, logging, img, base64, os, func, ast 
 from collections import OrderedDict
 import pprint
 from flask import Flask, current_app, request, flash, redirect,url_for, render_template, session, abort
 from flask_pymongo import PyMongo
 from dateutil.parser import parse
 from bson.objectid import ObjectId # Convert str to ObjectId
-
-app = Flask(__name__)
-app.secret_key = 'secret'
-app.config["MONGO_URI"] = "mongodb://localhost:28000/yarrdb"
-mongo = PyMongo(app)
+from bson.binary import BINARY_SUBTYPE
+from werkzeug import secure_filename
 
 scanList = { "selftrigger"   : [("OccupancyMap-0", "#Hit"),],
              "noisescan"     : [("NoiseOccupancy","NoiseOccupancy"), ("NoiseMask", "NoiseMask")],
@@ -21,6 +19,26 @@ scanList = { "selftrigger"   : [("OccupancyMap-0", "#Hit"),],
              "thresholdscan" : [("ThresholdMap", "Threshold[e]"),    ("NoiseMap", "Noise[e]")],
              "digitalscan"   : [("OccupancyMap", "Occupancy"),       ("EnMask", "EnMask")],
              "analogscan"    : [("OccupancyMap", "Occupancy"),       ("EnMask", "EnMask")]}
+
+UPLOAD_FOLDER = '/tmp/upload'
+ALLOWED_EXTENSIONS = set(['txt', 'pdf', 'png', 'jpg', 'jpeg', 'gif'])
+
+app = Flask(__name__)
+app.secret_key = 'secret'
+app.config["MONGO_URI"] = "mongodb://localhost:28000/yarrdb"
+mongo = PyMongo(app)
+
+def allowed_file(filename):
+    return '.' in filename and \
+        filename.rsplit('.', 1)[1] in ALLOWED_EXTENSIONS
+
+def insert_data(data):
+    bin_data = bson.binary.Binary(open(data, 'r').read(), BINARY_SUBTYPE)
+    doc = { "_id"      :,
+            "files_id" :,
+            "n"        : 1,
+            "data"     : bin_data }
+    mongo.db.fs.chunks.insert(doc)
 
 # top page
 @app.route('/', methods=['GET'])
@@ -56,10 +74,8 @@ def show_modules_and_chips():
                          "serialNumber" : module_entry["serialNumber"],
                          "chips"        : chips })
 
-    if session.get('logged_in'):
-        html='admin_toppage.html'
-    else:
-        html='toppage.html'
+    if session.get('logged_in') : html = 'admin_toppage.html'
+    else                        : html = 'toppage.html'
 
     return render_template(html, modules=modules)
 
@@ -95,15 +111,9 @@ def show_module():
         for run in run_entries:
             query = { "_id" : bson.objectid.ObjectId(run['testRun']) }
             thisRun = mongo.db.testRun.find_one(query)
-            env_dict = {}
-            try:
-                env_dict.update({ "hv"    : thisRun['environment']['hv'],
-                                  "cool"  : thisRun['environment']['cool'],
-                                  "stage" : thisRun['environment']['stage'] })
-            except:
-                env_dict.update({ "hv"    : "", 
-                                  "cool"  : "", 
-                                  "stage" : "" })
+            env_dict = { "hv"    : thisRun.get('environment',{"key":"value"}).get('hv',""),
+                         "cool"  : thisRun.get('environment',{"key":"value"}).get('cool',""),
+                         "stage" : thisRun.get('environment',{"key":"value"}).get('stage',"") }
             runIndex.append({ "_id"         : thisRun['_id'],
                               "runNumber"   : thisRun['runNumber'],
                               "datetime"    : func.setTime(thisRun['date']),
@@ -120,42 +130,32 @@ def show_module():
         query = { '$or' : chips , "runNumber" : runNumber }
         thisRun = mongo.db.componentTestRun.find_one(query)
         testType = thisRun['testType']
+        cnt = 0
         for mapType in scanList[testType]:
-            try:
-                file1D = "/tmp/" + testType + "/" + mapType[0] + "_Dist.png" 
-                binary_png = open(file1D,'rb')
-                code_base64 = base64.b64encode(binary_png.read()).decode()
-                binary_png.close()
-                url = img.bin_to_image('png',code_base64)
-                module['dataIndex'].append({ "testType"  : testType, 
-                                             "mapType"   : mapType[0], 
-                                             "runNumber" : runNumber, 
-                                             "url"       : url })
-
-                file2D = "/tmp/" + testType + "/" + mapType[0] + ".png" 
-                binary_png = open(file2D,'rb')
-                code_base64 = base64.b64encode(binary_png.read()).decode()
-                binary_png.close()
-                url = img.bin_to_image('png',code_base64)
-
+            for i in [ "1", "2" ]:
                 max_value = func.readJson("parameter.json") 
                 module['dataIndex'].append({ "testType"  : testType, 
                                              "mapType"   : mapType[0], 
                                              "runNumber" : runNumber, 
-                                             "url"       : url, 
+                                             "comment"   : "No Root Software",
+                                             "url"       : "", 
                                              "setLog"    : max_value[testType][mapType[0]][1], 
                                              "maxValue"  : max_value[testType][mapType[0]][0] })
-            except:
-                module['dataIndex'].append({ "testType"  : testType,
-                                             "mapType"   : "No Root Software",
-                                             "runNumber" : runNumber })
+                filename = "/tmp/" + testType + "/" + str(runNumber) + "_" + mapType[0] + "_{}.png".format(i)
+                try :
+                    binary_png = open(filename,'rb')
+                    code_base64 = base64.b64encode(binary_png.read()).decode()
+                    binary_png.close()
+                    url = img.bin_to_image('png',code_base64)              
+                    module['dataIndex'][cnt]['url'] = url
+                    cnt += 1
+                except :
+                    pass
     except:
         module['dataIndex'].append({"test":"test"})
 
-    if session.get('logged_in'):
-        html='admin_module.html'
-    else:
-        html='module.html'
+    if session.get('logged_in') : html = 'admin_module.html'
+    else                        : html = 'module.html'
 
     return render_template(html, module=module)
 
@@ -191,10 +191,8 @@ def analysis_root():
     mapList = {}
     for mapType in scanList[testType]:
         mapList.update({ mapType[0] : True })
-    try:
-        root.drawScan(thisModule['serialNumber'], testType, str(runNumber), False, "", mapList)
-    except:
-        pass
+    try    : root.drawScan(thisModule['serialNumber'], testType, str(runNumber), False, "", mapList)
+    except : pass
 
     return redirect(url_for('show_module', id=module_id, run=runNumber))
 
@@ -212,10 +210,8 @@ def reanalysis_root():
         else:
             mapList.update({ mapType[0] : False })
 
-    try:
-        root.drawScan(thisModule['serialNumber'], str(request.form['testType']), str(runNumber), bool(request.form.get('log', False)), int(request.form.get('max',1000)), mapList)
-    except:
-        pass
+    try    : root.drawScan(thisModule['serialNumber'], str(request.form['testType']), str(runNumber), bool(request.form.get('log', False)), int(request.form.get('max',1000)), mapList)
+    except : pass
 
     return redirect(url_for('show_module', id=module_id, run=runNumber))
 
@@ -223,16 +219,33 @@ def reanalysis_root():
 @app.route('/chip_result', methods=['GET','POST'])
 def show_chip():
     chip = {}
+
+    url = ""
+    try:
+        file=request.files['file']
+        if file and allowed_file(file.filename):
+            filename = secure_filename(file.filename)
+            if not os.path.isdir(UPLOAD_FOLDER):
+                os.mkdir(UPLOAD_FOLDER)
+            file.save(os.path.join(UPLOAD_FOLDER, filename))
+            fileUp = UPLOAD_FOLDER + "/" + filename 
+            binary_png = open(fileUp,'rb')
+            code_base64 = base64.b64encode(binary_png.read()).decode()
+            binary_png.close()
+            url = img.bin_to_image('png',code_base64)
+    except:
+        pass
+
     query = { "_id" : bson.objectid.ObjectId(request.args.get('id')) }
     thisChip = mongo.db.component.find_one(query)
-    try: runId = bson.objectid.ObjectId(request.args.get('runId')) 
-    except: runId = ""
+    try    : runId = bson.objectid.ObjectId(request.args.get('runId')) 
+    except : runId = ""
 
     chip.update({ "_id"           : request.args.get('id'), 
                   "serialNumber"  : thisChip['serialNumber'],
                   "componentType" : thisChip['componentType'],
                   "run_id"        : runId,
-                  "url"           : "",
+                  "url"           : url,
                   "scanIndex"     : [],
                   "dataIndex"     : [] }) 
     
@@ -243,15 +256,10 @@ def show_chip():
         for run in run_entries:
             query = { "_id" : bson.objectid.ObjectId(run['testRun']) }
             thisRun = mongo.db.testRun.find_one(query)
-            env_dict = {}
-            try:
-                env_dict.update({ "hv"    : thisRun['environment']['hv'],
-                                  "cool"  : thisRun['environment']['cool'],
-                                  "stage" : thisRun['environment']['stage'] })
-            except:
-                env_dict.update({ "hv"    : "", 
-                                  "cool"  : "", 
-                                  "stage" : "" })
+
+            env_dict = { "hv"    : thisRun.get('environment',{"key":"value"}).get('hv',""),
+                         "cool"  : thisRun.get('environment',{"key":"value"}).get('cool',""),
+                         "stage" : thisRun.get('environment',{"key":"value"}).get('stage',"") }
 
             runIndex.append({ "_id"         : thisRun['_id'],
                               "runNumber"   : thisRun['runNumber'],
@@ -278,10 +286,10 @@ def show_chip():
 
         chip['scanIndex'].append({ "testType" : scan,
                                    "run"      : runIndex })
-    if session.get('logged_in'):
-        html='admin_chip.html'
-    else:
-        html='chip.html'
+
+    if session.get('logged_in'): html='admin_chip.html'
+    else                       : html='chip.html'
+
     return render_template(html, chip=chip)
 
 @app.route('/login',methods=['POST'])

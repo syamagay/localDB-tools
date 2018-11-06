@@ -38,7 +38,11 @@
                       </td>
                       <td>
                        {% if chip['url'] == "" %}
-                          No Picture
+                         <h4>No Picture</h4>
+                         <form "{{ url_for('show_chip') }}" method=post enctype=multipart/form-data>
+                           <p><input type=file name=file>
+                              <input type=submit value=Upload>
+                         </form>
                        {% else %}
                          <a href={{ chip['url'] }} target="_brank">
                            <img src={{ chip['url'] }} title={{ chip['serialNumber'] }} width="250" height="250">
