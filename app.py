@@ -5,14 +5,14 @@ except:
 import pymongo, json, bson.objectid, logging, img, base64, os, func, ast 
 from collections import OrderedDict
 import pprint
-from flask import Flask, current_app, request, flash,redirect,url_for,render_template
+from flask import Flask, current_app, request, flash, redirect,url_for, render_template, session, abort
 from flask_pymongo import PyMongo
 from dateutil.parser import parse
 from bson.objectid import ObjectId # Convert str to ObjectId
 
 app = Flask(__name__)
 app.secret_key = 'secret'
-app.config["MONGO_URI"] = "mongodb://localhost:27017/yarrdb"
+app.config["MONGO_URI"] = "mongodb://localhost:28000/yarrdb"
 mongo = PyMongo(app)
 
 scanList = { "selftrigger"   : [("OccupancyMap-0", "#Hit"),],
@@ -22,6 +22,7 @@ scanList = { "selftrigger"   : [("OccupancyMap-0", "#Hit"),],
              "digitalscan"   : [("OccupancyMap", "Occupancy"),       ("EnMask", "EnMask")],
              "analogscan"    : [("OccupancyMap", "Occupancy"),       ("EnMask", "EnMask")]}
 
+# top page
 @app.route('/', methods=['GET'])
 def show_modules_and_chips():
     query = { "componentType" : "Module" }
@@ -55,8 +56,14 @@ def show_modules_and_chips():
                          "serialNumber" : module_entry["serialNumber"],
                          "chips"        : chips })
 
-    return render_template('toppage.html', modules=modules)
+    if session.get('logged_in'):
+        html='admin_toppage.html'
+    else:
+        html='toppage.html'
 
+    return render_template(html, modules=modules)
+
+# module page
 @app.route('/module', methods=['GET','POST'])
 def show_module():
     module = {}
@@ -145,7 +152,12 @@ def show_module():
     except:
         module['dataIndex'].append({"test":"test"})
 
-    return render_template('module.html', module=module)
+    if session.get('logged_in'):
+        html='admin_module.html'
+    else:
+        html='module.html'
+
+    return render_template(html, module=module)
 
 @app.route('/analysis', methods=['GET','POST'])
 def analysis_root():
@@ -207,6 +219,7 @@ def reanalysis_root():
 
     return redirect(url_for('show_module', id=module_id, run=runNumber))
 
+# chip page
 @app.route('/chip_result', methods=['GET','POST'])
 def show_chip():
     chip = {}
@@ -219,6 +232,7 @@ def show_chip():
                   "serialNumber"  : thisChip['serialNumber'],
                   "componentType" : thisChip['componentType'],
                   "run_id"        : runId,
+                  "url"           : "",
                   "scanIndex"     : [],
                   "dataIndex"     : [] }) 
     
@@ -264,10 +278,48 @@ def show_chip():
 
         chip['scanIndex'].append({ "testType" : scan,
                                    "run"      : runIndex })
-    return render_template('chip.html', chip=chip)
+    if session.get('logged_in'):
+        html='admin_chip.html'
+    else:
+        html='chip.html'
+    return render_template(html, chip=chip)
+
+@app.route('/login',methods=['POST'])
+def login():
+    if request.form['password'] == "password" and request.form['username'] == "user":
+        session['logged_in'] = True
+    else:
+        flash('wrong password!')
+    return redirect(url_for('show_modules_and_chips'))
+
+@app.route('/logout',methods=['GET','POST'])
+def logout():
+    session['logged_in'] = False
+
+    return redirect(url_for('show_modules_and_chips'))
+
+@app.route('/test',methods=['GET','POST'])
+def test_form():
+    test_hidden = request.form.getlist('test_hidden')
+    test = request.form.getlist('test')
+    
+    print(test_hidden)
+    print(test)
+    print(type(test_hidden))
+    print(type(test))
+
+
+    return redirect(url_for('show_modules_and_chips'))
+
 
 @app.route('/add', methods=['GET','POST'])
 def add_entry():
+    mongo.db.user.insert({"name": request.form['name'], "birthday": parse(request.form['birthday'])})
+    flash('New entry was successfully posted')
+    return redirect(url_for('show_entry'))
+
+@app.route('/update', methods=['GET','POST'])
+def update_entry():
     mongo.db.user.insert({"name": request.form['name'], "birthday": parse(request.form['birthday'])})
     flash('New entry was successfully posted')
     return redirect(url_for('show_entry'))
