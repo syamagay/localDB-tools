@@ -25,7 +25,7 @@ ALLOWED_EXTENSIONS = set(['txt', 'pdf', 'png', 'jpg', 'jpeg', 'gif'])
 
 app = Flask(__name__)
 app.secret_key = 'secret'
-app.config["MONGO_URI"] = "mongodb://localhost:28000/yarrdb"
+app.config["MONGO_URI"] = "mongodb://localhost:27017/yarrdb"
 mongo = PyMongo(app)
 
 def allowed_file(filename):
@@ -421,4 +421,4 @@ def show_image():
     return render_template('pdf.html',image=image) 
 
 if __name__ == '__main__':
-    app.run(host='192.168.1.43') # change hostID
+    app.run(host='127.0.0.1') # change hostID
