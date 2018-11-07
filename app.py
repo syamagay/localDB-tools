@@ -34,8 +34,8 @@ def allowed_file(filename):
 
 def insert_data(data):
     bin_data = bson.binary.Binary(open(data, 'r').read(), BINARY_SUBTYPE)
-    doc = { "_id"      :,
-            "files_id" :,
+    doc = { "_id"      :"",
+            "files_id" :"",
             "n"        : 1,
             "data"     : bin_data }
     mongo.db.fs.chunks.insert(doc)
