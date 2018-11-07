@@ -50,7 +50,7 @@ def drawScan(mod_name, scan_type, num_scan, log, Max, map_list):
             for i in range(4) :
         
                 # Open Files
-                filename = "/tmp/data/chipId"+str(i+1)+"_"+map_type[0]+".dat"
+                filename = "/tmp/data/"+num_scan+"_chipId"+str(i+1)+"_"+map_type[0]+".dat"
                 try :
                     f = open(filename)
                 except :
@@ -83,6 +83,7 @@ def drawScan(mod_name, scan_type, num_scan, log, Max, map_list):
                     elif i==2 or i==3 : row = row + 1
         
                 f.close()
+                #os.remove(filename)
         
             path_dir = "/tmp/" + scan_type
             PH.outDir = path_dir

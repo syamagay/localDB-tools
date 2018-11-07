@@ -1,15 +1,15 @@
-try:
-    import root
-except:
-    pass 
+try    : import root
+except : pass 
+
 import bson.objectid, bson.binary 
-import pymongo, json, logging, img, base64, os, func, ast 
+import pymongo, json, logging, img, base64, func, ast
+import os, glob
+
 from collections import OrderedDict
-import pprint
 from flask import Flask, current_app, request, flash, redirect,url_for, render_template, session, abort
 from flask_pymongo import PyMongo
 from dateutil.parser import parse
-from bson.objectid import ObjectId # Convert str to ObjectId
+from bson.objectid import ObjectId 
 from bson.binary import BINARY_SUBTYPE
 from werkzeug import secure_filename
 
@@ -21,16 +21,11 @@ scanList = { "selftrigger"   : [("OccupancyMap-0", "#Hit"),],
              "analogscan"    : [("OccupancyMap", "Occupancy"),       ("EnMask", "EnMask")]}
 
 UPLOAD_FOLDER = '/tmp/upload'
-ALLOWED_EXTENSIONS = set(['txt', 'pdf', 'png', 'jpg', 'jpeg', 'gif'])
 
 app = Flask(__name__)
 app.secret_key = 'secret'
 app.config["MONGO_URI"] = "mongodb://localhost:27017/yarrdb"
 mongo = PyMongo(app)
-
-def allowed_file(filename):
-    return '.' in filename and \
-        filename.rsplit('.', 1)[1] in ALLOWED_EXTENSIONS
 
 def insert_data(data):
     bin_data = bson.binary.Binary(open(data, 'r').read(), BINARY_SUBTYPE)
@@ -161,6 +156,14 @@ def show_module():
 
 @app.route('/analysis', methods=['GET','POST'])
 def analysis_root():
+    dataPath = '/tmp/data'
+    if not os.path.isdir(dataPath):
+        os.mkdir(dataPath)
+    else:
+        r = glob.glob(dataPath+"/*")
+        for i in r:
+            os.remove(i)
+
     module_id = request.args.get('id')
     runNumber = int(request.args.get('runNumber'))
 
@@ -182,9 +185,8 @@ def analysis_root():
             if data['contentType'] == 'dat':
                 query = { "files_id" : bson.objectid.ObjectId(data['code']) }
                 thisBinary = mongo.db.fs.chunks.find_one(query)
-                if not os.path.isdir('/tmp/data'):
-                    os.mkdir('/tmp/data')
-                f = open('/tmp/data/{}.dat'.format(data['filename'].split("_")[1] + "_" + data['filename'].split("_")[2]), "w")
+                f = open('/tmp/data/{0}_{1}.dat'.format(runNumber, data['filename'].split("_")[1] + "_" + data['filename'].split("_")[2]), "wb")
+                #f.write(thisBinary['data'])
                 f.write(thisBinary['data'])
                 f.close()
 
@@ -223,7 +225,7 @@ def show_chip():
     url = ""
     try:
         file=request.files['file']
-        if file and allowed_file(file.filename):
+        if file and func.allowed_file(file.filename):
             filename = secure_filename(file.filename)
             if not os.path.isdir(UPLOAD_FOLDER):
                 os.mkdir(UPLOAD_FOLDER)
@@ -311,14 +313,7 @@ def test_form():
     test_hidden = request.form.getlist('test_hidden')
     test = request.form.getlist('test')
     
-    print(test_hidden)
-    print(test)
-    print(type(test_hidden))
-    print(type(test))
-
-
     return redirect(url_for('show_modules_and_chips'))
-
 
 @app.route('/add', methods=['GET','POST'])
 def add_entry():
