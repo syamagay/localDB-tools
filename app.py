@@ -3,7 +3,7 @@ try:
 except:
     pass 
 import bson.objectid, bson.binary 
-import pymongo, json, logging, img, base64, os, func, ast 
+import pymongo, json, logging, img, base64, os, func, ast, glob 
 from collections import OrderedDict
 import pprint
 from flask import Flask, current_app, request, flash, redirect,url_for, render_template, session, abort
@@ -161,6 +161,14 @@ def show_module():
 
 @app.route('/analysis', methods=['GET','POST'])
 def analysis_root():
+    dataPath = '/tmp/data'
+    if not os.path.isdir(dataPath):
+        os.mkdir(dataPath)
+    else:
+        r = glob.glob(dataPath+"/*")
+        for i in r:
+            os.remove(i)
+
     module_id = request.args.get('id')
     runNumber = int(request.args.get('runNumber'))
 
@@ -182,9 +190,7 @@ def analysis_root():
             if data['contentType'] == 'dat':
                 query = { "files_id" : bson.objectid.ObjectId(data['code']) }
                 thisBinary = mongo.db.fs.chunks.find_one(query)
-                if not os.path.isdir('/tmp/data'):
-                    os.mkdir('/tmp/data')
-                f = open('/tmp/data/{}.dat'.format(data['filename'].split("_")[1] + "_" + data['filename'].split("_")[2]), "w")
+                f = open('/tmp/data/{0}_{1}.dat'.format(runNumber, data['filename'].split("_")[1] + "_" + data['filename'].split("_")[2]), "w")
                 f.write(thisBinary['data'])
                 f.close()
 
@@ -311,14 +317,7 @@ def test_form():
     test_hidden = request.form.getlist('test_hidden')
     test = request.form.getlist('test')
     
-    print(test_hidden)
-    print(test)
-    print(type(test_hidden))
-    print(type(test))
-
-
     return redirect(url_for('show_modules_and_chips'))
-
 
 @app.route('/add', methods=['GET','POST'])
 def add_entry():
