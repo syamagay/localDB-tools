@@ -1,15 +1,15 @@
-try:
-    import root
-except:
-    pass 
+try    : import root
+except : pass 
+
 import bson.objectid, bson.binary 
-import pymongo, json, logging, img, base64, os, func, ast, glob 
+import pymongo, json, logging, img, base64, func, ast
+import os, glob
+
 from collections import OrderedDict
-import pprint
 from flask import Flask, current_app, request, flash, redirect,url_for, render_template, session, abort
 from flask_pymongo import PyMongo
 from dateutil.parser import parse
-from bson.objectid import ObjectId # Convert str to ObjectId
+from bson.objectid import ObjectId 
 from bson.binary import BINARY_SUBTYPE
 from werkzeug import secure_filename
 
@@ -21,16 +21,11 @@ scanList = { "selftrigger"   : [("OccupancyMap-0", "#Hit"),],
              "analogscan"    : [("OccupancyMap", "Occupancy"),       ("EnMask", "EnMask")]}
 
 UPLOAD_FOLDER = '/tmp/upload'
-ALLOWED_EXTENSIONS = set(['txt', 'pdf', 'png', 'jpg', 'jpeg', 'gif'])
 
 app = Flask(__name__)
 app.secret_key = 'secret'
 app.config["MONGO_URI"] = "mongodb://localhost:28000/yarrdb"
 mongo = PyMongo(app)
-
-def allowed_file(filename):
-    return '.' in filename and \
-        filename.rsplit('.', 1)[1] in ALLOWED_EXTENSIONS
 
 def insert_data(data):
     bin_data = bson.binary.Binary(open(data, 'r').read(), BINARY_SUBTYPE)
@@ -190,7 +185,8 @@ def analysis_root():
             if data['contentType'] == 'dat':
                 query = { "files_id" : bson.objectid.ObjectId(data['code']) }
                 thisBinary = mongo.db.fs.chunks.find_one(query)
-                f = open('/tmp/data/{0}_{1}.dat'.format(runNumber, data['filename'].split("_")[1] + "_" + data['filename'].split("_")[2]), "w")
+                f = open('/tmp/data/{0}_{1}.dat'.format(runNumber, data['filename'].split("_")[1] + "_" + data['filename'].split("_")[2]), "wb")
+                #f.write(thisBinary['data'])
                 f.write(thisBinary['data'])
                 f.close()
 
@@ -229,7 +225,7 @@ def show_chip():
     url = ""
     try:
         file=request.files['file']
-        if file and allowed_file(file.filename):
+        if file and func.allowed_file(file.filename):
             filename = secure_filename(file.filename)
             if not os.path.isdir(UPLOAD_FOLDER):
                 os.mkdir(UPLOAD_FOLDER)
