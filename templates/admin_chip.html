@@ -32,53 +32,53 @@
                         {{ chip['serialNumber'] }} 
                       </td>
                     </tr>
+                    {% for data in chip['data'] %}
+                    <tr>
+                      <td>
+                        {{ data['title'] }} 
+                      </td>
+                      <td>
+                        <a href={{ data['url'] }} target="_brank">
+                          <img src={{ data['url'] }} title={{ data['filename'] }} width="250" height="250">
+                          </img>
+                        </a>
+  								      <form action="{{ url_for('remove_attachment') }}" method="post">
+                  		    <input type="hidden" name="type" value="chip" />
+                  		    <input type="hidden" name="id" value={{ chip['_id'] }} />
+                          <div class="form-horizontal">
+                            <p>
+  									    		   <button type="submit" class="btn" name="code" value="{{ data['code'] }}">remove</button>
+  									    	   </p>
+  									    	 </div>
+                        </form>
+                      </td>
+                    </tr>
+                    {% endfor %}
                     <tr>
                       <td>
                         Picture
                       </td>
                       <td>
-                       {% if chip['data'][0] == _brank %}
-                         <h4>No Picture</h4>
-                         <h5 style="font-size: 10pt"> Upload picture to Database </h5>
-  								       <form action="{{ url_for('add_attachment') }}" method="post" enctype="multipart/form-data">
-                  		     <input type="hidden" name="id" value={{ chip['_id'] }} />
-                           <div class="form-horizontal">
-                             <p>
-                               <input type=file id=file name=file accept="image/*">
-                             </p>
-
-                             <p>
-                 		     		   <h5 style="font-size: 10pt"> title : <input type="text" placeholder="title" name="title" id="title" /></h5>
-                	     		   </p>
-                 
-                             <p>
-                  		     	   <h5 style="font-size: 10pt"> description : <input type="text" placeholder="description" name="description" id="description" /></h5>
-                		     		 </p>
-
-                             <p>
-  									     		   <button type="submit" class="btn">Upload</button>
-  									     	   </p>
-  									     	 </div>
-                         </form>
-                       {% else %}
-                         {% for data in chip['data'] %}
-                           <a href={{ data['url'] }} target="_brank">
-                             <img src={{ data['url'] }} title={{ data['filename'] }} width="250" height="250">
-                             </img>
-                           </a>
-                           <p>
-                             {{ data['filename'] }}
-                           </p>
-  								         <form action="{{ url_for('remove_attachment') }}" method="post">
-                  		       <input type="hidden" name="id" value={{ chip['_id'] }} />
-                             <div class="form-horizontal">
-                               <p>
-  									       		   <button type="submit" class="btn" name="code" value="{{ data['code'] }}">Remove</button>
-  									       	   </p>
-  									       	 </div>
-                           </form>
-                         {% endfor %}
-                       {% endif %}
+                        <h4>no picture</h4>
+                        <h5 style="font-size: 10pt"> upload picture to database </h5>
+  								      <form action="{{ url_for('add_attachment') }}" method="post" enctype="multipart/form-data">
+                  		    <input type="hidden" name="type" value="chip" />
+                  		    <input type="hidden" name="id" value={{ chip['_id'] }} />
+                          <div class="form-horizontal">
+                            <p>
+                              <input type=file id=file name=file accept="image/*">
+                            </p>
+                            <p>
+                 		    		   <h5 style="font-size: 10pt"> title : <input type="text" placeholder="title" name="title" id="title" /></h5>
+                	     	    </p>
+                            <p>
+                  		    	   <h5 style="font-size: 10pt"> description : <input type="text" placeholder="description" name="description" id="description" /></h5>
+                		    		</p>
+                            <p>
+  									    		   <button type="submit" class="btn">upload</button>
+  									    	   </p>
+  									    	 </div>
+                        </form>
                       </td>
                     </tr>
                   </tbody>
