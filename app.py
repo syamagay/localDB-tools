@@ -12,6 +12,7 @@ from dateutil.parser import parse
 from bson.objectid import ObjectId 
 from bson.binary import BINARY_SUBTYPE
 from werkzeug import secure_filename
+from pymongo import MongoClient
 
 scanList = { "selftrigger"   : [("OccupancyMap-0", "#Hit"),],
              "noisescan"     : [("NoiseOccupancy","NoiseOccupancy"), ("NoiseMask", "NoiseMask")],
@@ -26,6 +27,9 @@ app = Flask(__name__)
 app.secret_key = 'secret'
 app.config["MONGO_URI"] = "mongodb://localhost:28000/yarrdb"
 mongo = PyMongo(app)
+
+client = MongoClient(host='localhost', port=28000)
+userdb = client['user']
 
 def insert_data(data):
     bin_data = bson.binary.Binary(open(data, 'r').read(), BINARY_SUBTYPE)
@@ -254,19 +258,6 @@ def show_chip():
     try    : runId = bson.objectid.ObjectId(request.args.get('runId')) 
     except : runId = ""
 
-#    try :
-#        data_entries = thisChip['attachments']
-#        for data in data_entries:
-#            if data['contentType'] == 'png' or data['contentType'] == 'jpg':
-#                fs = gridfs.GridFS( mongo.db )
-#                code_base64 = base64.b64encode(fs.get(bson.objectid.ObjectId(data['code'])).read()).decode()
-#                dataurl = img.bin_to_image(data['contentType'],code_base64)              
-#                url.append({ "url"      : dataurl,
-#                             "code"     : data['code'],
-#                             "filename" : data['filename'] })
-#    except :
-#        pass
-
     try :
         dataPath = "./static/upload"
         if not os.path.isdir(dataPath):
@@ -375,15 +366,16 @@ def add_attachment():
     return redirect(url_for(forUrl, id=request.form.get('id')))
 
 
-    #return redirect(url_for('show_chip', id=request.form.get('id')))
-
-
 @app.route('/login',methods=['POST'])
 def login():
-    if request.form['password'] == "password" and request.form['username'] == "user":
-        session['logged_in'] = True
-    else:
-        flash('wrong password!')
+    userName = userdb.user.find_one({"userName":request.form['username']})
+    try:
+        if request.form['password'] == userName['passWord']:
+            session['logged_in'] = True
+        else:
+            print('wrong password!')
+    except:
+        print('no user')
     return redirect(url_for('show_modules_and_chips'))
 
 @app.route('/logout',methods=['GET','POST'])
@@ -410,8 +402,6 @@ def remove_attachment():
 
     forUrl = "show_{}".format(request.form.get('type'))
     return redirect(url_for(forUrl, id=thisId))
-
-    #return redirect(url_for('show_chip', id=thisId))
 
 @app.route('/add', methods=['GET','POST'])
 def add_entry():
