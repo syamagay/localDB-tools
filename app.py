@@ -2,7 +2,7 @@ try    : import root
 except : pass 
 
 import bson.objectid, bson.binary 
-import pymongo, json, logging, img, base64, func, ast
+import pymongo, json, logging, img, base64, func, ast, gridfs
 import os, glob
 
 from collections import OrderedDict
@@ -138,9 +138,9 @@ def show_module():
                                              "maxValue"  : max_value[testType][mapType[0]][0] })
                 filename = "/tmp/" + testType + "/" + str(runNumber) + "_" + mapType[0] + "_{}.png".format(i)
                 try :
-                    binary_png = open(filename,'rb')
-                    code_base64 = base64.b64encode(binary_png.read()).decode()
-                    binary_png.close()
+                    binary_image = open(filename,'rb')
+                    code_base64 = base64.b64encode(binary_image.read()).decode()
+                    binary_image.close()
                     url = img.bin_to_image('png',code_base64)              
                     module['dataIndex'][cnt]['url'] = url
                     cnt += 1
@@ -221,33 +221,52 @@ def reanalysis_root():
 @app.route('/chip_result', methods=['GET','POST'])
 def show_chip():
     chip = {}
-
-    url = ""
-    try:
-        file=request.files['file']
-        if file and func.allowed_file(file.filename):
-            filename = secure_filename(file.filename)
-            if not os.path.isdir(UPLOAD_FOLDER):
-                os.mkdir(UPLOAD_FOLDER)
-            file.save(os.path.join(UPLOAD_FOLDER, filename))
-            fileUp = UPLOAD_FOLDER + "/" + filename 
-            binary_png = open(fileUp,'rb')
-            code_base64 = base64.b64encode(binary_png.read()).decode()
-            binary_png.close()
-            url = img.bin_to_image('png',code_base64)
-    except:
-        pass
+    url = []
 
     query = { "_id" : bson.objectid.ObjectId(request.args.get('id')) }
     thisChip = mongo.db.component.find_one(query)
     try    : runId = bson.objectid.ObjectId(request.args.get('runId')) 
     except : runId = ""
 
+    try :
+        data_entries = thisChip['attachments']
+        for data in data_entries:
+            if data['contentType'] == 'png' or data['contentType'] == 'jpg':
+                fs = gridfs.GridFS( mongo.db )
+                code_base64 = base64.b64encode(fs.get(bson.objectid.ObjectId(data['code'])).read()).decode()
+                dataurl = img.bin_to_image(data['contentType'],code_base64)              
+                url.append({ "url"      : dataurl,
+                             "code"     : data['code'],
+                             "filename" : data['filename'] })
+    except :
+        pass
+
+#    try :
+#        data_entries = thisChip['attachments']
+#        for data in data_entries:
+#            if data['contentType'] == 'png':
+#                fs = gridfs.GridFS( mongo.db )
+#                dataPath = "/tmp/upload"
+#                if not os.path.isdir(dataPath):
+#                    os.mkdir(dataPath)
+#                else:
+#                    r = glob.glob(dataPath+"/*")
+#                    for i in r:
+#                        os.remove(i)
+#                filePath = "{0}/{1}".format(dataPath, data['filename'])
+#                f = open(filePath, 'wb')
+#                f.write(fs.get(bson.objectid.ObjectId(data['code'])).read())
+#                f.close()
+#                url.append({ "url"      : filePath,
+#                             "filename" : data['filename'] })
+#    except :
+#        pass
+
     chip.update({ "_id"           : request.args.get('id'), 
                   "serialNumber"  : thisChip['serialNumber'],
                   "componentType" : thisChip['componentType'],
                   "run_id"        : runId,
-                  "url"           : url,
+                  "data"          : url,
                   "scanIndex"     : [],
                   "dataIndex"     : [] }) 
     
@@ -294,6 +313,38 @@ def show_chip():
 
     return render_template(html, chip=chip)
 
+@app.route('/add_attachment', methods=['GET','POST'])
+def add_attachment():
+
+    file=request.files['file']
+    if file and func.allowed_file(file.filename):
+        filename = secure_filename(file.filename)
+        if not os.path.isdir(UPLOAD_FOLDER):
+            os.mkdir(UPLOAD_FOLDER)
+        file.save(os.path.join(UPLOAD_FOLDER, filename))
+
+        fs = gridfs.GridFS(mongo.db)
+        fileUp = "{0}/{1}".format(UPLOAD_FOLDER,filename)
+        binary_image = open(fileUp,'rb')
+        title = request.form.get('title')
+        description = request.form.get('description')
+        if title == "": title = filename.rsplit('.',1)[0]
+        image = fs.put(binary_image.read(), filename=filename)
+        binary_image.close()
+        
+        thisImage = mongo.db.fs.files.find_one({"_id":image})
+        date = thisImage['uploadDate']
+        query = { "_id" : bson.objectid.ObjectId(request.form.get('id'))}
+        mongo.db.component.update( query, { '$push' : { "attachments" : { "code"        : str(image),
+                                                                          "dateTime"    : date,
+                                                                          "title"       : title,
+                                                                          "description" : description,
+                                                                          "contentType" : filename.rsplit('.',1)[1],
+                                                                          "filename"    : filename }}})
+
+    return redirect(url_for('show_chip', id=request.form.get('id')))
+
+
 @app.route('/login',methods=['POST'])
 def login():
     if request.form['password'] == "password" and request.form['username'] == "user":
@@ -314,6 +365,17 @@ def test_form():
     test = request.form.getlist('test')
     
     return redirect(url_for('show_modules_and_chips'))
+
+@app.route('/remove_attachment',methods=['GET','POST'])
+def remove_attachment():
+    code = request.form.get('code')
+    chipId = request.form.get('id')
+    
+    mongo.db.fs.files.remove({ "_id" : bson.objectid.ObjectId(code) }) 
+    mongo.db.fs.chunks.remove({ "files_id" : bson.objectid.ObjectId(code) }) 
+    mongo.db.component.update({ "_id" : bson.objectid.ObjectId(chipId) }, { '$pull' : { "attachments" : { "code" : code }}}) 
+
+    return redirect(url_for('show_chip', id=chipId))
 
 @app.route('/add', methods=['GET','POST'])
 def add_entry():

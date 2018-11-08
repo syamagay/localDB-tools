@@ -3,7 +3,7 @@ from pdf2image import convert_from_path
 import logging, base64 
 
 def bin_to_image(typ, binary):
-    if typ == 'png':
+    if typ == 'png' or typ == 'jpg':
         data = 'data:image/png;base64,' + binary
     if typ == 'pdf':
         file_pdf = open('/tmp/image.pdf','wb')
