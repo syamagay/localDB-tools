@@ -13,6 +13,7 @@ from bson.objectid import ObjectId
 from bson.binary import BINARY_SUBTYPE
 from werkzeug import secure_filename
 from pymongo import MongoClient
+import hashlib
 
 scanList = { "selftrigger"   : [("OccupancyMap-0", "#Hit"),],
              "noisescan"     : [("NoiseOccupancy","NoiseOccupancy"), ("NoiseMask", "NoiseMask")],
@@ -286,12 +287,14 @@ def show_chip():
                   "componentType" : thisChip['componentType'],
                   "run_id"        : runId,
                   "data"          : url,
+                  "displayIndex"  : [],
                   "scanIndex"     : [],
                   "dataIndex"     : [] }) 
-    
+   
     for scan in scanList:
         query = { "component" : chip['_id'], "testType" : scan }
         run_entries = mongo.db.componentTestRun.find(query)
+        displayIndex = []
         runIndex = []
         for run in run_entries:
             query = { "_id" : bson.objectid.ObjectId(run['testRun']) }
@@ -307,6 +310,20 @@ def show_chip():
                               "institution" : thisRun['institution'],
                               "environment" : env_dict })
 
+            display_entries = thisRun['attachments']
+            for display in display_entries:
+                try:
+                    if display['display'] == 'True':
+                        query = { "files_id" : bson.objectid.ObjectId(display['code']) }
+                        binary = mongo.db.fs.chunks.find_one(query)
+                        byte = base64.b64encode(binary['data']).decode()
+                        url = img.bin_to_image(display['contentType'],byte)
+                        displayIndex.append({ "runNumber"   : thisRun['runNumber'],
+                                              "filename"    : display['filename'].split("_")[2],
+                                              "url"         : url })
+                except:
+                    pass
+
             if (thisRun['_id']) == chip['run_id']:
                 data_entries = thisRun['attachments']
                 for data in data_entries:
@@ -317,20 +334,58 @@ def show_chip():
                         url = img.bin_to_image(data['contentType'],byte)
                         chip['dataIndex'].append({ "testType"    : thisRun['testType'],
                                                    "runNumber"   : thisRun['runNumber'],
+                                                   "runId"       : thisRun['_id'],
+                                                   "code"        : data['code'],
                                                    "url"         : url,
                                                    "filename"    : data['filename'].split("_")[2],
                                                    "datetime"    : func.setTime(thisRun['date']),
                                                    "environment" : env_dict,
+                                                   "display"     : data.get('display',"false"),
                                                    "contentType" : data['contentType'] })
     
+        if not runIndex == []:
+            chip['scanIndex'].append({ "testType" : scan,
+                                       "run"      : runIndex })
+        if not displayIndex == []:
+            chip['displayIndex'].append({ "testType" : scan,
+                                          "display"  : displayIndex })
 
-        chip['scanIndex'].append({ "testType" : scan,
-                                   "run"      : runIndex })
 
     if session.get('logged_in'): html='admin_chip.html'
     else                       : html='chip.html'
 
     return render_template(html, chip=chip)
+
+@app.route('/tag_image', methods=['GET','POST'])
+def tag_image():
+    
+    query = { "_id" : bson.objectid.ObjectId(request.form.get('runId')) }
+    thisRun = mongo.db.testRun.find_one(query)
+    data_entries = thisRun['attachments']
+    for data in data_entries:
+        if data['code'] == request.form.get('code'):
+            if not 'display' in data:
+                mongo.db.testRun.update( query, {'$set': {'attachments.{}.display'.format( data_entries.index(data) ) : "True" }})
+
+    forUrl = "show_{}".format(request.form.get('type'))
+
+    return redirect(url_for(forUrl, id=request.form.get('id'), runId=request.form.get('runId')))
+
+@app.route('/untag_image', methods=['GET','POST'])
+def untag_image():
+    
+    query = { "_id" : bson.objectid.ObjectId(request.form.get('runId')) }
+    thisRun = mongo.db.testRun.find_one(query)
+    data_entries = thisRun['attachments']
+    for data in data_entries:
+        if data['code'] == request.form.get('code'):
+            if 'display' in data:
+                mongo.db.testRun.update( query, {'$unset': {'attachments.{}.display'.format( data_entries.index(data) ) : "True" }})
+
+    forUrl = "show_{}".format(request.form.get('type'))
+
+    return redirect(url_for(forUrl, id=request.form.get('id'), runId=request.form.get('runId')))
+
 
 @app.route('/add_attachment', methods=['GET','POST'])
 def add_attachment():
@@ -365,32 +420,6 @@ def add_attachment():
 
     return redirect(url_for(forUrl, id=request.form.get('id')))
 
-
-@app.route('/login',methods=['POST'])
-def login():
-    userName = userdb.user.find_one({"userName":request.form['username']})
-    try:
-        if request.form['password'] == userName['passWord']:
-            session['logged_in'] = True
-        else:
-            print('wrong password!')
-    except:
-        print('no user')
-    return redirect(url_for('show_modules_and_chips'))
-
-@app.route('/logout',methods=['GET','POST'])
-def logout():
-    session['logged_in'] = False
-
-    return redirect(url_for('show_modules_and_chips'))
-
-@app.route('/test',methods=['GET','POST'])
-def test_form():
-    test_hidden = request.form.getlist('test_hidden')
-    test = request.form.getlist('test')
-    
-    return redirect(url_for('show_modules_and_chips'))
-
 @app.route('/remove_attachment',methods=['GET','POST'])
 def remove_attachment():
     code = request.form.get('code')
@@ -403,105 +432,125 @@ def remove_attachment():
     forUrl = "show_{}".format(request.form.get('type'))
     return redirect(url_for(forUrl, id=thisId))
 
-@app.route('/add', methods=['GET','POST'])
-def add_entry():
-    mongo.db.user.insert({"name": request.form['name'], "birthday": parse(request.form['birthday'])})
-    flash('New entry was successfully posted')
-    return redirect(url_for('show_entry'))
+@app.route('/login',methods=['POST'])
+def login():
+    userName = userdb.user.find_one({"userName":request.form['username']})
+    try:
+        if hashlib.md5(request.form['password'].encode("utf-8")).hexdigest() == userName['passWord']:
+            session['logged_in'] = True
+        else:
+            txt = "not match password"
+            return render_template("error.html", txt=txt)
+    except:
+        txt = "not found user"
+        return render_template("error.html", txt=txt)
+    return redirect(url_for('show_modules_and_chips'))
 
-@app.route('/update', methods=['GET','POST'])
-def update_entry():
-    mongo.db.user.insert({"name": request.form['name'], "birthday": parse(request.form['birthday'])})
-    flash('New entry was successfully posted')
-    return redirect(url_for('show_entry'))
+@app.route('/logout',methods=['GET','POST'])
+def logout():
+    session['logged_in'] = False
 
-@app.route('/search', methods=['POST'])
-def filter_entry():
-    start = parse(request.form['start'])
-    end = parse(request.form['end'])
-    cur = mongo.db.user.find({'birthday': {'$lt': end, '$gte': start}}).limit(10)
-    results = []
-    for row in cur:
-        results.append({"name": row['name'], "birthday": row['birthday'].strftime("%Y/%m/%d")})
+    return redirect(url_for('show_modules_and_chips'))
 
-    return render_template('result.html', results=results)
+#@app.route('/add', methods=['GET','POST'])
+#def add_entry():
+#    mongo.db.user.insert({"name": request.form['name'], "birthday": parse(request.form['birthday'])})
+#    flash('New entry was successfully posted')
+#    return redirect(url_for('show_entry'))
+#
+#@app.route('/update', methods=['GET','POST'])
+#def update_entry():
+#    mongo.db.user.insert({"name": request.form['name'], "birthday": parse(request.form['birthday'])})
+#    flash('New entry was successfully posted')
+#    return redirect(url_for('show_entry'))
 
-@app.route('/index', methods=['POST'])
-def index_entry():
-    collection = request.form['col']
-    collectionNames = mongo.db.collection_names()
-    collections = []
-    collections.append({"collection": collection})
-    for col in collectionNames:
-        if col != collection:
-            collections.append({"collection": col})
+#@app.route('/search', methods=['POST'])
+#def filter_entry():
+#    start = parse(request.form['start'])
+#    end = parse(request.form['end'])
+#    cur = mongo.db.user.find({'birthday': {'$lt': end, '$gte': start}}).limit(10)
+#    results = []
+#    for row in cur:
+#        results.append({"name": row['name'], "birthday": row['birthday'].strftime("%Y/%m/%d")})
+#
+#    return render_template('result.html', results=results)
 
-    items = mongo.db[collection].find().sort('$natural', pymongo.DESCENDING).limit(10) #pymongo.cursor.Cursor
-    index = []
-    for item in items:
-        datas = [k for k, v in item.items()]
-        for data in datas:
-            if data == '_id':
-                index.append({"value": item[data]}) 
+#@app.route('/index', methods=['POST'])
+#def index_entry():
+#    collection = request.form['col']
+#    collectionNames = mongo.db.collection_names()
+#    collections = []
+#    collections.append({"collection": collection})
+#    for col in collectionNames:
+#        if col != collection:
+#            collections.append({"collection": col})
+#
+#    items = mongo.db[collection].find().sort('$natural', pymongo.DESCENDING).limit(10) #pymongo.cursor.Cursor
+#    index = []
+#    for item in items:
+#        datas = [k for k, v in item.items()]
+#        for data in datas:
+#            if data == '_id':
+#                index.append({"value": item[data]}) 
+#
+#    return render_template('collection.html', collection=collection, collections=collections, index=index) 
 
-    return render_template('collection.html', collection=collection, collections=collections, index=index) 
+#@app.route('/index/open', methods=['POST'])
+#def open_entry():
+#
+#    collection = request.form['col']
+#    document = bson.objectid.ObjectId(request.form['doc'])
+#
+#    # title
+#    items = mongo.db[collection].find().sort('$natural', pymongo.DESCENDING).limit(10) #pymongo.cursor.Cursor
+#    index = []
+#    for item in items:
+#      datas = [k for k, v in item.items()]
+#      for data in datas:
+#        if data == '_id':
+#          index.append({"value": item[data]}) 
+#
+#    return render_template('collection.html', collection=collection, index=index) 
 
-@app.route('/index/open', methods=['POST'])
-def open_entry():
-
-    collection = request.form['col']
-    document = bson.objectid.ObjectId(request.form['doc'])
-
-    # title
-    items = mongo.db[collection].find().sort('$natural', pymongo.DESCENDING).limit(10) #pymongo.cursor.Cursor
-    index = []
-    for item in items:
-      datas = [k for k, v in item.items()]
-      for data in datas:
-        if data == '_id':
-          index.append({"value": item[data]}) 
-
-    return render_template('collection.html', collection=collection, index=index) 
-
-@app.route('/index/open/document', methods=['POST'])
-def open_document():
-
-    collection = request.form['col']
-    document = bson.objectid.ObjectId(request.form['doc'])
-
-    # collection Name
-    collectionNames = mongo.db.collection_names()
-    collections = []
-    collections.append({"collection": collection})
-    for col in collectionNames:
-        if col != collection:
-            collections.append({"collection": col})
-
-    # key and value
-    #key = 'files_id'
-    #if collection == collection_open:
-    key = '_id'
-
-    names = []
-    items = mongo.db[collection].find({key: document}).limit(10)
-    image = ""
-    for item in items:
-        if collection == 'fs.chunks':
-            byte=base64.b64encode(item['data']).decode()
-            #image=img.bin_to_image('png', byte)
-            image=img.bin_to_image('pdf', byte)
-        datas = [k for k, v in item.items()]
-        for data in datas:
-            names.append({"key": data, "value": item[data]})
-    logging.info('info')
-    
-    return render_template('document.html', collection=collection, collections=collections, names=names, image=image) 
-
-@app.route('/index/open/image', methods=['POST'])
-def show_image():
-    image = request.form['image']
-
-    return render_template('pdf.html',image=image) 
+#@app.route('/index/open/document', methods=['POST'])
+#def open_document():
+#
+#    collection = request.form['col']
+#    document = bson.objectid.ObjectId(request.form['doc'])
+#
+#    # collection Name
+#    collectionNames = mongo.db.collection_names()
+#    collections = []
+#    collections.append({"collection": collection})
+#    for col in collectionNames:
+#        if col != collection:
+#            collections.append({"collection": col})
+#
+#    # key and value
+#    #key = 'files_id'
+#    #if collection == collection_open:
+#    key = '_id'
+#
+#    names = []
+#    items = mongo.db[collection].find({key: document}).limit(10)
+#    image = ""
+#    for item in items:
+#        if collection == 'fs.chunks':
+#            byte=base64.b64encode(item['data']).decode()
+#            #image=img.bin_to_image('png', byte)
+#            image=img.bin_to_image('pdf', byte)
+#        datas = [k for k, v in item.items()]
+#        for data in datas:
+#            names.append({"key": data, "value": item[data]})
+#    logging.info('info')
+#    
+#    return render_template('document.html', collection=collection, collections=collections, names=names, image=image) 
+#
+#@app.route('/index/open/image', methods=['POST'])
+#def show_image():
+#    image = request.form['image']
+#
+#    return render_template('pdf.html',image=image) 
 
 if __name__ == '__main__':
     app.run(host='192.168.1.43') # change hostID
