@@ -390,7 +390,7 @@ class PlotHelpers(Singleton) :
 
     def SavePlot(self, canvas, fileName) :
         if not os.path.isdir(self.outDir) :
-            print "Make output directory : {}".format(self.outDir)
+            print("Make output directory : {}".format(self.outDir))
             os.makedirs(self.outDir)
 
         from ROOT import gROOT, TFile
@@ -501,7 +501,7 @@ class PlotHelpers(Singleton) :
 
             tmpFileName = "{0}_{1}".format(sampleName, fileName)
             if SeparateFile :
-                print "Creating sample ROOT file ({0}) for testing...".format(tmpFileName)
+                print("Creating sample ROOT file ({0}) for testing...".format(tmpFileName))
 
             f  = ROOT.TFile(tmpFileName, "RECREATE")
             tr = ROOT.TTree("Values", "N-tuple for the testing ({0})".format(sampleName))
@@ -531,7 +531,7 @@ class PlotHelpers(Singleton) :
             f.Close()
 
         ## Create merged ROOT file
-        print "Creating sample ROOT file ({0}) for testing...".format(fileName)
+        print("Creating sample ROOT file ({0}) for testing...".format(fileName))
         outFile = ROOT.TFile(fileName, "RECREATE")
 
         for sample in sampleList :

@@ -20,6 +20,10 @@ scanList = { "selftrigger"   : [("OccupancyMap-0", "#Hit"),],
              "digitalscan"   : [("OccupancyMap", "Occupancy"),       ("EnMask", "EnMask")],
              "analogscan"    : [("OccupancyMap", "Occupancy"),       ("EnMask", "EnMask")]}
 
+if not os.path.isdir('/tmp/{}'.format(os.getlogin())):
+    os.mkdir('/tmp/{}'.format(os.getlogin()))
+
+
 UPLOAD_FOLDER = '/tmp/{}/upload'.format(os.getlogin())
 DATA_FOLDER = '/tmp/{}/data'.format(os.getlogin())
 RESULT_FOLDER = '/tmp/{}/result'.format(os.getlogin())
