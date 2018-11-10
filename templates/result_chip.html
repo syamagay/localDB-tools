@@ -16,11 +16,11 @@
       </thead>
       <tbody>
         <tr>
-          <td scope="col" align="center" >{{ chip['dataIndex'][0]['runNumber'] }}</td>
-          <td scope="col" align="center" >{{ chip['dataIndex'][0]['testType'] }}</td>
-          <td scope="col" align="center" >{{ chip['dataIndex'][0]['environment']['hv'] }}</td>
-          <td scope="col" align="center" >{{ chip['dataIndex'][0]['environment']['cool'] }}</td>
-          <td scope="col" align="center" >{{ chip['dataIndex'][0]['environment']['stage'] }}</td>
+          <td scope="col" align="center" >{{ component['dataIndex'][0]['runNumber'] }}</td>
+          <td scope="col" align="center" >{{ component['dataIndex'][0]['testType'] }}</td>
+          <td scope="col" align="center" >{{ component['dataIndex'][0]['environment']['hv'] }}</td>
+          <td scope="col" align="center" >{{ component['dataIndex'][0]['environment']['cool'] }}</td>
+          <td scope="col" align="center" >{{ component['dataIndex'][0]['environment']['stage'] }}</td>
         </tr>
       </tbody>
     </table>
@@ -28,7 +28,7 @@
 </div>
 <div class="row align-items-top justify-content-center">
   <div class="col">
-    {% for data in chip['dataIndex'] %}
+    {% for data in component['dataIndex'] %}
       {% if loop.index == 1 %}
       <div class="row align-items-top justify-content-space-evenly">
       {% elif loop.index %4 == 1 %}

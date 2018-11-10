@@ -5,7 +5,7 @@
         <div class="row align-items-top justify-content-center">
             <div class="col">
       
-                <h1>Chip Summary : {{ chip['serialNumber'] }} (admin page)</h1>
+                <h1>Chip Summary : {{ component['serialNumber'] }} (admin page)</h1>
       
                 <table class="table table-sm table-bordered" style="font-size: 8pt;">
                   <h4 style="font-size: 13pt;"><i class="fa fa-cog"></i> Index</h4>
@@ -21,7 +21,7 @@
                         FE type
                       </td>
                       <td>
-                        {{ chip['componentType'] }}
+                        {{ component['componentType'] }}
                       </td>
                     </tr>
                     <tr>
@@ -29,10 +29,10 @@
                         Serial Number 
                       </td>
                       <td>
-                        {{ chip['serialNumber'] }} 
+                        {{ component['serialNumber'] }} 
                       </td>
                     </tr>
-                    {% for data in chip['data'] %}
+                    {% for data in component['data'] %}
                     <tr>
                       <td>
                         {{ data['title'] }} 
@@ -44,7 +44,7 @@
                         </a>
   								      <form action="{{ url_for('remove_attachment') }}" method="post">
                   		    <input type="hidden" name="type" value="chip" />
-                  		    <input type="hidden" name="id" value={{ chip['_id'] }} />
+                  		    <input type="hidden" name="id" value={{ component['_id'] }} />
                           <div class="form-horizontal">
                             <p>
   									    		   <button type="submit" class="btn" name="code" value="{{ data['code'] }}">remove</button>
@@ -63,7 +63,7 @@
                         <h5 style="font-size: 10pt"> upload picture to database </h5>
   								      <form action="{{ url_for('add_attachment') }}" method="post" enctype="multipart/form-data">
                   		    <input type="hidden" name="type" value="chip" />
-                  		    <input type="hidden" name="id" value={{ chip['_id'] }} />
+                  		    <input type="hidden" name="id" value={{ component['_id'] }} />
                           <div class="form-horizontal">
                             <p>
                               <input type=file id=file name=file accept="image/*">
@@ -88,7 +88,7 @@
 
         <h4 style="font-size: 13pt;"><i class="fa fa-cog"></i> Test summary </h4>
         <div class="row align-items-top">
-        {% for scan in chip['displayIndex'] %}
+        {% for scan in component['displayIndex'] %}
             <div class="col-md-4">
               <table class="table table-sm table-hover table-bordered" style="font-size: 7pt;">
                 <h4 style="font-size: 10pt;"><i class="fa fa-chevron-right"></i> {{ scan['testType'] }}</h4>
@@ -122,48 +122,45 @@
         {% endfor %}
         </div>
  
-        {% if chip['dataIndex'][0] == _brank %}
+        {% if component['dataIndex'][0] == _brank %}
         {% else %}
           {% include "admin_result_chip.html" %}
         {% endif %}
         <h4 style="font-size: 13pt;"><i class="fa fa-cog"></i> Test index</h4>
-        {% for scan in chip['scanIndex'] %}
-            {% if loop.index %3 == 1 %}
-            <div class="row align-items-top justify-content-center">
-            {% endif %}
-                <div class="col">
-                  <table class="table table-sm table-hover table-bordered" style="font-size: 7pt;">
-                    <h4 style="font-size: 10pt;"><i class="fa fa-chevron-right"></i> {{ scan['testType'] }}</h4>
-                    <thead class="table-dark" style="background: #222222;">
-                      <tr>
-                        <th scope="col" rowspan="2" width="40" class="text-center">Run<br>number</th>
-                        <th scope="col" rowspan="2" width="150" class="text-center">Date</th>
-                        <th scope="col" rowspan="1" colspan="3" style="font-size: 5pt;" width="200" class="text-center">Environment</th>
-                      </tr>
-                      <tr>
-                        <th scope="col" class="text-center">HV[V]</th>
-                        <th scope="col" class="text-center">Temp[℃]</th>
-                        <th scope="col" class="text-center">stage</th>
-                      </tr>
-                    </thead>
-                    <tbody>
-                      {% for run in scan['run'] %}
-                        <tr>
-                          <td align="center">
-                            <a href="{{ url_for('show_chip', id=chip['_id'], runId=run['_id']) }}">{{ run['runNumber'] }}</a>
-                          </td>
-                          <td align="center">{{ run['datetime'] }}</td>
-                          <td align="center">{{ run['environment']['hv'] }}</td>
-                          <td align="center">{{ run['environment']['cool'] }}</td>
-                          <td align="center">{{ run['environment']['stage'] }}</td>
-                        </tr>
-                      {% endfor %}
-                    </tbody>
-                  </table>
-                </div>
-            {% if loop.index %3 == 0 %}
-            </div>
-            {% endif %}
+        <a data-toggle="collapse" href="#testindex" aria-controls="testindex"> view more</a>
+        <div class="row align-items-top justify-content-center collapse" id="testindex">
+        {% for scan in component['scanIndex'] %}
+           <div class="col-md-4">
+             <table class="table table-sm table-hover table-bordered" style="font-size: 7pt;">
+               <h4 style="font-size: 10pt;"><i class="fa fa-chevron-right"></i> {{ scan['testType'] }}</h4>
+               <thead class="table-dark" style="background: #222222;">
+                 <tr>
+                   <th scope="col" rowspan="2" width="40" class="text-center">Run<br>number</th>
+                   <th scope="col" rowspan="2" width="150" class="text-center">Date</th>
+                   <th scope="col" rowspan="1" colspan="3" style="font-size: 5pt;" width="200" class="text-center">Environment</th>
+                 </tr>
+                 <tr>
+                   <th scope="col" class="text-center">HV[V]</th>
+                   <th scope="col" class="text-center">Temp[℃]</th>
+                   <th scope="col" class="text-center">stage</th>
+                 </tr>
+               </thead>
+               <tbody>
+                 {% for run in scan['run'] %}
+                   <tr>
+                     <td align="center">
+                       <a href="{{ url_for('show_chip', id=component['_id'], runNumber=run['runNumber']) }}">{{ run['runNumber'] }}</a>
+                     </td>
+                     <td align="center">{{ run['datetime'] }}</td>
+                     <td align="center">{{ run['environment']['hv'] }}</td>
+                     <td align="center">{{ run['environment']['cool'] }}</td>
+                     <td align="center">{{ run['environment']['stage'] }}</td>
+                   </tr>
+                 {% endfor %}
+               </tbody>
+             </table>
+           </div>
         {% endfor %}
+        </div>
     </div>
 {% endblock %}

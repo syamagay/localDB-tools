@@ -16,8 +16,8 @@
       </thead>
       <tbody>
         <tr>
-          <td scope="col" align="center" >{{ module['dataIndex'][0]['runNumber'] }}</td>
-          <td scope="col" align="center" >{{ module['dataIndex'][0]['testType'] }}</td>
+          <td scope="col" align="center" >{{ component['dataIndex'][0]['runNumber'] }}</td>
+          <td scope="col" align="center" >{{ component['dataIndex'][0]['testType'] }}</td>
           <td scope="col" align="center" ></td>
           <td scope="col" align="center" ></td>
           <td scope="col" align="center" ></td>
@@ -28,10 +28,10 @@
 </div>
 <div class="row align-items-top justify-content-center">
   <div class="col">
-    {% if module['dataIndex'][0]['url'] == _brank %}
-      <div style="font-size: 14pt;">{{module['dataIndex'][0]['comment']}}</div>
+    {% if component['dataIndex'][0]['url'] == _brank %}
+      <div style="font-size: 14pt;">{{component['dataIndex'][0]['comment']}}</div>
     {% else %}
-      {% for d in module['dataIndex'] %}
+      {% for d in component['dataIndex'] %}
         {% if loop.index %2 == 1 %}
         <div class="row align-items-top justify-content-space-evenly">
         {% endif %}
@@ -52,9 +52,9 @@
             <center>
               <h5 style="font-size: 10pt"> Setting parameters </h5>
               <form action="{{ url_for('reanalysis_root') }}" method=post class=entries style="font-size: 8pt">  
-                <input type="hidden" name="id" value={{module['_id']}}>
-                <input type="hidden" name="runNumber" value={{module['dataIndex'][0]['runNumber']}}>
-                <input type="hidden" name="testType" value={{module['dataIndex'][0]['testType']}}>
+                <input type="hidden" name="id" value={{component['_id']}}>
+                <input type="hidden" name="runNumber" value={{component['dataIndex'][0]['runNumber']}}>
+                <input type="hidden" name="testType" value={{component['dataIndex'][0]['testType']}}>
                 <input type="hidden" name="mapType" value={{d['mapType']}}>
                 <p style="font-size: 8pt;">Range max <input type = "txt" name = "max" value = {{d.maxValue}} size="4"></p>
                 <p style="font-size: 8pt;"><input type = "checkbox" name = "log" value = "True"> Set log scale</p>
