@@ -38,13 +38,13 @@
       {% endif %}
         <div class="col">
           <center>
+          <p>
+            {{ data['filename'] }}
+          </p>
           <a href={{ data['url'] }} target="_brank">
             <img src={{ data['url'] }} title={{ data['filename'] }} width="250" height="250">
             </img>
           </a>
-          <p>
-            {{ data['filename'] }}
-          </p>
           </center>
         </div>
     {% endfor %}

@@ -36,6 +36,7 @@ mongo = PyMongo(app)
 client = MongoClient(host='localhost', port=28000)
 userdb = client['user']
 
+# function
 def clean_dir(path):
     if not os.path.isdir(path):
         os.mkdir(path)
@@ -51,24 +52,65 @@ def tell_admin(html):
 def fill_imageIndex(thisComponent, imageIndex):
     try:
         dataPath = "./static/upload"
-        clean_dir(dataPath)
         data_entries = thisComponent['attachments']
+        cnt = 1
         for data in data_entries:
-            if data['contentType'] == 'png' or data['contentType'] == 'jpg':
+            if data['imageType'] == "image":
                 fs = gridfs.GridFS( mongo.db )
-                filePath = "{0}/{1}".format(dataPath, data['filename'])
+                filePath = "{0}/{1}_{2}".format(dataPath, cnt, data['filename'])
                 f = open(filePath, 'wb')
                 f.write(fs.get(ObjectId(data['code'])).read())
                 f.close()
                 imageIndex.append({ "url"      : filePath,
-                             "code"     : data['code'],
-                             "title"    : data['title'],
-                             "filename" : data['filename'] })
+                                    "code"     : data['code'],
+                                    "title"    : data['title'],
+                                    "filename" : data['filename'] })
+                cnt += 1
     except: 
         pass
-    return imageIndex
 
-# top page
+def fill_displayIndex(thisComponent, displayIndex):
+    try:
+        dataPath = "./static/upload"
+        data_entries = thisComponent['attachments']
+        for scan in scanList:
+            displayList = []
+            for data in data_entries:
+                if scan == data.get('filename',"").rsplit('_',3)[1]:
+                    query = { "files_id" : ObjectId(data['code']) }
+                    binary = mongo.db.fs.chunks.find_one(query)
+                    byte = base64.b64encode(binary['data']).decode()
+                    url = img.bin_to_image(data['contentType'],byte)
+                    runNumber = data['filename'].rsplit('_',3)[0]
+                    mapType   = data['filename'].rsplit('_',3)[2].rsplit('.',1)[0].rsplit('-',1)[0]
+                    displayList.append({ "url"      : url,
+                                         "runNumber": runNumber,
+                                         "runId"    : "",
+                                         "code"     : data['code'],
+                                         "htmlurl"  : "remove_attachment",
+                                         "filename" : mapType })
+            if not displayList == []:
+                displayIndex.append({ "testType" : scan,
+                                      "display"  : displayList })
+    except: 
+        pass
+
+
+def fill_runIndex(thisRun, runIndex):
+    if not thisRun['runNumber'] in [runItem.get('runNumber') for runItem in runIndex]:
+        env_dict = { "hv"    : thisRun.get('environment',{"key":"value"}).get('hv',""),
+                     "cool"  : thisRun.get('environment',{"key":"value"}).get('cool',""),
+                     "stage" : thisRun.get('environment',{"key":"value"}).get('stage',"") }
+        runIndex.append({ "_id"         : thisRun['_id'],
+                          "runNumber"   : thisRun['runNumber'],
+                          "datetime"    : func.setTime(thisRun['date']),
+                          "institution" : thisRun['institution'],
+                          "environment" : env_dict })
+    else:
+        env_dict = ""
+    return env_dict
+
+### top page
 @app.route('/', methods=['GET'])
 def show_modules_and_chips():
     query = { "componentType" : "Module" }
@@ -103,38 +145,47 @@ def show_modules_and_chips():
                          "chips"        : chips })
 
     html = tell_admin("toppage.html")
-
     return render_template(html, modules=modules)
 
-# module page
+###########################################
+############### module page ###############
+###########################################
 @app.route('/module', methods=['GET','POST'])
 def show_module():
     component = {}
-    chips = []
-    imageIndex = []
 
     query = { "_id" : ObjectId(request.args.get('id')) }
-    thisModule = mongo.db.component.find_one(query)
-    imageIndex = fill_imageIndex(thisModule, imageIndex)
+    thisComponent = mongo.db.component.find_one(query)
+
+    dataPath = "./static/upload"
+    clean_dir(dataPath)
+
+    imageIndex = []
+    fill_imageIndex(thisComponent, imageIndex)
+    displayIndex = []
+    fill_displayIndex(thisComponent, displayIndex)
 
     component.update({ "_id"          : request.args.get('id'),
-                       "serialNumber" : thisModule['serialNumber'],
-                       "index"        : [], 
+                       "serialNumber" : thisComponent['serialNumber'],
                        "url"          : "analysis_root",
-                       "data"         : imageIndex,
+                       "imageIndex"   : imageIndex,
+                       "type"         : "module",
+                       "chipIndex"    : [], 
+                       "displayIndex" : displayIndex,
                        "scanIndex"    : [],
                        "dataIndex"    : [] })
 
+    chips = []
     query = { "parent" : component['_id'] } 
     child_entries = mongo.db.childParentRelation.find(query).sort('$natural', pymongo.ASCENDING)
     for child in child_entries:
         query = { "_id" : ObjectId(child['child']) }
         thisChip = mongo.db.component.find_one(query)
         chips.append({ "component" : child['child'] })
-        component['index'].append({ "_id"           : ObjectId(child['child']),
-                                    "number"        : thisChip["serialNumber"].split("_")[1],
-                                    "chip"          : thisChip['serialNumber'],
-                                    "componentType" : thisChip['componentType'] })
+        component['chipIndex'].append({ "_id"           : ObjectId(child['child']),
+                                        "number"        : thisChip["serialNumber"].split("_")[1],
+                                        "chip"          : thisChip['serialNumber'],
+                                        "componentType" : thisChip['componentType'] })
 
     for scan in scanList:
         query = { '$or' : chips, "testType" : scan }
@@ -143,107 +194,83 @@ def show_module():
         for run in run_entries:
             query = { "_id" : ObjectId(run['testRun']) }
             thisRun = mongo.db.testRun.find_one(query)
-            if not thisRun['runNumber'] in [runItem.get('runNumber') for runItem in runIndex]:
-                env_dict = { "hv"    : thisRun.get('environment',{"key":"value"}).get('hv',""),
-                             "cool"  : thisRun.get('environment',{"key":"value"}).get('cool',""),
-                             "stage" : thisRun.get('environment',{"key":"value"}).get('stage',"") }
-                runIndex.append({ "_id"         : thisRun['_id'],
-                                  "runNumber"   : thisRun['runNumber'],
-                                  "datetime"    : func.setTime(thisRun['date']),
-                                  "institution" : thisRun['institution'],
-                                  "environment" : env_dict })
+            env_dict = fill_runIndex(thisRun, runIndex)
         
-
-        component['scanIndex'].append({ "testType"  : scan, 
-                                        "run"       : runIndex }) 
-
+        if not runIndex == []:
+            component['scanIndex'].append({ "testType" : scan,
+                                            "run"      : runIndex })
+   
     # redirect from analysis_root
     try:
-        runNumber = int(request.args.get('run'))
+        runNumber = int(request.args.get('run') or 0)
         query = { '$or' : chips , "runNumber" : runNumber }
         thisRun = mongo.db.componentTestRun.find_one(query)
-        testType = thisRun['testType']
-        cnt = 0
+        testType = thisRun.get('testType')
         for mapType in scanList[testType]:
             for i in [ "1", "2" ]:
                 max_value = func.readJson("parameter.json") 
-                component['dataIndex'].append({ "testType"  : testType, 
-                                                "mapType"   : mapType[0], 
-                                                "runNumber" : runNumber, 
-                                                "comment"   : "No Root Software",
-                                                "url"       : "", 
-                                                "setLog"    : max_value[testType][mapType[0]][1], 
-                                                "maxValue"  : max_value[testType][mapType[0]][0] })
                 filename = RESULT_FOLDER + "/" + testType + "/" + str(runNumber) + "_" + mapType[0] + "_{}.png".format(i)
-                try :
+                print(filename)
+                url = "" 
+                if os.path.isfile(filename):
                     binary_image = open(filename,'rb')
                     code_base64 = base64.b64encode(binary_image.read()).decode()
                     binary_image.close()
                     url = img.bin_to_image('png',code_base64)              
-                    component['dataIndex'][cnt]['url'] = url
-                    cnt += 1
-                except :
-                    pass
-    except:
+                component['dataIndex'].append({ "testType"  : testType, 
+                                                "mapType"   : mapType[0], 
+                                                "runNumber" : runNumber, 
+                                                "comment"   : "No Root Software",
+                                                "path"      : filename, 
+                                                "url"       : url, 
+                                                "setLog"    : max_value[testType][mapType[0]][1], 
+                                                "maxValue"  : max_value[testType][mapType[0]][0] })
+    except: 
         component['dataIndex'].append({"test":"test"})
 
     html = tell_admin("module.html")
-
     return render_template(html, component=component)
 
+###########################################
+######### analysis using PyROOT ###########
+###########################################
 @app.route('/analysis', methods=['GET','POST'])
 def analysis_root():
-    clean_dir(DATA_FOLDER)
-
+    reanalysis = request.form.get('reanalysis',"False")
     module_id = request.args.get('id')
-    runNumber = int(request.args.get('runNumber'))
+    runNumber = int(request.args.get('runNumber') or 0)
+
+    if not reanalysis == "True":
+        clean_dir(DATA_FOLDER)
 
     query = { "_id" : ObjectId(module_id) }
-    thisModule = mongo.db.component.find_one(query)
-
+    thisComponent = mongo.db.component.find_one(query)
     query = { "parent" : module_id }
     child_entries = mongo.db.childParentRelation.find(query)
     for child in child_entries:
         query = { "component" : child['child'], "runNumber" : runNumber }
         thisScan = mongo.db.componentTestRun.find_one(query)
-
         query = { "_id" : ObjectId(thisScan['testRun']) }
         thisResult = mongo.db.testRun.find_one(query)
         testType = thisResult['testType']
-
-        data_entries = thisResult['attachments']
-        for data in data_entries:
-            if data['contentType'] == 'dat':
-                query = { "files_id" : ObjectId(data['code']) }
-                thisBinary = mongo.db.fs.chunks.find_one(query)
-                f = open('{0}/{1}_{2}.dat'.format(DATA_FOLDER, runNumber, data['filename'].split("_")[1] + "_" + data['filename'].split("_")[2]), "wb")
-                f.write(thisBinary['data'])
-                f.close()
+        if not reanalysis == "True":
+            data_entries = thisResult['attachments']
+            for data in data_entries:
+                if data['contentType'] == 'dat':
+                    fs = gridfs.GridFS( mongo.db )
+                    f = open('{0}/{1}_{2}.dat'.format(DATA_FOLDER, runNumber, data['filename'].split("_")[1] + "_" + data['filename'].split("_")[2]), "wb")
+                    f.write(fs.get(ObjectId(data['code'])).read())
+                    f.close()
 
     mapList = {}
     for mapType in scanList[testType]:
-        mapList.update({ mapType[0] : True })
-    try    : root.drawScan(thisModule['serialNumber'], testType, str(runNumber), False, "", mapList)
-    except : pass
-
-    return redirect(url_for('show_module', id=module_id, run=runNumber))
-
-@app.route('/reanalysis', methods=['POST'])
-def reanalysis_root():
-    module_id = request.form['id']
-    runNumber = request.form['runNumber']
-    query = { "_id" : ObjectId(module_id) }
-    thisModule = mongo.db.component.find_one(query)
-    
-    mapList = {}
-    for mapType in scanList[request.form['testType']]:
-        if mapType[0] == request.form['mapType']:
-            mapList.update({ mapType[0] : True })
-        else:
+        if reanalysis == "True" and not mapType[0] == request.form.get('mapType'):
             mapList.update({ mapType[0] : False })
+        else:
+            mapList.update({ mapType[0] : True })
 
-    try    : root.drawScan(thisModule['serialNumber'], request.form['testType'], str(runNumber), bool(request.form.get('log', False)), int(request.form.get('max',1000)), mapList)
-    except : pass
+    try    : root.drawScan(thisComponent['serialNumber'], testType, str(runNumber), bool(request.form.get('log', False)), int(request.form.get('max') or 0), mapList)
+    except : print("undo root process")
 
     return redirect(url_for('show_module', id=module_id, run=runNumber))
 
@@ -254,18 +281,15 @@ def show_chip():
     imageIndex = []
 
     query = { "_id" : ObjectId(request.args.get('id')) }
-    thisChip = mongo.db.component.find_one(query)
-    #runId = ObjectId(request.args.get('runId')) 
-    runNumber = int(request.args.get('runNumber') or 0)
-
-    imageIndex = fill_imageIndex(thisChip, imageIndex)
+    thisComponent = mongo.db.component.find_one(query)
+    fill_imageIndex(thisComponent, imageIndex)
 
     component.update({ "_id"           : request.args.get('id'), 
-                       "serialNumber"  : thisChip['serialNumber'],
-                       "componentType" : thisChip['componentType'],
-                       "runNumber"     : runNumber,
+                       "serialNumber"  : thisComponent['serialNumber'],
+                       "componentType" : thisComponent['componentType'],
                        "url"           : "show_chip",
-                       "data"          : imageIndex,
+                       "type"          : "chip",
+                       "imageIndex"    : imageIndex,
                        "displayIndex"  : [],
                        "scanIndex"     : [],
                        "dataIndex"     : [] }) 
@@ -273,37 +297,14 @@ def show_chip():
     for scan in scanList:
         query = { "component" : component['_id'], "testType" : scan }
         run_entries = mongo.db.componentTestRun.find(query)
-        displayIndex = []
         runIndex = []
+        displayIndex = []
         for run in run_entries:
             query = { "_id" : ObjectId(run['testRun']) }
             thisRun = mongo.db.testRun.find_one(query)
+            env_dict = fill_runIndex(thisRun, runIndex)
 
-            env_dict = { "hv"    : thisRun.get('environment',{"key":"value"}).get('hv',""),
-                         "cool"  : thisRun.get('environment',{"key":"value"}).get('cool',""),
-                         "stage" : thisRun.get('environment',{"key":"value"}).get('stage',"") }
-
-            runIndex.append({ "_id"         : thisRun['_id'],
-                              "runNumber"   : thisRun['runNumber'],
-                              "datetime"    : func.setTime(thisRun['date']),
-                              "institution" : thisRun['institution'],
-                              "environment" : env_dict })
-
-            display_entries = thisRun['attachments']
-            for display in display_entries:
-                try:
-                    if display['display'] == 'True':
-                        query = { "files_id" : ObjectId(display['code']) }
-                        binary = mongo.db.fs.chunks.find_one(query)
-                        byte = base64.b64encode(binary['data']).decode()
-                        url = img.bin_to_image(display['contentType'],byte)
-                        displayIndex.append({ "runNumber"   : thisRun['runNumber'],
-                                              "filename"    : display['filename'].split("_")[2],
-                                              "url"         : url })
-                except:
-                    pass
-
-            if thisRun['runNumber'] == component['runNumber']:
+            if thisRun['runNumber'] == int(request.args.get('runNumber') or 0):
                 data_entries = thisRun['attachments']
                 for data in data_entries:
                     if data['contentType'] == 'pdf' or data['contentType'] == 'png':
@@ -317,13 +318,25 @@ def show_chip():
                                                         "code"        : data['code'],
                                                         "url"         : url,
                                                         "filename"    : data['filename'].split("_")[2],
-                                                        "datetime"    : func.setTime(thisRun['date']),
                                                         "environment" : env_dict,
-                                                        "display"     : data.get('display',"false"),
-                                                        "contentType" : data['contentType'] })
-    
+                                                        "display"     : data.get('display',"false") })
+            display_entries = thisRun['attachments']
+            for data in display_entries:
+                if data.get('display') == 'True':
+                    query = { "files_id" : ObjectId(data['code']) }
+                    binary = mongo.db.fs.chunks.find_one(query)
+                    byte = base64.b64encode(binary['data']).decode()
+                    url = img.bin_to_image(data['contentType'],byte)
+
+                    displayIndex.append({ "runNumber"   : thisRun['runNumber'],
+                                          "runId"       : thisRun['_id'],
+                                          "code"        : data['code'],
+                                          "htmlurl"     : "untag_image",
+                                          "filename"    : data['filename'].split("_")[2],
+                                          "url"         : url })
+
         if not runIndex == []:
-            component['scanIndex'].append({ "testType" : scan,
+           component['scanIndex'].append({ "testType" : scan,
                                             "run"      : runIndex })
         if not displayIndex == []:
             component['displayIndex'].append({ "testType" : scan,
@@ -331,7 +344,6 @@ def show_chip():
 
 
     html = tell_admin("chip.html")
-
     return render_template(html, component=component)
 
 @app.route('/tag_image', methods=['GET','POST'])
@@ -364,10 +376,39 @@ def untag_image():
 
     return redirect(url_for(forUrl, id=request.form.get('id'), runId=request.form.get('runId')))
 
+@app.route('/add_attachment_result', methods=['GET','POST'])
+def add_attachment_result():
+    fs = gridfs.GridFS(mongo.db)
+    fileResult = request.form.get('path') 
+    print(fileResult)
+    binary_image = open(fileResult,'rb')
+    runNumber = fileResult.rsplit('/',4)[4].rsplit('_',2)[0]
+    mapType = fileResult.rsplit('/',4)[4].rsplit('_',2)[1]
+    testType = fileResult.rsplit('/',4)[3]
+    filename = "{0}_{1}_{2}.png".format(runNumber,testType,mapType)
+    image = fs.put(binary_image.read(), filename=filename)
+    binary_image.close()
+    
+    thisImage = mongo.db.fs.files.find_one({"_id":image})
+    date = thisImage['uploadDate']
+    query = { "_id" : ObjectId(request.form.get('id'))}
+    mongo.db.component.update( query, { '$push' : { "attachments" : { "code"        : str(image),
+                                                                      "dateTime"    : date,
+                                                                      "title"       : "",
+                                                                      "description" : "",
+                                                                      "display"     : "True",
+                                                                      "imageType"   : "result",
+                                                                      "contentType" : filename.rsplit('.',1)[1],
+                                                                      "filename"    : filename }}})
+
+    forUrl = "show_{}".format(request.form.get('type'))
+
+    return redirect(url_for(forUrl, id=request.form.get('id')))
+
 @app.route('/add_attachment', methods=['GET','POST'])
 def add_attachment():
 
-    file=request.files['file']
+    file=request.files.get('file')
     if file and func.allowed_file(file.filename):
         filename = secure_filename(file.filename)
         if not os.path.isdir(UPLOAD_FOLDER):
@@ -390,6 +431,7 @@ def add_attachment():
                                                                           "dateTime"    : date,
                                                                           "title"       : title,
                                                                           "description" : description,
+                                                                          "imageType"   : "image",
                                                                           "contentType" : filename.rsplit('.',1)[1],
                                                                           "filename"    : filename }}})
 

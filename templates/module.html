@@ -21,7 +21,7 @@
                         FE type
                       </td>
                       <td>
-                        {{ component['index'][0]['componentType'] }}
+                        {{ component['chipIndex'][0]['componentType'] }}
                       </td>
                     </tr>
                     <tr>
@@ -37,21 +37,21 @@
                         Chips
                       </td>
                       <td>
-                        {% for item in component['index'] %}
-                          <a href="{{ url_for('show_chip', id=item['_id'], serialNumber=item['chip']) }}">{{item.number}}</a>&ensp;
+                        {% for chip in component['chipIndex'] %}
+                          <a href="{{ url_for('show_chip', id=chip['_id'], serialNumber=chip['chip']) }}">{{chip['number']}}</a>&ensp;
                         {% else %}
                           No match.
                         {% endfor %}
                       </td>
                     </tr>
-                    {% for data in component['data'] %}
+                    {% for image in component['imageIndex'] %}
                     <tr>
                       <td>
-                        {{ data['title'] }}
+                        {{ image['title'] }}
                       </td>
                       <td>
-                        <a href={{ data['url'] }} target="_brank">
-                          <img src={{ data['url'] }} title={{ data['filename'] }} width="250" height="250">
+                        <a href={{ image['url'] }} target="_brank">
+                          <img src={{ image['url'] }} title={{ image['filename'] }} width="250" height="250">
                           </img>
                         </a>
                       </td>
@@ -61,6 +61,8 @@
                 </table>
             </div>
         </div>
+
+        {% include "display_index.html" %}
 
         {% if component['dataIndex'][0]['testType'] == _brank %}
         {% else %}

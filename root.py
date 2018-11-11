@@ -91,6 +91,8 @@ def drawScan(mod_name, scan_type, num_scan, log, Max, map_list):
         
             path_dir = RESULT_FOLDER + "/" + scan_type
             PH.outDir = path_dir
+
+            if Max == 0: Max = ""
     
             path_plot = num_scan + "_" +  map_type[0]
             Plot.Plot1D_fromHistos(h1, log, path_plot+"_1", "#Ch.", "histo", Max)

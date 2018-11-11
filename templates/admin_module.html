@@ -21,7 +21,7 @@
                         FE type
                       </td>
                       <td>
-                        {{ component['index'][0]['componentType'] }}
+                        {{ component['chipIndex'][0]['componentType'] }}
                       </td>
                     </tr>
                     <tr>
@@ -37,22 +37,21 @@
                         Chips
                       </td>
                       <td>
-                        {% for item in component['index'] %}
-                          <a href="{{ url_for('show_chip', id=item['_id'], serialNumber=item['chip']) }}">{{item.number}}</a>&ensp;
+                        {% for chip in component['chipIndex'] %}
+                          <a href="{{ url_for('show_chip', id=chip['_id'], serialNumber=chip['chip']) }}">{{chip['number']}}</a>&ensp;
                         {% else %}
                           No match.
                         {% endfor %}
                       </td>
                     </tr>
-
-                    {% for data in component['data'] %}
+                    {% for image in component['imageIndex'] %}
                     <tr>
                       <td>
-                        {{ data['title'] }} 
+                        {{ image['title'] }} 
                       </td>
                       <td>
-                        <a href={{ data['url'] }} target="_brank">
-                          <img src={{ data['url'] }} title={{ data['filename'] }} width="250" height="250">
+                        <a href={{ image['url'] }} target="_brank">
+                          <img src={{ image['url'] }} title={{ image['filename'] }} width="250" height="250">
                           </img>
                         </a>
   								      <form action="{{ url_for('remove_attachment') }}" method="post">
@@ -60,7 +59,7 @@
                   		    <input type="hidden" name="id" value={{ component['_id'] }} />
                           <div class="form-horizontal">
                             <p>
-  									    		   <button type="submit" class="btn" name="code" value="{{ data['code'] }}">remove</button>
+  									    		   <button type="submit" class="btn" name="code" value="{{ image['code'] }}">remove</button>
   									    	  </p>
   									    	</div>
                         </form>
@@ -100,46 +99,13 @@
             </div>
         </div>
 
+        {% include "admin_display_index.html" %}
+
         {% if component['dataIndex'][0]['testType'] == _brank %}
         {% else %}
-          {% include "result_module.html" %}
+          {% include "admin_result_module.html" %}
         {% endif %}
 
-        <h4 style="font-size: 13pt;"><i class="fa fa-cog"></i> Test index</h4>
-        <a data-toggle="collapse" href="#testindex" aria-controls="testindex"> view more</a>
-        <div class="row align-items-top justify-content-center collapse" id="testindex">
-        {% for scan in component['scanIndex'] %}
-          <div class="col-md-4">
-            <table class="table table-sm table-hover table-bordered" style="font-size: 7pt;">
-              <h4 style="font-size: 10pt;"><i class="fa fa-chevron-right"></i> {{ scan['testType'] }}</h4>
-              <thead class="table-dark" style="background: #222222;">
-                <tr>
-                  <th scope="col" rowspan="2" width="40" class="text-center">Run<br>number</th>
-                  <th scope="col" rowspan="2" width="150" class="text-center">Date</th>
-                  <th scope="col" rowspan="1" colspan="3" style="font-size: 5pt;" width="200" class="text-center">Environment</th>
-                </tr>
-                <tr>
-                  <th scope="col" class="text-center">HV[V]</th>
-                  <th scope="col" class="text-center">Temp[℃]</th>
-                  <th scope="col" class="text-center">stage</th>
-                </tr>
-              </thead>
-              <tbody>
-                  {% for run in scan['run'] %}
-                    <tr>
-                      <td align="center">
-                        <a href="{{ url_for('analysis_root', id=component['_id'], runNumber=run['runNumber']) }}">{{ run['runNumber'] }}</a>
-                      </td>
-                      <td align="center">{{ run['datetime'] }}</td>
-                      <td align="center">{{ run['environment']['hv'] }}</td>
-                      <td align="center">{{ run['environment']['cool'] }}</td>
-                      <td align="center">{{ run['environment']['stage'] }}</td>
-                    </tr>
-                  {% endfor %}
-              </tbody>
-            </table>
-          </div>
-        {% endfor %}
-        </div>
+        {% include "test_index.html" %}
     </div>
 {% endblock %}

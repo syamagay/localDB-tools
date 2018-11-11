@@ -31,18 +31,24 @@
     {% if component['dataIndex'][0]['url'] == _brank %}
       <div style="font-size: 14pt;">{{component['dataIndex'][0]['comment']}}</div>
     {% else %}
-      {% for d in component['dataIndex'] %}
+      {% for data in component['dataIndex'] %}
         {% if loop.index %2 == 1 %}
         <div class="row align-items-top justify-content-space-evenly">
         {% endif %}
           <div class="col-md-5">
             <center>
               <p>
-                {{d.mapType}}
+                {{data['mapType']}}
+                  <form action="{{ url_for('add_attachment_result') }}" method=post class=entries style="font-size: 8pt">  
+                    <input type="hidden" name="path" value={{ data['path'] }} >
+                    <input type="hidden" name="id" value={{ component['_id'] }}>
+                    <input type="hidden" name="type" value="module" >
+                    <p><input type = "submit" value = "tag"></p>
+                  </form>
               </p>
               <p>
-              <a href={{d.url}} target="_brank">
-                <img src={{d.url}} title={{d.mapType}} width="300" height="300">
+              <a href={{data['url']}} target="_brank">
+                <img src={{data['url']}} title={{data['mapType']}} width="300" height="300">
                 </img>
               </a>
             </center>
@@ -52,9 +58,9 @@
             <center>
               <h5 style="font-size: 10pt"> Setting parameters </h5>
               <form action="{{ url_for('analysis_root', id=component['_id'], runNumber=component['dataIndex'][0]['runNumber']) }}" method=post class=entries style="font-size: 8pt">  
-                <input type="hidden" name="mapType" value={{d['mapType']}}>
+                <input type="hidden" name="mapType" value={{data['mapType']}}>
                 <input type="hidden" name="reanalysis" value="True">
-                <p style="font-size: 8pt;">Range max <input type = "txt" name = "max" value = {{d.maxValue}} size="4"></p>
+                <p style="font-size: 8pt;">Range max <input type = "txt" name = "max" value = {{data['maxValue']}} size="4"></p>
                 <p style="font-size: 8pt;"><input type = "checkbox" name = "log" value = "True"> Set log scale</p>
                 <p><input type = "submit" value = "Make histogram"></p>
               </form>
@@ -62,8 +68,8 @@
               <br>
               <h5 style="font-size: 8pt"> Current setting </h5>
               <ol style="list-style-type: none;font-size: 7pt; text-align: left;">
-              <li> Range max     : {{d.maxValue}}</li>
-              <li> Set log scale : {{d.setLog}}</li>
+              <li> Range max     : {{data['maxValue']}}</li>
+              <li> Set log scale : {{data['setLog']}}</li>
               </ol>
             </center>
           </div>
@@ -73,4 +79,3 @@
     {% endif %}
   </div>
 </div>
-
