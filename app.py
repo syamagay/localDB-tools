@@ -71,24 +71,24 @@ def fill_imageIndex(thisComponent, imageIndex):
 
 def fill_displayIndex(thisComponent, displayIndex):
     try:
-        dataPath = "./static/upload"
         data_entries = thisComponent['attachments']
         for scan in scanList:
             displayList = []
             for data in data_entries:
-                if scan == data.get('filename',"").rsplit('_',3)[1]:
-                    query = { "files_id" : ObjectId(data['code']) }
-                    binary = mongo.db.fs.chunks.find_one(query)
-                    byte = base64.b64encode(binary['data']).decode()
-                    url = img.bin_to_image(data['contentType'],byte)
-                    runNumber = data['filename'].rsplit('_',3)[0]
-                    mapType   = data['filename'].rsplit('_',3)[2].rsplit('.',1)[0].rsplit('-',1)[0]
-                    displayList.append({ "url"      : url,
-                                         "runNumber": runNumber,
-                                         "runId"    : "",
-                                         "code"     : data['code'],
-                                         "htmlurl"  : "remove_attachment",
-                                         "filename" : mapType })
+                if data['imageType'] == "result":
+                    if scan == data.get('filename',"").rsplit('_',3)[1]:
+                        query = { "files_id" : ObjectId(data['code']) }
+                        binary = mongo.db.fs.chunks.find_one(query)
+                        byte = base64.b64encode(binary['data']).decode()
+                        url = img.bin_to_image(data['contentType'],byte)
+                        runNumber = data['filename'].rsplit('_',3)[0]
+                        mapType   = data['filename'].rsplit('_',3)[2].rsplit('.',1)[0].rsplit('-',1)[0]
+                        displayList.append({ "url"      : url,
+                                             "runNumber": runNumber,
+                                             "runId"    : "",
+                                             "code"     : data['code'],
+                                             "htmlurl"  : "remove_attachment",
+                                             "filename" : mapType })
             if not displayList == []:
                 displayIndex.append({ "testType" : scan,
                                       "display"  : displayList })
