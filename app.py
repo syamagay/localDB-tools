@@ -29,11 +29,11 @@ RESULT_FOLDER = '/tmp/{}/result'.format(os.getlogin())
 # call mongodb
 app = Flask(__name__)
 app.secret_key = 'secret'
-app.config["MONGO_URI"] = "mongodb://localhost:28000/yarrdb"
+app.config["MONGO_URI"] = "mongodb://localhost:27017/yarrdb"
 mongo = PyMongo(app)
 
 # for user db
-client = MongoClient(host='localhost', port=28000)
+client = MongoClient(host='localhost', port=27017)
 userdb = client['user']
 
 # function
@@ -472,4 +472,4 @@ def logout():
     return redirect(url_for('show_modules_and_chips'))
 
 if __name__ == '__main__':
-    app.run(host='192.168.1.43') # change hostID
+    app.run(host='127.0.0.1') # change hostID
