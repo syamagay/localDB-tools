@@ -3,6 +3,7 @@ except : pass
 
 import pymongo, img, base64, func, gridfs
 import os, glob, getpass, hashlib
+import datetime
 
 from flask import Flask, request, redirect, url_for, render_template, session, abort
 from flask_pymongo import PyMongo
@@ -355,7 +356,9 @@ def tag_image():
     for data in data_entries:
         if data['code'] == request.form.get('code'):
             if not 'display' in data:
-                mongo.db.testRun.update( query, {'$set': {'attachments.{}.display'.format( data_entries.index(data) ) : "True" }})
+                mongo.db.testRun.update( query, { '$set' : {'attachments.{}.display'.format( data_entries.index(data) ) : "True" }})
+                mongo.db.testRun.update( query, { '$set' : { 'sys.rev' : int(mongo.db.testRun.find_one( query )['sys']['rev']+1), 
+                                                             'sys.mts' : datetime.datetime.utcnow() }})
 
     forUrl = "show_{}".format(request.form.get('type'))
 
@@ -371,6 +374,8 @@ def untag_image():
         if data['code'] == request.form.get('code'):
             if 'display' in data:
                 mongo.db.testRun.update( query, {'$unset': {'attachments.{}.display'.format( data_entries.index(data) ) : "True" }})
+                mongo.db.testRun.update( query, { '$set' : { 'sys.rev' : int(mongo.db.testRun.find_one( query )['sys']['rev']+1), 
+                                                             'sys.mts' : datetime.datetime.utcnow() }})
 
     forUrl = "show_{}".format(request.form.get('type'))
 
@@ -400,6 +405,8 @@ def add_attachment_result():
                                                                       "imageType"   : "result",
                                                                       "contentType" : filename.rsplit('.',1)[1],
                                                                       "filename"    : filename }}})
+    mongo.db.component.update( query, { '$set' : { 'sys.rev' : int(mongo.db.component.find_one( query )['sys']['rev']+1), 
+                                                   'sys.mts' : datetime.datetime.utcnow() }})
 
     forUrl = "show_{}".format(request.form.get('type'))
 
@@ -434,6 +441,8 @@ def add_attachment():
                                                                           "imageType"   : "image",
                                                                           "contentType" : filename.rsplit('.',1)[1],
                                                                           "filename"    : filename }}})
+        mongo.db.component.update( query, { '$set' : { 'sys.rev' : int(mongo.db.component.find_one( query )['sys']['rev']+1), 
+                                                       'sys.mts' : datetime.datetime.utcnow() }})
 
     forUrl = "show_{}".format(request.form.get('type'))
 
@@ -442,14 +451,16 @@ def add_attachment():
 @app.route('/remove_attachment',methods=['GET','POST'])
 def remove_attachment():
     code = request.form.get('code')
-    thisId = request.form.get('id')
     
     mongo.db.fs.files.remove({ "_id" : ObjectId(code) }) 
     mongo.db.fs.chunks.remove({ "files_id" : ObjectId(code) }) 
-    mongo.db.component.update({ "_id" : ObjectId(thisId) }, { '$pull' : { "attachments" : { "code" : code }}}) 
+    query = { "_id" : ObjectId(request.form.get('id'))}
+    mongo.db.component.update( query, { '$pull' : { "attachments" : { "code" : code }}}) 
+    mongo.db.component.update( query, { '$set' : { 'sys.rev' : int(mongo.db.component.find_one( query )['sys']['rev']+1), 
+                                                   'sys.mts' : datetime.datetime.utcnow() }})
 
     forUrl = "show_{}".format(request.form.get('type'))
-    return redirect(url_for(forUrl, id=thisId))
+    return redirect(url_for(forUrl, id=request.form.get('id')))
 
 @app.route('/login',methods=['POST'])
 def login():
