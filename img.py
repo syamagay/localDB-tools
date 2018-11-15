@@ -1,22 +1,27 @@
-from binascii import a2b_base64
-from pdf2image import convert_from_path
-import logging, base64 
-import os, getpass
+import os, pwd # Import the user database on unix based systems
+from binascii import a2b_base64 # convert a block of base64 data back to binary
+from pdf2image import convert_from_path # convert pdf to image
+import base64 # Base64 encoding scheme
+import getpass
 
-IMAGE_FOLDER = '/tmp/{}'.format(os.getlogin())
-def bin_to_image(typ, binary):
-    if typ == 'png' or typ == 'jpg':
+USER=pwd.getpwuid( os.geteuid() ).pw_name
+IMAGE_DIR = '/tmp/{}'.format( USER ) # directory to temporarily store image.pdf and image.png
+
+IMAGE_TYPE = [ "png", "jpeg", "jpg", "JPEG", "jpe", "jfif", "pjpeg", "pjp", "gif" ]
+
+def bin_to_image( typ, binary ) :
+    if typ in IMAGE_TYPE :
         data = 'data:image/png;base64,' + binary
-    if typ == 'pdf':
-        file_pdf = open('{}/image.pdf'.format(IMAGE_FOLDER),'wb')
-        binData=a2b_base64(binary)
-        file_pdf.write(binData)
-        file_pdf.close()
-        path = '{}/image.pdf'.format(IMAGE_FOLDER)
-        image = convert_from_path(path)
-        image[0].save('{}/image.png'.format(IMAGE_FOLDER), 'png')
-        binary_png = open('{}/image.png'.format(IMAGE_FOLDER),'rb')
-        byte = base64.b64encode(binary_png.read()).decode()
-        binary_png.close()
+    if typ == 'pdf' :
+        filePdf = open( '{}/image.pdf'.format( IMAGE_DIR ), 'wb' )
+        binData = a2b_base64( binary )
+        filePdf.write( binData )
+        filePdf.close()
+        path = '{}/image.pdf'.format( IMAGE_DIR )
+        image = convert_from_path( path )
+        image[0].save( '{}/image.png'.format( IMAGE_DIR ), 'png' )
+        binaryPng = open( '{}/image.png'.format( IMAGE_DIR ), 'rb' )
+        byte = base64.b64encode( binaryPng.read() ).decode()
+        binaryPng.close()
         data = 'data:image/png;base64,' + byte
     return data

@@ -4,7 +4,7 @@
 ###############
 
 import glob
-import sys, os, func, getpass
+import sys, os, func, pwd 
 sys.path.append( os.path.dirname(os.path.abspath(__file__)) + "/PlotTools" )
 #sys.path.append("path/to/ROOT.py") 
 
@@ -14,8 +14,10 @@ import base64
 
 import ROOT
 
-RESULT_FOLDER = '/tmp/{}/result'.format(os.getlogin())
-DATA_FOLDER = '/tmp/{}/data'.format(os.getlogin())
+USER=pwd.getpwuid( os.geteuid() ).pw_name
+
+RESULT_DIR = '/tmp/{}/result'.format( USER )
+DATA_DIR = '/tmp/{}/data'.format( USER )
 
 ##########
 # Variables
@@ -54,7 +56,7 @@ def drawScan(mod_name, scan_type, num_scan, log, Max, map_list):
             for i in range(4) :
         
                 # Open Files
-                filename = DATA_FOLDER+"/"+num_scan+"_chipId"+str(i+1)+"_"+map_type[0]+".dat"
+                filename = DATA_DIR+"/"+num_scan+"_chipId"+str(i+1)+"_"+map_type[0]+".dat"
                 try :
                     f = open(filename)
                 except :
@@ -89,7 +91,7 @@ def drawScan(mod_name, scan_type, num_scan, log, Max, map_list):
                 f.close()
                 #os.remove(filename)
         
-            path_dir = RESULT_FOLDER + "/" + scan_type
+            path_dir = RESULT_DIR + "/" + scan_type
             PH.outDir = path_dir
 
             if Max == 0: Max = ""
