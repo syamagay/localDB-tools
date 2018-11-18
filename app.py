@@ -158,10 +158,15 @@ def fill_runIndex( thisRun, runIndex=[] ) :
         env_dict = { "hv"    : thisRun.get( 'environment', { "key" : "value" } ).get( 'hv', "" ),
                      "cool"  : thisRun.get( 'environment', { "key" : "value" } ).get( 'cool', "" ),
                      "stage" : thisRun.get( 'environment', { "key" : "value" } ).get( 'stage', "" ) }
+        if ( 'png' or 'pdf' ) in [ data.get('contentType') for data in thisRun['attachments'] ] :
+            result = "True"
+        else :
+            result = "False"
         runIndex.append({ "_id"         : thisRun['_id'],
                           "runNumber"   : thisRun['runNumber'],
                           "datetime"    : func.setTime(thisRun['date']),
                           "institution" : thisRun['institution'],
+                          "result"      : result,
                           "environment" : env_dict })
     else:
         env_dict = ""

@@ -19,7 +19,13 @@
        </thead>
        <tbody>
            {% for run in scan['run'] %}
+           {% if run['result'] == "True" %}
              <tr>
+           {% elif run['result'] == "False" %}
+             <tr style="background: #AAAAAA;">
+           {% else %}
+             <tr style="background: #AABBCC;">
+           {% endif %}
                <td align="center">
                  <a href="{{ url_for(component['url'], id=component['_id'], runNumber=run['runNumber']) }}">{{ run['runNumber'] }}</a>
                </td>
