@@ -16,8 +16,8 @@
       </thead>
       <tbody>
         <tr>
-          <td scope="col" align="center" >{{ component['dataIndex'][0]['runNumber'] }}</td>
-          <td scope="col" align="center" >{{ component['dataIndex'][0]['testType'] }}</td>
+          <td scope="col" align="center" >{{ component['resultIndex'][0]['runNumber'] }}</td>
+          <td scope="col" align="center" >{{ component['resultIndex'][0]['testType'] }}</td>
           <td scope="col" align="center" ></td>
           <td scope="col" align="center" ></td>
           <td scope="col" align="center" ></td>
@@ -28,10 +28,10 @@
 </div>
 <div class="row align-items-top justify-content-center">
   <div class="col">
-    {% if component['dataIndex'][0]['url'] == _brank %}
-      <div style="font-size: 14pt;">{{component['dataIndex'][0]['comment']}}</div>
+    {% if component['resultIndex'][0]['url'] == _brank %}
+      <div style="font-size: 14pt;">{{component['resultIndex'][0]['comment']}}</div>
     {% else %}
-      {% for data in component['dataIndex'] %}
+      {% for data in component['resultIndex'] %}
         {% if loop.index %2 == 1 %}
         <div class="row align-items-top justify-content-space-evenly">
         {% endif %}
@@ -40,11 +40,13 @@
               <p>
                 {{data['mapType']}}
                 {% if session['logged_in'] == True %}
-                  <form action="{{ url_for('add_attachment_result') }}" method=post class=entries style="font-size: 8pt">  
-                    <input type="hidden" name="path" value={{ data['path'] }} >
-                    <input type="hidden" name="id" value={{ component['_id'] }}>
-                    <p><input type = "submit" value = "tag"></p>
-                  </form>
+                  {% if session['write'] == 1 %}
+                    <form action="{{ url_for('add_attachment_result') }}" method=post class=entries style="font-size: 8pt">  
+                      <input type="hidden" name="path" value={{ data['path'] }} >
+                      <input type="hidden" name="id" value={{ component['_id'] }}>
+                      <p><input type = "submit" value = "tag"></p>
+                    </form>
+                  {% endif %}
                 {% endif %}
               </p>
               <p>
@@ -58,7 +60,7 @@
           <div class="col-md-2">
             <center>
               <h5 style="font-size: 10pt"> Setting parameters </h5>
-              <form action="{{ url_for('analysis_root', id=component['_id'], runNumber=component['dataIndex'][0]['runNumber']) }}" method=post class=entries style="font-size: 8pt">  
+              <form action="{{ url_for('analysis_root', id=component['_id'], runNumber=component['resultIndex'][0]['runNumber']) }}" method=post class=entries style="font-size: 8pt">  
                 <input type="hidden" name="mapType" value={{data['mapType']}}>
                 <input type="hidden" name="reanalysis" value="True">
                 <p style="font-size: 8pt;">Range max <input type = "txt" name = "max" value = {{data['maxValue']}} size="4"></p>

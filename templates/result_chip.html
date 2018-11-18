@@ -16,11 +16,11 @@
       </thead>
       <tbody>
         <tr>
-          <td scope="col" align="center" >{{ component['dataIndex'][0]['runNumber'] }}</td>
-          <td scope="col" align="center" >{{ component['dataIndex'][0]['testType'] }}</td>
-          <td scope="col" align="center" >{{ component['dataIndex'][0]['environment']['hv'] }}</td>
-          <td scope="col" align="center" >{{ component['dataIndex'][0]['environment']['cool'] }}</td>
-          <td scope="col" align="center" >{{ component['dataIndex'][0]['environment']['stage'] }}</td>
+          <td scope="col" align="center" >{{ component['resultIndex'][0]['runNumber'] }}</td>
+          <td scope="col" align="center" >{{ component['resultIndex'][0]['testType'] }}</td>
+          <td scope="col" align="center" >{{ component['resultIndex'][0]['environment']['hv'] }}</td>
+          <td scope="col" align="center" >{{ component['resultIndex'][0]['environment']['cool'] }}</td>
+          <td scope="col" align="center" >{{ component['resultIndex'][0]['environment']['stage'] }}</td>
         </tr>
       </tbody>
     </table>
@@ -28,7 +28,7 @@
 </div>
 <div class="row align-items-top justify-content-center">
   <div class="col">
-    {% for data in component['dataIndex'] %}
+    {% for data in component['resultIndex'] %}
       {% if loop.index == 1 %}
       <div class="row align-items-top justify-content-space-evenly">
       {% elif loop.index %4 == 1 %}
@@ -42,19 +42,23 @@
             {{ data['filename'] }}
             {% if session['logged_in'] == True %}
               {% if data['display'] == "True" %}
-                <form action="{{ url_for('untag_image') }}" method=post class=entries style="font-size: 8pt">  
-                  <input type="hidden" name="code" value={{ data['code'] }} >
-                  <input type="hidden" name="runId" value={{ data['runId'] }} >
-                  <input type="hidden" name="id" value={{ component['_id'] }} >
-                  <p><input type = "submit" value = "untag"></p>
-                </form>
+                {% if session['edit'] == 1 %}
+                  <form action="{{ url_for('untag_result') }}" method=post class=entries style="font-size: 8pt">  
+                    <input type="hidden" name="code" value={{ data['code'] }} >
+                    <input type="hidden" name="runId" value={{ data['runId'] }} >
+                    <input type="hidden" name="id" value={{ component['_id'] }} >
+                    <p><input type = "submit" value = "untag"></p>
+                  </form>
+                {% endif %}
               {% else %}
-                <form action="{{ url_for('tag_image') }}" method=post class=entries style="font-size: 8pt">  
-                  <input type="hidden" name="code" value={{ data['code'] }} >
-                  <input type="hidden" name="runId" value={{ data['runId'] }} >
-                  <input type="hidden" name="id" value={{ component['_id'] }} >
-                  <p><input type = "submit" value = "tag"></p>
-                </form>
+                {% if session['write'] == 1 %}
+                  <form action="{{ url_for('tag_result') }}" method=post class=entries style="font-size: 8pt">  
+                    <input type="hidden" name="code" value={{ data['code'] }} >
+                    <input type="hidden" name="runId" value={{ data['runId'] }} >
+                    <input type="hidden" name="id" value={{ component['_id'] }} >
+                    <p><input type = "submit" value = "tag"></p>
+                  </form>
+                {% endif %}
               {% endif %}
 
             {% endif %}

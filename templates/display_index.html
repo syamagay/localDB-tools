@@ -28,14 +28,16 @@
             <tr>
               <td colspan="5" align="center">
                 {% if session['logged_in'] == True %}
-      					  <form action="edit_description" method="post" enctype="multipart/form-data">
-                    <input type="text" class="form-control input-normal" placeholder="description" name="description" id="description" value="{{ display['description'] }}"/>
-                    <input type="hidden" name="collection" value={{ display['collection'] }} >
-                    <input type="hidden" name="code" value={{ display['code'] }} >
-                    <input type="hidden" name="runId" value={{ display['runId'] }} >
-                    <input type="hidden" name="id" value={{ component['_id'] }} >
-                    <p><input type = "submit" value = "update"></p>
-                  </form>
+                  {% if session['edit'] == 1 %}
+      					    <form action="edit_description" method="post" enctype="multipart/form-data">
+                      <input type="text" class="form-control input-normal" placeholder="description" name="description" id="description" value="{{ display['description'] }}"/>
+                      <input type="hidden" name="collection" value={{ display['collection'] }} >
+                      <input type="hidden" name="code" value={{ display['code'] }} >
+                      <input type="hidden" name="runId" value={{ display['runId'] }} >
+                      <input type="hidden" name="id" value={{ component['_id'] }} >
+                      <p><input type = "submit" value = "update"></p>
+                    </form>
+                  {% endif %}
                 {% else %}
                   <p>{{ display['description'] }}</p>
                 {% endif %}
@@ -49,12 +51,14 @@
                   </img>
                 </a>
                 {% if session['logged_in'] == True %}
-					        <form action="{{ url_for(display['htmlurl']) }}" method="post"  class=entries style="font-size: 8pt">
-                    <input type="hidden" name="code" value={{ display['code'] }} >
-                    <input type="hidden" name="runId" value={{ display['runId'] }} >
-                    <input type="hidden" name="id" value={{ component['_id'] }} >
-                    <p><input type = "submit" value = "untag"></p>
-                  </form>
+                  {% if session['edit'] == 1 %}
+  					        <form action="{{ url_for(display['htmlurl']) }}" method="post"  class=entries style="font-size: 8pt">
+                      <input type="hidden" name="code" value={{ display['code'] }} >
+                      <input type="hidden" name="runId" value={{ display['runId'] }} >
+                      <input type="hidden" name="id" value={{ component['_id'] }} >
+                      <p><input type = "submit" value = "untag"></p>
+                    </form>
+                  {% endif %}
                 {% endif %}
               </td>
             </tr>
