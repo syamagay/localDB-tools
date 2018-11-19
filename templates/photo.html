@@ -10,8 +10,8 @@
       </thead>
       <tbody>
         <tr>
-          <td scope="col" align="center" >{{ component['photo']['photoNumber'] }}</td>
-          <td scope="col" align="center" >{{ component['photo']['stage'] }}</td>
+          <td scope="col" align="center" >{{ component['photos']['photoNumber'] }}</td>
+          <td scope="col" align="center" >{{ component['photos']['stage'] }}</td>
         </tr>
       </tbody>
     </table>
@@ -23,12 +23,12 @@
       <div class="col">
         <center>
         <p>
-          {{ component['photo']['filename'] }}
+          {{ component['photos']['filename'] }}
           {% if session['logged_in'] == True %}
-            {% if component['photo']['display'] == "True" %}
+            {% if component['photos']['display'] == "True" %}
               {% if session['edit'] == 1 %}
                 <form action="{{ url_for('untag_image') }}" method=post class=entries style="font-size: 8pt">  
-                  <input type="hidden" name="code" value={{ component['photo']['code'] }} >
+                  <input type="hidden" name="code" value={{ component['photos']['code'] }} >
                   <input type="hidden" name="id" value={{ component['_id'] }} >
                   <p><input type = "submit" value = "untag"></p>
                 </form>
@@ -36,7 +36,7 @@
             {% else %}
               {% if session['write'] == 1 %}
                 <form action="{{ url_for('tag_image') }}" method=post class=entries style="font-size: 8pt">  
-                  <input type="hidden" name="code" value={{ component['photo']['code'] }} >
+                  <input type="hidden" name="code" value={{ component['photos']['code'] }} >
                   <input type="hidden" name="id" value={{ component['_id'] }} >
                   <p><input type = "submit" value = "tag"></p>
                 </form>
@@ -48,15 +48,15 @@
         		      <input type="hidden" name="id" value={{ component['_id'] }} />
                   <div class="form-horizontal">
                     <p>
-    			      		   <button type="submit" class="btn" name="code" value="{{ component['photo']['code'] }}">remove</button>
+    			      		   <button type="submit" class="btn" name="code" value="{{ component['photos']['code'] }}">remove</button>
     			      	  </p>
     			      	</div>
                 </form>
             {% endif %}
           {% endif %}
         </p>
-        <a href={{ component['photo']['url'] }} target="_brank" rel="noopener noreferrer">
-          <img src={{ component['photo']['url'] }} title={{ component['photo']['filename'] }} width="250" height="250">
+        <a href={{ component['photos']['url'] }} target="_brank" rel="noopener noreferrer">
+          <img src={{ component['photos']['url'] }} title={{ component['photos']['filename'] }} width="250" height="250">
           </img>
         </a>
         </center>

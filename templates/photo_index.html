@@ -1,4 +1,4 @@
-{% if component['photo'] %}
+{% if component['photos'] %}
   {% include "photo.html" %}
 {% else %}
 {% endif%}
@@ -18,7 +18,7 @@
          {% for photo in component['photoIndex'] %}
            <tr>
              <td align="center">
-               <a href="{{ url_for(component['photourl'], id=component['_id'], code=photo['code']) }}">{{ photo['photoNumber'] }}</a>
+               <a href="{{ url_for(component['url'], id=component['_id'], code=photo['code']) }}">{{ photo['photoNumber'] }}</a>
              </td>
              <td align="center">{{ photo['datetime'] }}</td>
              <td align="center">{{ photo['stage'] }}</td>

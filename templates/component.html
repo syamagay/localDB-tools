@@ -45,7 +45,7 @@
                         Module
                       </td>
                       <td>
-                        <a href="{{ url_for('show_module', id=component['moduleIndex']['_id']) }}">{{component['moduleIndex']['serialNumber']}}</a>&ensp;
+                        <a href="{{ url_for('show_module', id=component['module']['_id']) }}">{{component['module']['serialNumber']}}</a>&ensp;
                       </td>
                     </tr>
                     <tr>
@@ -53,27 +53,27 @@
                         Chips
                       </td>
                       <td>
-                        {% for chip in component['chipIndex'] %}
+                        {% for chip in component['chips'] %}
                           <a href="{{ url_for('show_chip', id=chip['_id']) }}">{{chip['serialNumber']}}</a>&ensp;
                         {% else %}
                           No match.
                         {% endfor %}
                       </td>
                     </tr>
-                    {% for image in component['imageIndex'] %}
+                    {% for photo in component['photoDisplay'] %}
                     <tr>
                       <td>
-                        {{ image['photoNumber'] }}
+                        {{ photo['photoNumber'] }}
                       </td>
                       <td>
-                        <a href={{ image['url'] }} target="_brank" rel="noopener noreferrer">
-                          <img src={{ image['url'] }} title={{ image['filename'] }} width="250" height="250">
+                        <a href={{ photo['url'] }} target="_brank" rel="noopener noreferrer">
+                          <img src={{ photo['url'] }} title={{ photo['filename'] }} width="250" height="250">
                           </img>
                         </a>
                         {% if session['logged_in'] == True %}
                           {% if session['edit'] == 1 %}
                             <form action="{{ url_for('untag_image') }}" method=post class=entries style="font-size: 8pt">  
-                              <input type="hidden" name="code" value={{ image['code'] }} >
+                              <input type="hidden" name="code" value={{ photo['code'] }} >
                               <input type="hidden" name="id" value={{ component['_id'] }} >
                               <p><input type = "submit" value = "untag"></p>
                             </form>
@@ -120,7 +120,7 @@
 
         {% include "display_index.html" %}
 
-        {% if component['resultIndex'][0] == _brank %}
+        {% if component['results'][0] == _brank %}
         {% else %}
           {% if session['component'] == "module" %}
             {% include "result_module.html" %}

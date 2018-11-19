@@ -31,7 +31,7 @@ datDict = { "selftrigger" : [("OccupancyMap-0", "#Hit"),],
             "digitalscan" : [("OccupancyMap", "Occupancy"), ("EnMask", "EnMask")],
             "analogscan" : [("OccupancyMap", "Occupancy"), ("EnMask", "EnMask")]}
 
-def drawScan(mod_name, scan_type, num_scan, log, Max, map_list):
+def drawScan(scan_type, num_scan, log, Max, map_list):
     if int(num_scan) < 0 : raise ValueError("Invalid scan number")
 
     ROOT.gROOT.SetBatch()
@@ -49,12 +49,12 @@ def drawScan(mod_name, scan_type, num_scan, log, Max, map_list):
                 Max = ""
             else :
                 h1d_max=Max
-            h1 = ROOT.TH1D(mod_name+"_"+map_type[0]+"_Dist_"+num_scan,
-                           mod_name+"_"+map_type[0]+"_Dist_"+num_scan+";"+map_type[1],
+            h1 = ROOT.TH1D(map_type[0]+"_Dist_"+num_scan,
+                           map_type[0]+"_Dist_"+num_scan+";"+map_type[1],
                            1000, 0, 1000)
         
-            h2 = ROOT.TH2D(mod_name+"_"+map_type[0]+"_"+num_scan,
-                           mod_name+"_"+map_type[0]+"_"+num_scan+";Column;Row",
+            h2 = ROOT.TH2D(map_type[0]+"_"+num_scan,
+                           map_type[0]+"_"+num_scan+";Column;Row",
                            NUM_COL*2, 0.5, NUM_COL*2+0.5, NUM_ROW*2, 0.5, NUM_ROW*2+0.5)
         
             # Chip loop
