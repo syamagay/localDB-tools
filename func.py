@@ -1,4 +1,4 @@
-import datetime, json
+import os, datetime, json
 
 ALLOWED_EXTENSIONS = set(['txt', 'pdf', 'png', 'jpg', 'jpeg', 'gif'])
 
@@ -16,7 +16,7 @@ def readJson(fileName):
     try:
         f = open(fileName, 'r')
     except:
-        f = open("parameter_default.json", 'r')
+        f = open("{}/parameter_default.json".format( os.path.dirname(os.path.abspath(__file__)), 'r'))
     json_data = json.load(f)
     f.close()  
     return json_data

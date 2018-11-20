@@ -8,7 +8,6 @@ from getpass import getpass
 import hashlib
 
 client = MongoClient(host='localhost', port=28000)
-#localdb = client['user']
 localdb = client['yarrlocal']
 
 def add_request(userinfo) :

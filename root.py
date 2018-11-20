@@ -15,28 +15,28 @@ import base64
 import ROOT
 
 USER=pwd.getpwuid( os.geteuid() ).pw_name
-
-RESULT_DIR = '/tmp/{}/result'.format( USER )
-DATA_DIR = '/tmp/{}/data'.format( USER )
+USER_DIR = '/tmp/{}'.format( USER ) 
+DAT_DIR = '{}/dat'.format( USER_DIR )
+PLOT_DIR = '{}/result'.format( USER_DIR )
 
 ##########
 # Variables
 NUM_COL = 80
 NUM_ROW = 336
 
-datDict = { "selftrigger" : [("OccupancyMap-0", "#Hit"),],
-            "noisescan" : [("NoiseOccupancy","NoiseOccupancy"), ("NoiseMask", "NoiseMask")],
-            "totscan" : [("MeanTotMap", "Mean[ToT]"), ("SigmaTotMap", "Sigma[ToT]")],
-            "thresholdscan" : [("ThresholdMap", "Threshold[e]"), ("NoiseMap", "Noise[e]")],
-            "digitalscan" : [("OccupancyMap", "Occupancy"), ("EnMask", "EnMask")],
-            "analogscan" : [("OccupancyMap", "Occupancy"), ("EnMask", "EnMask")]}
+datDict = { "selftrigger"   : [("OccupancyMap-0", "#Hit"),],
+            "noisescan"     : [("NoiseOccupancy","NoiseOccupancy"), ("NoiseMask", "NoiseMask")],
+            "totscan"       : [("MeanTotMap", "Mean[ToT]"),         ("SigmaTotMap", "Sigma[ToT]")],
+            "thresholdscan" : [("ThresholdMap", "Threshold[e]"),    ("NoiseMap", "Noise[e]")],
+            "digitalscan"   : [("OccupancyMap", "Occupancy"),       ("EnMask", "EnMask")],
+            "analogscan"    : [("OccupancyMap", "Occupancy"),       ("EnMask", "EnMask")]}
 
 def drawScan(scan_type, num_scan, log, Max, map_list):
     if int(num_scan) < 0 : raise ValueError("Invalid scan number")
 
     ROOT.gROOT.SetBatch()
 
-    max_value = func.readJson("parameter.json") 
+    max_value = func.readJson("{}/parameter.json".format( os.path.dirname(os.path.abspath(__file__)) )) 
 
 ############
 # Main loop
@@ -49,6 +49,7 @@ def drawScan(scan_type, num_scan, log, Max, map_list):
                 Max = ""
             else :
                 h1d_max=Max
+
             h1 = ROOT.TH1D(map_type[0]+"_Dist_"+num_scan,
                            map_type[0]+"_Dist_"+num_scan+";"+map_type[1],
                            1000, 0, 1000)
@@ -61,7 +62,7 @@ def drawScan(scan_type, num_scan, log, Max, map_list):
             for i in range(4) :
         
                 # Open Files
-                filename = DATA_DIR+"/"+num_scan+"_chipId"+str(i+1)+"_"+map_type[0]+".dat"
+                filename = DAT_DIR+"/"+num_scan+"_chipId"+str(i+1)+"_"+map_type[0]+".dat"
                 try :
                     f = open(filename)
                 except :
@@ -96,7 +97,7 @@ def drawScan(scan_type, num_scan, log, Max, map_list):
                 f.close()
                 #os.remove(filename)
         
-            path_dir = RESULT_DIR + "/" + scan_type
+            path_dir = PLOT_DIR + "/" + scan_type
             PH.outDir = path_dir
 
     
@@ -109,5 +110,5 @@ def drawScan(scan_type, num_scan, log, Max, map_list):
             else:
                 max_value[scan_type][map_type[0]] = [int(Max),log]
 
-    func.writeJson("parameter.json",max_value)
+    func.writeJson("{}/parameter.json".format( os.path.dirname(os.path.abspath(__file__)) ), max_value) 
     #return max_value
