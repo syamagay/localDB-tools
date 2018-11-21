@@ -24,35 +24,31 @@
         <center>
         <p>
           {{ component['photos']['filename'] }}
-          {% if session['logged_in'] == True %}
-            {% if component['photos']['display'] == "True" %}
-              {% if session['edit'] == 1 %}
-                <form action="{{ url_for('untag_image') }}" method=post class=entries style="font-size: 8pt">  
-                  <input type="hidden" name="code" value={{ component['photos']['code'] }} >
-                  <input type="hidden" name="id" value={{ component['_id'] }} >
-                  <p><input type = "submit" value = "untag"></p>
-                </form>
+          {% if session['write'] == 1 %}
+            <form action="{{ url_for('tag_image') }}" method=post class=entries style="font-size: 8pt">  
+              <input type="hidden" name="code" value={{ component['photos']['code'] }} >
+              <input type="hidden" name="id" value={{ component['_id'] }} >
+              {% if component['photos']['display'] == "True" %}
+                {% if session['edit'] == 1 %}
+                  <p><input type = "submit" value = "untag" name="tag"></p>
+                {% else %}
+                  <p><input type = "submit" value = "already tagged" name="tag" disabled="disabled"></p>
+                {% endif %}
+              {% else %}
+                <p><input type = "submit" value = "tag" name="tag"></p>
               {% endif %}
-            {% else %}
-              {% if session['write'] == 1 %}
-                <form action="{{ url_for('tag_image') }}" method=post class=entries style="font-size: 8pt">  
-                  <input type="hidden" name="code" value={{ component['photos']['code'] }} >
-                  <input type="hidden" name="id" value={{ component['_id'] }} >
-                  <p><input type = "submit" value = "tag"></p>
-                </form>
-              {% endif %}
-            {% endif %}
-            {% if session['edit'] == 1 %}
-    		        <form action="{{ url_for('remove_attachment') }}" method="post">
-        		      <input type="hidden" name="type" value="module" />
-        		      <input type="hidden" name="id" value={{ component['_id'] }} />
-                  <div class="form-horizontal">
-                    <p>
-    			      		   <button type="submit" class="btn" name="code" value="{{ component['photos']['code'] }}">remove</button>
-    			      	  </p>
-    			      	</div>
-                </form>
-            {% endif %}
+            </form>
+          {% endif %}
+          {% if session['edit'] == 1 %}
+    		      <form action="{{ url_for('remove_attachment') }}" method="post">
+        	      <input type="hidden" name="type" value="module" />
+        	      <input type="hidden" name="id" value={{ component['_id'] }} />
+                <div class="form-horizontal">
+                  <p>
+    			    		   <button type="submit" class="btn" name="code" value="{{ component['photos']['code'] }}">remove</button>
+    			    	  </p>
+    			    	</div>
+              </form>
           {% endif %}
         </p>
         <a href={{ component['photos']['url'] }} target="_brank" rel="noopener noreferrer">

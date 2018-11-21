@@ -33,8 +33,10 @@ echo "    module_list.append(line.strip())" >> ${PYTHON_SCRIPT}
 
 echo "os.system(echo + ' \"[start] installation\" > ${LOG_TEXT}')" >> ${PYTHON_SCRIPT}
 echo "print('Start installation ...')" >> ${PYTHON_SCRIPT}
+echo "print(' ')" >> ${PYTHON_SCRIPT}
 
 echo "for module in module_list :" >> ${PYTHON_SCRIPT}
+echo "    print('Install '+module+' ...')" >> ${PYTHON_SCRIPT}
 echo "    os.system(echo + ' \"-------------------------------------[start]-------------------------------------\" >> ${LOG_TEXT}')" >> ${PYTHON_SCRIPT}
 echo "    os.system(echo + ' \"install ' + module +' ...\" >> ${LOG_TEXT}')" >> ${PYTHON_SCRIPT}
 echo "    output = os.system(pip + ' install ' + module + ' >> ${LOG_TEXT} 2>&1')" >> ${PYTHON_SCRIPT}
@@ -47,8 +49,10 @@ echo "        failure_list.append(module)" >> ${PYTHON_SCRIPT}
 echo "    os.system(echo + ' \"-------------------------------------[done]-------------------------------------\" >> ${LOG_TEXT}')" >> ${PYTHON_SCRIPT}
 echo "    os.system(echo + ' \" \" >> ${LOG_TEXT}')" >> ${PYTHON_SCRIPT}
 
-echo "print(' ')" >> ${PYTHON_SCRIPT}
-echo "print('...Done.')" >> ${PYTHON_SCRIPT}
+echo "    print('done.')" >> ${PYTHON_SCRIPT}
+echo "    print(' ')" >> ${PYTHON_SCRIPT}
+
+echo "print('Finish installtion.')" >> ${PYTHON_SCRIPT}
 echo "print(' ')" >> ${PYTHON_SCRIPT}
 
 echo "if success_list :" >> ${PYTHON_SCRIPT}

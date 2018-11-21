@@ -160,7 +160,7 @@ def fill_resultDisplay( thisComponent ) :
                         displayList.append({ "runNumber"   : thisRun['runNumber'],
                                              "runId"       : thisRun['_id'],
                                              "code"        : data['code'],
-                                             "htmlurl"     : "untag_result",
+                                             "htmlurl"     : "tag_result",
                                              "environment" : env_dict,
                                              "description" : data['description'],
                                              "collection"  : "testRun",
@@ -191,10 +191,7 @@ def fill_runIndex( thisRun, runIndex=[] ) :
 def fill_resultIndex( item ) :
     resultIndex = []
     for scan in scanList :
-        if session['component'] == "module" :
-            query = { '$or' : item, "testType" : scan }
-        if session['component'] == "chip" :
-            query = { "component" : item, "testType" : scan }
+        query = { '$or' : item, "testType" : scan }
         run_entries = yarrdb.componentTestRun.find( query )
         runIndex = []
         for run in run_entries :
@@ -220,6 +217,8 @@ def fill_results( item, runNumber ) :
             for run in run_entries :
                 query = { "_id" : ObjectId(run['testRun']) }
                 thisRun = yarrdb.testRun.find_one( query )
+                env_dict = fill_env( thisRun )
+                comments = list(thisRun['comments'])
                 testType = thisRun['testType']
                 if not reanalysis == "True" :
                     data_entries = thisRun['attachments']
@@ -251,17 +250,20 @@ def fill_results( item, runNumber ) :
                     results.append({ "testType"  : testType, 
                                      "mapType"   : mapType[0], 
                                      "runNumber" : runNumber, 
+                                     "comments"  : comments,
                                      "comment"   : "No Root Software",
                                      "path"      : filename, 
                                      "url"       : url, 
+                                     "environment" : env_dict,
                                      "setLog"    : max_value[testType][mapType[0]][1], 
                                      "maxValue"  : max_value[testType][mapType[0]][0] })
 
         if session['component'] == "chip" :
-            query = { "component" : item, "runNumber" : runNumber }
+            query = { '$or' : item , "runNumber" : runNumber }
             run = yarrdb.componentTestRun.find_one( query )
             query = { "_id" : ObjectId(run['testRun']) }
             thisRun = yarrdb.testRun.find_one( query )
+            comments = list(thisRun['comments'])
             env_dict = fill_env( thisRun )
             data_entries = thisRun['attachments']
             for data in data_entries :
@@ -273,6 +275,7 @@ def fill_results( item, runNumber ) :
                                      "runId"       : thisRun['_id'],
                                      "code"        : data['code'],
                                      "url"         : url,
+                                     "comments"   : comments,
                                      "filename"    : data['filename'].rsplit("_",1)[1],
                                      "environment" : env_dict,
                                      "display"     : data.get('display',"False") })

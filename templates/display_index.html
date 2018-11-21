@@ -25,25 +25,27 @@
               <td scope="col" align="center" >{{ display['environment']['cool'] }}</td>
               <td scope="col" align="center" >{{ display['environment']['stage'] }}</td>
             </tr>
-            <tr>
-              <td colspan="5" align="center">
-                {% if session['logged_in'] == True %}
-                  {% if session['edit'] == 1 %}
-      					    <form action="edit_description" method="post" enctype="multipart/form-data">
-                      <input type="text" class="form-control input-normal" placeholder="description" name="description" id="description" value="{{ display['description'] }}"/>
-                      <input type="hidden" name="collection" value={{ display['collection'] }} >
-                      <input type="hidden" name="code" value={{ display['code'] }} >
-                      <input type="hidden" name="runId" value={{ display['runId'] }} >
-                      <input type="hidden" name="id" value={{ component['_id'] }} >
-                      <p><input type = "submit" value = "update"></p>
-                    </form>
+            {% if display['description'] == "" %}
+            {% else %}
+              <tr>
+                <td colspan="5" align="center">
+                  {% if session['logged_in'] == True %}
+                    {% if session['edit'] == 1 %}
+      			  		    <form action="edit_description" method="post" enctype="multipart/form-data">
+                        <input type="text" class="form-control input-normal" placeholder="description" name="description" id="description" value="{{ display['description'] }}"/>
+                        <input type="hidden" name="collection" value={{ display['collection'] }} >
+                        <input type="hidden" name="code" value={{ display['code'] }} >
+                        <input type="hidden" name="runId" value={{ display['runId'] }} >
+                        <input type="hidden" name="id" value={{ component['_id'] }} >
+                        <p><input type = "submit" value = "update"></p>
+                      </form>
+                    {% endif %}
+                  {% else %}
+                    <p>{{ display['description'] }}</p>
                   {% endif %}
-                {% else %}
-                  <p>{{ display['description'] }}</p>
-                {% endif %}
-              </td>
-            </tr>
-
+                </td>
+              </tr>
+            {% endif %}
             <tr>
               <td colspan="5" align="center">
                 <a href={{ display['url'] }} target="_brank" rel="noopener noreferrer">
@@ -52,11 +54,11 @@
                 </a>
                 {% if session['logged_in'] == True %}
                   {% if session['edit'] == 1 %}
-  					        <form action="{{ url_for(display['htmlurl']) }}" method="post"  class=entries style="font-size: 8pt">
+  					        <form action="{{ url_for('tag_result') }}" method="post"  class=entries style="font-size: 8pt">
                       <input type="hidden" name="code" value={{ display['code'] }} >
                       <input type="hidden" name="runId" value={{ display['runId'] }} >
                       <input type="hidden" name="id" value={{ component['_id'] }} >
-                      <p><input type = "submit" value = "untag"></p>
+                      <p><input type = "submit" value = "untag" name="tag"></p>
                     </form>
                   {% endif %}
                 {% endif %}
