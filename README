@@ -1,5 +1,6 @@
 -- User guide --
 
+< Setting >
 1, requirements
 - mongodb 
 - python 2.X or 3.X ( which can use PyROOT )
@@ -8,6 +9,7 @@
   * pip install pdf2image
   * pip install Flask-PyMongo
   * pip install python-dateutil 
+  * pip install flask-httpauth
 
 2, preparetion
  > 1, git clone this source
@@ -28,8 +30,38 @@
       python app.py
       type "<IP address>:5000" in browser
 
+< Setup pyenv >
 
+1, yum install some packages
+ $ sudo yum install gcc zlib-devel bzip2 bzip2-devel readline readline-devel sqlite sqlite-devel openssl openssl-devel git
+2, install pyenv
+ i, clone pyenv repository
+   $ git clone https://github.com/pyenv/pyenv.git ~/.pyenv
+ ii, add path to pyenv in bash_profile
+   $ echo 'export PATH="$HOME/.pyenv/bin:$PATH"' >> ~/.bash_profile
+   $ echo 'eval "$(pyenv init -)"' >> ~/.bash_profile
+   $ source ~/.bash_profile
+  iii, check version of pyenv
+   $ pyenv --version
+   pyenv 1.2.2.6-g694b551
+3, install python X.X.X using pyenv
+  i, install
+   $ pyenv install X.X.X
+  ii, change version of python
+   $ pyenv global X.X.X
+   $ pyenv local X.X.X (only current directory)
 
+< pip install >
+1, ./make_install.sh
+2, python install.py
+
+< Setting script >
+1, Change some materials in setting.sh and execute it
+  - APACHE : true : run by apache
+  - IPADDRESS : where you run this web app
+  - PORT : port of mongoDB
+  - ADMIN & PASS : user name and password for admin page 
+2, ./setting.sh
 
 < web-app-db-yarr >
 | 
