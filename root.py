@@ -4,9 +4,9 @@
 ###############
 
 import glob
-import sys, os, func, getpass
+import sys, os, func, pwd 
 sys.path.append( os.path.dirname(os.path.abspath(__file__)) + "/PlotTools" )
-#sys.path.append("path/to/ROOT.py") 
+sys.path.append(ROOTLIB) 
 
 from PlotHelpers import gHelper as PH
 import PlotFromHistos.SimplePlots as Plot
@@ -14,27 +14,29 @@ import base64
 
 import ROOT
 
-RESULT_FOLDER = '/tmp/{}/result'.format(os.getlogin())
-DATA_FOLDER = '/tmp/{}/data'.format(os.getlogin())
+USER=pwd.getpwuid( os.geteuid() ).pw_name
+USER_DIR = '/tmp/{}'.format( USER ) 
+DAT_DIR = '{}/dat'.format( USER_DIR )
+PLOT_DIR = '{}/result'.format( USER_DIR )
 
 ##########
 # Variables
 NUM_COL = 80
 NUM_ROW = 336
 
-datDict = { "selftrigger" : [("OccupancyMap-0", "#Hit"),],
-            "noisescan" : [("NoiseOccupancy","NoiseOccupancy"), ("NoiseMask", "NoiseMask")],
-            "totscan" : [("MeanTotMap", "Mean[ToT]"), ("SigmaTotMap", "Sigma[ToT]")],
-            "thresholdscan" : [("ThresholdMap", "Threshold[e]"), ("NoiseMap", "Noise[e]")],
-            "digitalscan" : [("OccupancyMap", "Occupancy"), ("EnMask", "EnMask")],
-            "analogscan" : [("OccupancyMap", "Occupancy"), ("EnMask", "EnMask")]}
+datDict = { "selftrigger"   : [("OccupancyMap-0", "#Hit"),],
+            "noisescan"     : [("NoiseOccupancy","NoiseOccupancy"), ("NoiseMask", "NoiseMask")],
+            "totscan"       : [("MeanTotMap", "Mean[ToT]"),         ("SigmaTotMap", "Sigma[ToT]")],
+            "thresholdscan" : [("ThresholdMap", "Threshold[e]"),    ("NoiseMap", "Noise[e]")],
+            "digitalscan"   : [("OccupancyMap", "Occupancy"),       ("EnMask", "EnMask")],
+            "analogscan"    : [("OccupancyMap", "Occupancy"),       ("EnMask", "EnMask")]}
 
-def drawScan(mod_name, scan_type, num_scan, log, Max, map_list):
+def drawScan(scan_type, num_scan, log, Max, map_list):
     if int(num_scan) < 0 : raise ValueError("Invalid scan number")
 
     ROOT.gROOT.SetBatch()
 
-    max_value = func.readJson("parameter.json") 
+    max_value = func.readJson("{}/parameter.json".format( os.path.dirname(os.path.abspath(__file__)) )) 
 
 ############
 # Main loop
@@ -42,19 +44,25 @@ def drawScan(mod_name, scan_type, num_scan, log, Max, map_list):
 
     for map_type in datDict[scan_type]:
         if map_list[map_type[0]]: 
-            h1 = ROOT.TH1D(mod_name+"_"+map_type[0]+"_Dist_"+num_scan,
-                           mod_name+"_"+map_type[0]+"_Dist_"+num_scan+";"+map_type[1],
+            if Max == 0 : 
+                h1d_max=3000
+                Max = ""
+            else :
+                h1d_max=Max
+
+            h1 = ROOT.TH1D(map_type[0]+"_Dist_"+num_scan,
+                           map_type[0]+"_Dist_"+num_scan+";"+map_type[1],
                            1000, 0, 1000)
         
-            h2 = ROOT.TH2D(mod_name+"_"+map_type[0]+"_"+num_scan,
-                           mod_name+"_"+map_type[0]+"_"+num_scan+";Column;Row",
+            h2 = ROOT.TH2D(map_type[0]+"_"+num_scan,
+                           map_type[0]+"_"+num_scan+";Column;Row",
                            NUM_COL*2, 0.5, NUM_COL*2+0.5, NUM_ROW*2, 0.5, NUM_ROW*2+0.5)
         
             # Chip loop
             for i in range(4) :
         
                 # Open Files
-                filename = DATA_FOLDER+"/"+num_scan+"_chipId"+str(i+1)+"_"+map_type[0]+".dat"
+                filename = DAT_DIR+"/"+num_scan+"_chipId"+str(i+1)+"_"+map_type[0]+".dat"
                 try :
                     f = open(filename)
                 except :
@@ -89,10 +97,9 @@ def drawScan(mod_name, scan_type, num_scan, log, Max, map_list):
                 f.close()
                 #os.remove(filename)
         
-            path_dir = RESULT_FOLDER + "/" + scan_type
+            path_dir = PLOT_DIR + "/" + scan_type
             PH.outDir = path_dir
 
-            if Max == 0: Max = ""
     
             path_plot = num_scan + "_" +  map_type[0]
             Plot.Plot1D_fromHistos(h1, log, path_plot+"_1", "#Ch.", "histo", Max)
@@ -103,5 +110,5 @@ def drawScan(mod_name, scan_type, num_scan, log, Max, map_list):
             else:
                 max_value[scan_type][map_type[0]] = [int(Max),log]
 
-    func.writeJson("parameter.json",max_value)
+    func.writeJson("{}/parameter.json".format( os.path.dirname(os.path.abspath(__file__)) ), max_value) 
     #return max_value

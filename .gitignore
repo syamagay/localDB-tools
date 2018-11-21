@@ -19,5 +19,8 @@ __pycache__/
 *.pdf
 *.root
 parameter.json
+pipinstall.py
+install_log
+static/*upload
 
 # End of https://www.gitignore.io/api/virtualenv

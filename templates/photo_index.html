@@ -1,0 +1,31 @@
+{% if component['photos'] %}
+  {% include "photo.html" %}
+{% else %}
+{% endif%}
+<h4 style="font-size: 13pt;"><i class="fa fa-cog"></i> Photo index</h4>
+<a data-toggle="collapse" href="#photoindex" aria-controls="photoindex"> view more</a>
+<div class="row align-items-top collapse" id="photoindex">
+ <div class="col-md-4">
+   <table class="table table-sm table-hover table-bordered" style="font-size: 7pt;">
+     <thead class="table-dark" style="background: #222222;">
+       <tr>
+         <th scope="col" width="40" class="text-center">Photo<br>number</th>
+         <th scope="col" width="150" class="text-center">Date</th>
+         <th scope="col" width="150" class="text-center">Stage</th>
+       </tr>
+     </thead>
+     <tbody>
+         {% for photo in component['photoIndex'] %}
+           <tr>
+             <td align="center">
+               <a href="{{ url_for(component['url'], id=component['_id'], code=photo['code']) }}">{{ photo['photoNumber'] }}</a>
+             </td>
+             <td align="center">{{ photo['datetime'] }}</td>
+             <td align="center">{{ photo['stage'] }}</td>
+           </tr>
+         {% endfor %}
+     </tbody>
+   </table>
+ </div>
+</div>
+

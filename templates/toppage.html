@@ -17,13 +17,21 @@
     <div class="row align-items-center justify-content-center">
       <div class="col">
 
-        <h2>Summary</h2>
+        {% if session['logged_in'] == True %}
+          {% if session['edit'] == 1 %}
+            <h2>Summary (admin page)</h2>
+          {% else %}
+            <h2>Summary (user page)</h2>
+          {% endif %}
+        {% else %}
+          <h2>Summary</h2>
+        {% endif %}
     
         <table class="table table-sm table-hover" style="font-size: 10pt;">
           <thead class="table-dark" style="background: #222222;">
             <tr>
               <th scope="col" width="110">Module</th>
-              <th scope="col" width="300">Chips</th>
+              <th scope="col" width="700">Chips</th>
               <th scope="col" width="110">FE type</th>
               <th scope="col" width="300">Created date</th>
             </tr>
@@ -34,7 +42,7 @@
                 <td><a href="{{ url_for('show_module', id=module["_id"]) }}">{{ module["serialNumber"] }}</a></td>
                 <td>
                 {% for chip in module["chips"] %}
-                  <a href="{{ url_for('show_chip', id=chip["_id"]) }}">{{ chip["number"] }}
+                  <a href="{{ url_for('show_chip', id=chip["_id"]) }}">{{ chip["serialNumber"] }}
                   </a>&ensp;
                 {% endfor %}
                 </td>

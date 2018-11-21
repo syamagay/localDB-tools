@@ -16,33 +16,105 @@
       </thead>
       <tbody>
         <tr>
-          <td scope="col" align="center" >{{ component['dataIndex'][0]['runNumber'] }}</td>
-          <td scope="col" align="center" >{{ component['dataIndex'][0]['testType'] }}</td>
+          <td scope="col" align="center" >{{ component['results'][0]['runNumber'] }}</td>
+          <td scope="col" align="center" >{{ component['results'][0]['testType'] }}</td>
           <td scope="col" align="center" ></td>
           <td scope="col" align="center" ></td>
           <td scope="col" align="center" ></td>
         </tr>
+        {% set index = [] %}
+        {% for comment in component['results'][0]['comments'] %}
+          {% if comment['userid'] == session['user_id'] %}
+            {% set index = index.append(loop.index-1) %}
+          {% endif %}
+        {% endfor %}
+        {% for comment in component['results'][0]['comments'] %}
+          {% if comment['userid'] == session['user_id'] %}
+          {% else %}
+            <tr>
+              <td scope="col" align="center" colspan="4">{{ comment['comment'] }}</td>
+              <td scope="col" align="center" >
+                {{ comment['user'] }}
+                {% if (session['edit'] == 1) and (comment['institute'] == session['institute']) %}
+             		  <form action="remove_comment" method="post" enctype="multipart/form-data">
+                  	<input type="hidden" value="{{ comment['user'] }}" name="user">
+                    <input type="hidden" name="runNumber" value={{ component['results'][0]['runNumber'] }} >
+                    <input type="hidden" name="id" value={{ component['_id'] }} >
+                    <p><input type = "submit" value = "remove"></p>
+                  </form>
+                {% endif %}
+              </td>
+            </tr>
+          {% endif %}
+        {% endfor %}
+        {% if index == [] %}
+          {% if session['write'] == 1 %}
+            <tr>
+        		  <form action="edit_comment" method="post" enctype="multipart/form-data" >
+              <td scope="col" align="center" colspan="4">
+                <input type = "txt" class="form-control input-normal" placeholder="comment" name = "text" >
+              </td>
+              <td scope="col" align="center middle" >
+           	    <input type="hidden" value="{{ session['user_name'] }}" name="user" >
+                {{ session['user_name'] }}
+                <input type="hidden" name="runNumber" value={{ component['results'][0]['runNumber'] }} >
+                <input type="hidden" name="id" value={{ component['_id'] }} >
+                <p><input type = "submit" value = "update" ></p>
+                {% if session['edit'] == 1 %}
+                  <p><input type = "submit" value = "remove" formaction="remove_comment"></p>
+                {% endif %}
+              </td>
+              </form>
+            </tr>
+          {% endif %}
+        {% else %}
+          <tr>
+      		  <form action="edit_comment" method="post" enctype="multipart/form-data" >
+            <td scope="col" align="center" colspan="4">
+              <input type = "txt" class="form-control input-normal" placeholder="comment" name = "text" value = "{{ component['results'][0]['comments'][index[0]]['comment'] }}" >
+            </td>
+            <td scope="col" align="center middle" >
+         	    <input type="hidden" value="{{ session['user_name'] }}" name="user" >
+              {{ session['user_name'] }}
+              <input type="hidden" name="runNumber" value={{ component['results'][0]['runNumber'] }} >
+              <input type="hidden" name="id" value={{ component['_id'] }} >
+              <p><input type = "submit" value = "update" ></p>
+              {% if session['edit'] == 1 %}
+                <p><input type = "submit" value = "remove" formaction="remove_comment"></p>
+              {% endif %}
+            </td>
+            </form>
+          </tr>
+        {% endif %}
       </tbody>
     </table>
   </div>
 </div>
 <div class="row align-items-top justify-content-center">
   <div class="col">
-    {% if component['dataIndex'][0]['url'] == _brank %}
-      <div style="font-size: 14pt;">{{component['dataIndex'][0]['comment']}}</div>
+    {% if component['results'][0]['url'] == _brank %}
+      <div style="font-size: 14pt;">{{component['results'][0]['comment']}}</div>
     {% else %}
-      {% for d in component['dataIndex'] %}
+      {% for result in component['results'] %}
         {% if loop.index %2 == 1 %}
         <div class="row align-items-top justify-content-space-evenly">
         {% endif %}
           <div class="col-md-5">
             <center>
               <p>
-                {{d.mapType}}
+                {{result['mapType']}}
+                {% if session['logged_in'] == True %}
+                  {% if session['write'] == 1 %}
+                    <form action="{{ url_for('add_attachment_result') }}" method=post class=entries style="font-size: 8pt">  
+                      <input type="hidden" name="path" value={{ result['path'] }} >
+                      <input type="hidden" name="id" value={{ component['_id'] }}>
+                      <p><input type = "submit" value = "tag"></p>
+                    </form>
+                  {% endif %}
+                {% endif %}
               </p>
-              <p>
-              <a href={{d.url}} target="_brank">
-                <img src={{d.url}} title={{d.mapType}} width="300" height="300">
+              <a href={{result['url']}} target="_brank" rel="noopener noreferrer">
+                <img src={{result['url']}} title={{result['mapType']}} width="300" height="300">
                 </img>
               </a>
             </center>
@@ -51,10 +123,10 @@
           <div class="col-md-2">
             <center>
               <h5 style="font-size: 10pt"> Setting parameters </h5>
-              <form action="{{ url_for('analysis_root', id=component['_id'], runNumber=component['dataIndex'][0]['runNumber']) }}" method=post class=entries style="font-size: 8pt">  
-                <input type="hidden" name="mapType" value={{d['mapType']}}>
+              <form action="{{ url_for('show_module', id=component['_id'], runNumber=component['results'][0]['runNumber']) }}" method=post class=entries style="font-size: 8pt">  
+                <input type="hidden" name="mapType" value={{result['mapType']}}>
                 <input type="hidden" name="reanalysis" value="True">
-                <p style="font-size: 8pt;">Range max <input type = "txt" name = "max" value = {{d.maxValue}} size="4"></p>
+                <p style="font-size: 8pt;">Range max <input type = "txt" name = "max" value = {{result['maxValue']}} size="4"></p>
                 <p style="font-size: 8pt;"><input type = "checkbox" name = "log" value = "True"> Set log scale</p>
                 <p><input type = "submit" value = "Make histogram"></p>
               </form>
@@ -62,8 +134,8 @@
               <br>
               <h5 style="font-size: 8pt"> Current setting </h5>
               <ol style="list-style-type: none;font-size: 7pt; text-align: left;">
-              <li> Range max     : {{d.maxValue}}</li>
-              <li> Set log scale : {{d.setLog}}</li>
+              <li> Range max     : {{result['maxValue']}}</li>
+              <li> Set log scale : {{result['setLog']}}</li>
               </ol>
             </center>
           </div>
@@ -73,4 +145,3 @@
     {% endif %}
   </div>
 </div>
-
