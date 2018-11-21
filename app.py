@@ -42,10 +42,12 @@ USER_DIR = '/tmp/{}'.format( USER )
 PIC_DIR = '{}/upload'.format( USER_DIR )
 DAT_DIR = '{}/dat'.format( USER_DIR )
 PLOT_DIR = '{}/result'.format( USER_DIR )
-STAT_DIR = '{0}/static/{1}-upload'.format( os.path.dirname(os.path.abspath(__file__)), USER )
-DIRS = [ USER_DIR, PIC_DIR, DAT_DIR, PLOT_DIR ] 
+STAT_DIR = '{}/static'.format( USER_DIR )
+DIRS = [ USER_DIR, PIC_DIR, DAT_DIR, PLOT_DIR, STAT_DIR ] 
+
 if os.path.isdir( USER_DIR ) :
     shutil.rmtree( USER_DIR )
+
 for DIR in DIRS :
     os.mkdir( DIR )
 
@@ -69,6 +71,10 @@ app.config["SECRET_KEY"] = os.urandom(24)
 #app.config["SECRET_KEY"] = 'secret'
 auth = HTTPDigestAuth()
 adpage = { ADMIN : PASS } 
+
+####
+import static
+app.register_blueprint(static.app)
 
 #############
 # for user db
@@ -104,7 +110,7 @@ def count_photoNum() :
 
 ##########
 # top page
-@app.route('/', methods=['GET'])
+@app.route('/YARR', methods=['GET'])
 def show_modules_and_chips() :
     session['signup'] = False
     clean_dir( STAT_DIR )

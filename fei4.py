@@ -35,7 +35,7 @@ USER_DIR = '/tmp/{}'.format( USER )
 PIC_DIR = '{}/upload'.format( USER_DIR )
 DAT_DIR = '{}/dat'.format( USER_DIR )
 PLOT_DIR = '{}/result'.format( USER_DIR )
-STAT_DIR = '{0}/static/{1}-upload'.format( os.path.dirname(os.path.abspath(__file__)), USER )
+STAT_DIR = '{}/static'.format( USER_DIR )
 
 scanList = { "selftrigger"   : [( "OccupancyMap-0", "#Hit" ),],
              "noisescan"     : [( "NoiseOccupancy","NoiseOccupancy" ), ( "NoiseMask", "NoiseMask" )],
@@ -72,7 +72,7 @@ def fill_photoDisplay( thisComponent ) :
                 f = open( filePath, 'wb' )
                 f.write( fs.get(ObjectId(data['code'])).read() )
                 f.close()
-                url = url_for( 'static', filename='{0}-upload/{1}_{2}'.format( USER, data['photoNumber'], data['filename'] ))
+                url = url_for( 'upload.static', filename='{0}_{1}'.format( data['photoNumber'], data['filename'] ))
                 photoDisplay.append({ "url"         : url,
                                       "code"        : data['code'],
                                       "photoNumber" : data['photoNumber'],
@@ -103,7 +103,7 @@ def fill_photos( thisComponent, code ) :
                 f.write( fs.get(ObjectId(code)).read() )
                 f.close()
 
-                url = url_for( 'static', filename='{0}-upload/{1}'.format( USER, data['filename'] ))
+                url = url_for( 'upload.static', filename='{}'.format( data['filename'] ))
                 photos = { "url"         : url,
                            "code"        : data['code'],
                            "photoNumber" : data['photoNumber'],

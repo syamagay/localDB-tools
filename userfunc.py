@@ -7,7 +7,7 @@ from pymongo import MongoClient
 from getpass import getpass
 import hashlib
 
-client = MongoClient(host='localhost', port=PORT)
+client = MongoClient(host='localhost', port=27018)
 localdb = client['yarrlocal']
 
 def add_request(userinfo) :
@@ -51,6 +51,7 @@ if localdb.user.find({ "type" : "administrator" }).count() == 0 :
         
     print(" ")
     if raw_input('Continue (y/n) >> ') == 'y' : #python2
+    if input('Continue (y/n) >> ') == 'y' : #python3
     
         print(" ")
         admininfo = []
@@ -58,11 +59,11 @@ if localdb.user.find({ "type" : "administrator" }).count() == 0 :
             if not (item == 'passWord' or item == 'passWord again') :
                 print("Input {}".format(item))
                 admininfo.append(raw_input(' >> ')) #python2
-                #admininfo.append(input(' >> ')) #python3
+                admininfo.append(input(' >> ')) #python3
             else :
                 print("Input {}".format(item))
                 admininfo.append(getpass(' >> ')) #python2
-                #admininfo.append(getpass(' >> ')) #python3
+                admininfo.append(getpass(' >> ')) #python3
         
         if not admininfo[5] == admininfo[6] :
             print("not match password, exit ...")
@@ -76,7 +77,7 @@ if localdb.user.find({ "type" : "administrator" }).count() == 0 :
         
         print(" ")
         if raw_input('Continue (y/n) >> ') == 'y' : #python2
-        #if input('Continue (y/n) >> ') == 'y' :#python3
+        if input('Continue (y/n) >> ') == 'y' : #python3
             admininfo[5] = hashlib.md5(admininfo[5].encode("utf-8")).hexdigest()
             userinfo = { "userName"  : admininfo[0],
                          "firstName" : admininfo[1],

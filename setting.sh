@@ -1,7 +1,10 @@
 #!/bin/bash
 
 # set apache
-APACHE=false
+APACHE=true
+
+# python version
+PYTHON3=true
 
 # set IP address
 IPADDRESS="'127.0.0.1'"
@@ -31,6 +34,12 @@ sed -i -e "s/PORT/${PORT}/g" ${FEI4}
 sed -i -e "s/PORT/${PORT}/g" ${USER}
 sed -i -e "s/ADMIN/${ADMIN}/g" ${APP}
 sed -i -e "s/PASS/${PASS}/g" ${APP}
+
+if ${PYTHON3} ; then
+  sed -i -e "/python2/d" ${USER}
+else
+  sed -i -e "/python3/d" ${USER}
+fi
 
 if $APACHE ; then
   if [ -n "${ROOTLIB}" ]; then
