@@ -6,9 +6,9 @@ try    : import root
 except : pass 
 
 import os, pwd, glob, hashlib, datetime, shutil
-#os.environ['LIBPATH']=path/to/root/lib
-#os.environ['LD_LIBRARY_PATH']=path/to/root/lib
-#os.environ['PYTHONPATH']=path/to/root/lib
+os.environ['LIBPATH']=ROOTLIB
+os.environ['LD_LIBRARY_PATH']=ROOTLIB
+os.environ['PYTHONPATH']=ROOTLIB
 
 # use Flask scheme
 from flask import Flask, request, redirect, url_for, render_template, session, abort
@@ -59,20 +59,20 @@ scanList = { "selftrigger"   : [( "OccupancyMap-0", "#Hit" ),],
 ##############
 # call mongodb
 app = Flask( __name__ )
-app.config["MONGO_URI"] = "mongodb://localhost:28000/yarrdb"
+app.config["MONGO_URI"] = "mongodb://localhost:PORT/yarrdb"
 mongo = PyMongo( app )
 fs = gridfs.GridFS( mongo.db )
 
 ######
 # auth
-#app.config["SECRET_KEY"] = os.urandom(24)
-app.config["SECRET_KEY"] = 'secret'
+app.config["SECRET_KEY"] = os.urandom(24)
+#app.config["SECRET_KEY"] = 'secret'
 auth = HTTPDigestAuth()
-adpage = { "admin" : "tEstpAss" } 
+adpage = { ADMIN : PASS } 
 
 #############
 # for user db
-client = MongoClient( host='localhost', port=28000 )
+client = MongoClient( host='localhost', port=PORT )
 localdb = client['yarrlocal']
 
 ##########
@@ -561,4 +561,4 @@ def add_user() :
     return redirect( url_for('admin_page') ) 
 
 if __name__ == '__main__':
-    app.run(host='192.168.1.43') # change hostID
+    app.run(host=IPADDRESS) # change hostID

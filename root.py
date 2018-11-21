@@ -6,7 +6,7 @@
 import glob
 import sys, os, func, pwd 
 sys.path.append( os.path.dirname(os.path.abspath(__file__)) + "/PlotTools" )
-#sys.path.append("path/to/ROOT.py") 
+sys.path.append(ROOTLIB) 
 
 from PlotHelpers import gHelper as PH
 import PlotFromHistos.SimplePlots as Plot
