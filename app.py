@@ -110,7 +110,7 @@ def count_photoNum() :
 
 ##########
 # top page
-@app.route('/YARR', methods=['GET'])
+@app.route('/', methods=['GET'])
 def show_modules_and_chips() :
     session['signup'] = False
     clean_dir( STAT_DIR )
@@ -147,7 +147,7 @@ def test_code() :
 
 ################
 # component page
-@app.route('/component', methods=['GET'])
+@app.route('/component', methods=['GET', 'POST'])
 def show_component() :
 
     component = {}
@@ -220,11 +220,16 @@ def show_module() :
     session['componentid'] = request.args.get( 'id' )
     session['parentid'] = request.args.get( 'id' )
 
+    session['reanalysis'] = request.form.get( 'reanalysis', "False" )
+    session['mapType'] = request.form.get( 'mapType' )
+    session['log'] = request.form.get('log',False)
+    session['max'] = request.form.get('max',0) 
+
     return redirect( url_for("show_component", runNumber=request.args.get( 'runNumber', 0 ), code=request.args.get( 'code', "" )) )
 
 ###########
 # chip page
-@app.route('/chip_result', methods=['GET'])
+@app.route('/chip', methods=['GET', 'POST'])
 def show_chip() :
     session['component'] = "chip"
     session['componentid'] = request.args.get( 'id' )
@@ -405,7 +410,6 @@ def remove_comment() :
     for run in run_entries :
         query = { "_id" : ObjectId(run['testRun']) }
         mongo.db.testRun.update( query, { '$pull' : { 'comments' : { "user" : request.form.get( 'user' ) }}} )
-        print({ "user" : request.form.get( 'user' ) })
         update_mod( "testRun", query )
         userquery = { "userName" : request.form.get('user') }
         localdb.user.update( userquery , { '$pull' : { 'commentTestRun' : query }})

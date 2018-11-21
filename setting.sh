@@ -27,6 +27,7 @@ FEI4="fei4.py"
 NAV="./templates/parts/nav.html"
 USER="userfunc.py"
 ROOT="root.py"
+SHELL="make_pipinstall.sh"
 
 sed -i -e "s/IPADDRESS/${IPADDRESS}/g" ${APP}
 sed -i -e "s/PORT/${PORT}/g" ${APP}
@@ -37,8 +38,10 @@ sed -i -e "s/PASS/${PASS}/g" ${APP}
 
 if ${PYTHON3} ; then
   sed -i -e "/python2/d" ${USER}
+  sed -i -e "s/PIPPATH/pip3/g" ${SHELL}
 else
   sed -i -e "/python3/d" ${USER}
+  sed -i -e "s/PIPPATH/pip/g" ${SHELL}
 fi
 
 if $APACHE ; then

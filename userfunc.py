@@ -7,7 +7,7 @@ from pymongo import MongoClient
 from getpass import getpass
 import hashlib
 
-client = MongoClient(host='localhost', port=27018)
+client = MongoClient(host='localhost', port=PORT)
 localdb = client['yarrlocal']
 
 def add_request(userinfo) :

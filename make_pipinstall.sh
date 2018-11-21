@@ -6,7 +6,7 @@ MODULE_TEXT="install_list"
 LOG_TEXT="install_log"
 
 ### COMMAND PATH
-PIP_PATH=`which pip`
+PIP_PATH=`which PIPPATH`
 if [ $? -ne 0 ]; then
     echo "command 'pip' is not exist, exit ... "
     exit

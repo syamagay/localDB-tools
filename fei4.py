@@ -2,9 +2,6 @@ try    : import root
 except : pass 
 
 import os, pwd, glob, hashlib, datetime, shutil
-#os.environ['LIBPATH']=path/to/root/lib
-#os.environ['LD_LIBRARY_PATH']=path/to/root/lib
-#os.environ['PYTHONPATH']=path/to/root/lib
 
 # use Flask scheme
 from flask import Flask, request, redirect, url_for, render_template, session, abort
@@ -208,7 +205,7 @@ def fill_results( item, runNumber ) :
     results = []
     if not runNumber == 0 :
         if session['component'] == "module" :
-            reanalysis = request.form.get( 'reanalysis', "False" )
+            reanalysis = session.get('reanalysis')
             if not reanalysis == "True" :
                 clean_dir( DAT_DIR )
 
@@ -229,12 +226,12 @@ def fill_results( item, runNumber ) :
                             f.close()
             mapList = {}
             for mapType in scanList[testType] :
-                if reanalysis == "True" and not mapType[0] == request.form.get( 'mapType' ) :
+                if reanalysis == "True" and not mapType[0] == session.get( 'mapType' ) :
                     mapList.update({ mapType[0] : False })
                 else :
                     mapList.update({ mapType[0] : True })
 
-            try    : root.drawScan( testType, str(runNumber), bool(request.form.get( 'log', False )), int( request.form.get( 'max' ) or 0 ), mapList )
+            try    : root.drawScan( testType, str(runNumber), bool(session.get( 'log' )), int( session.get( 'max' )), mapList )
             except : print( "undo root process" )
 
             for mapType in scanList[testType] :

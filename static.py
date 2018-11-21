@@ -1,5 +1,5 @@
 from flask import Blueprint
-import pwd
+import os, pwd
 
 USER = pwd.getpwuid( os.geteuid() ).pw_name
 
