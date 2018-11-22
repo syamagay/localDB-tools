@@ -1,11 +1,13 @@
 #!/bin/bash
 
+##############################################
+############### user setting #################
+##############################################
+
 # set apache
 APACHE=true
-
-# python version
+# set python version ( set true if you use python3 )
 PYTHON3=true
-
 # set IP address
 IPADDRESS="'127.0.0.1'"
 # set port of mongoDB
@@ -14,20 +16,22 @@ PORT="27017"
 ADMIN="'admin'"
 PASS="'password'"
 
-# check ROOT library
-if [ -n "${ROOTSYS}" ]; then
-  ROOTLIB="'`echo ${ROOTSYS}`/lib'"
-else
-  ROOTLIB=""
-fi
+##############################################
 
-# chenge codes in app.py and userfunc.py
+# chenge codes 
 APP="app.py"
 FEI4="fei4.py"
 NAV="./templates/parts/nav.html"
 USER="userfunc.py"
 ROOT="root.py"
 SHELL="make_pipinstall.sh"
+
+# check ROOT library
+if [ -n "${ROOTSYS}" ]; then
+  ROOTLIB="'`echo ${ROOTSYS}`/lib'"
+else
+  ROOTLIB=""
+fi
 
 sed -i -e "s/IPADDRESS/${IPADDRESS}/g" ${APP}
 sed -i -e "s/PORT/${PORT}/g" ${APP}

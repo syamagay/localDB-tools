@@ -1,37 +1,70 @@
 -- User guide --
 
+# basic information
 < Setting >
 1, requirements
-- mongodb 
+- mongodb ( running ) 
 - python 2.X or 3.X ( which can use PyROOT )
-  * pip install pillow
-  * pip install pymongo
-  * pip install pdf2image
-  * pip install Flask-PyMongo
-  * pip install python-dateutil 
-  * pip install flask-httpauth
+- python modules : install_list
+- YARR S/W
 
 2, preparetion
+ > 0, set library path to ROOT and python
+       $ source path/to/devtoolset-2/enable
+       $ source path/to/bin/thispython.sh
+       $ source path/to/bin/thisroot.sh
  > 1, git clone this source
       git clone https://gitlab.cern.ch/akubota/web-app-db-yarr.git
- > 2, modify some points
-      in app.py
-        l32. app.config["MONGO_URI"] = "mongodb://<IP address>:<port>/<dbName>" 
-        l36. client = MongoClient(host=<IP address>, port=<port>)
-        l37. userdb = client[<User dbName>]
-        * IP address : "localhost" or IP address of server with mongodb
-        * port : TCP port used by mongodb (default:27017)
-        * dbName : select database to show (default:yarrdb)
-       
-        last. app.run(host='<IP address>')
-        * IP address : "127.0.0.1" or IP address of the machine that flask app is running
- > 3, run 
-      <in running mongodb>
-      python app.py
-      type "<IP address>:5000" in browser
+      *** use "master" branch ***
+ > 2, setting before running web-app 
+      i)   modify setting.sh
+            - APACHE : true : run by apache
+            - PYTHON3 : true : you use python3
+            - IPADDRESS : where you run this web app ( default : "'127.0.0.1'" )
+            - PORT : port of mongoDB ( default : "27017" )
+            - ADMIN & PASS : user name and password for admin page 
+      ii)  modify codes by executing setting.sh
+            $ ./setting.sh
+      iii) install python modules by executing make_pipinstall.sh and pipinstall.py
+            $ ./make_pipinstall.sh ---> generate pipinstall.py
+            $ python pipinstall.py 
+      iv)* if you use apache system
+           modify web-app-db-yarr.conf
+           ------------------------------------------------------
+             WSGISocketPrefix run/wsgi
+             <VirtualHost *:80>
+                 WSGIApplicationGroup %{GLOBAL}
+                 LoadModule wsgi_module /usr/local/Python/3.5.1/lib/python3.5/site-packages/mod_wsgi/server/mod_wsgi-py35.cpython-35m-x86_64-linux-gnu.so # modify for your environment
+                 WSGIDaemonProcess app user=apache group=apache threads=5
+                 WSGIScriptAlias /yarr /var/www/web-app-db-yarr/.wsgi
+                 <Directory /var/www/web-app-db-yarr>
+                     WSGIProcessGroup app
+                     WSGIScriptReloading On
+                     Order deny,allow
+                     Deny from all # modify by yourself
+                     Allow from all # modify by yourself
+                 </Directory>
+             </VirtualHost>
+           ------------------------------------------------------
+3, run web-app-db-yarr
+      $  python app.py
+    # first running 
+      Set administrator account ...
+      < necessary information >
+       - userName
+       - firstName
+       - lastName
+       - institute
+       - email
+       - passWord
+       - passWord agein
+      Continue (y/n) >>
+    # type "y" and enter information if you set administrator account 
+    # after input or typing "n", web-app-db-yarr starts 
+    # you can check viewer by typing <IPADDRESS>:5000 in browser
 
+# helpful information
 < Setup pyenv >
-
 1, yum install some packages
  $ sudo yum install gcc zlib-devel bzip2 bzip2-devel readline readline-devel sqlite sqlite-devel openssl openssl-devel git
 2, install pyenv
@@ -50,18 +83,6 @@
   ii, change version of python
    $ pyenv global X.X.X
    $ pyenv local X.X.X (only current directory)
-
-< pip install >
-1, ./make_install.sh
-2, python install.py
-
-< Setting script >
-1, Change some materials in setting.sh and execute it
-  - APACHE : true : run by apache
-  - IPADDRESS : where you run this web app
-  - PORT : port of mongoDB
-  - ADMIN & PASS : user name and password for admin page 
-2, ./setting.sh
 
 < web-app-db-yarr >
 | 
