@@ -131,40 +131,4 @@
     $ pyenv local X.X.X (only current directory)
   ```
   
-## web-app-db-yarr 
-  | 
-  |- app.py 
-  |     : main program     
-  |- PlotTools/, root.py, parameter_default.json
-  |     : for making histogram using PyROOT
-  |- func.py
-  |- userfunc.py
-  |- img.py 
-  |
-  |- static/
-  |    |- assets 
-  |    |    : for bootstrap 
-  |    |- upload 
-  |         : directory ro save images for displaying summary page temporarily
-  |
-  |- templates/
-       |- toppage.html
-       |    : top page page (html)
-       |- component.html
-       |    : module or chip page (html)
-       |- display_index.html
-       |    : part of displaying result in summary (html)
-       |- photo.html
-       |    : show photos page (html)
-       |- photo_index.html
-       |    : photo index (html)
-       |- test_index.html
-       |    : part of displaying test run list (html)
-       |- result_XXX.html
-       |    : part of displaying test result for each component (html)
-       |- admin_XXX.html
-       |    : admin page (html)
-       |- error.html
-       |   : error page (html)
-       |- parts
-            : header, loader, navigate bar, footer
+
