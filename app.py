@@ -12,7 +12,6 @@ os.environ['PYTHONPATH']=ROOTLIB
 
 # use Flask scheme
 from flask import Flask, request, redirect, url_for, render_template, session, abort
-from flask_httpauth import HTTPDigestAuth
 
 # use mongodb scheme
 import pymongo
@@ -68,11 +67,9 @@ fs = gridfs.GridFS( mongo.db )
 ######
 # auth
 app.config["SECRET_KEY"] = os.urandom(24)
-#app.config["SECRET_KEY"] = 'secret'
-auth = HTTPDigestAuth()
-adpage = { ADMIN : PASS } 
 
-####
+####################
+# add path to static
 import static
 app.register_blueprint(static.app)
 
@@ -138,12 +135,6 @@ def show_modules_and_chips() :
                          "chips"        : chips })
 
     return render_template( "toppage.html", modules=modules )
-
-@app.route('/test', methods=['GET','POST'])
-def test_code() :
-    testList = [ {"user":"AAA","text":"BBB","ins":"CCC"}, {"user":"DDD","text":"EEE","ins":"FFF"}]
-
-    return render_template( "test.html", testList = testList )
 
 ################
 # component page
@@ -527,14 +518,7 @@ def signup() :
     session['signup'] = True
     return render_template( "signup.html", userInfo=userinfo, stage=stage )
 
-@auth.get_password
-def get_pw(username) :
-    if username in adpage :
-        return adpage.get(username)
-    return redirect( url_for('show_modules_and_chips') ) 
-
 @app.route('/admin',methods=['GET','POST'])
-@auth.login_required
 def admin_page() :
     request_entries = localdb.request.find({}, { "userName" : 0, "password" : 0 })
     user_entries = localdb.user.find({ "type" : "user" }, { "userName" : 0, "password" : 0 })

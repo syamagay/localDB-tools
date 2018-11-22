@@ -1,6 +1,6 @@
 -- User guide --
 
-# basic information
+### basic information
 < Setting >
 1, requirements
 - mongodb ( running ) 
@@ -22,7 +22,6 @@
             - PYTHON3 : true : you use python3
             - IPADDRESS : where you run this web app ( default : "'127.0.0.1'" )
             - PORT : port of mongoDB ( default : "27017" )
-            - ADMIN & PASS : user name and password for admin page 
       ii)  modify codes by executing setting.sh
             $ ./setting.sh
       iii) install python modules by executing make_pipinstall.sh and pipinstall.py
@@ -63,7 +62,7 @@
     # after input or typing "n", web-app-db-yarr starts 
     # you can check viewer by typing <IPADDRESS>:5000 in browser
 
-# helpful information
+### helpful information
 < Setup pyenv >
 1, yum install some packages
  $ sudo yum install gcc zlib-devel bzip2 bzip2-devel readline readline-devel sqlite sqlite-devel openssl openssl-devel git
@@ -91,30 +90,33 @@
 |- PlotTools/, root.py, parameter_default.json
 |     : for making histogram using PyROOT
 |- func.py
-|     : detailed function program
+|- userfunc.py
 |- img.py 
-|     : convert to dataURI from binary data of png/jpeg image
 |
 |- static/
 |    |- assets 
 |    |    : for bootstrap 
 |    |- upload 
-|    |    : directory ro save images for displaying summary page temporarily
+|         : directory ro save images for displaying summary page temporarily
 |
 |- templates/
      |- toppage.html
      |    : top page page (html)
-     |- module.html
-     |    : module page (html)
-     |- chip.html
-     |    : chip page (html)
+     |- component.html
+     |    : module or chip page (html)
      |- display_index.html
      |    : part of displaying result in summary (html)
+     |- photo.html
+     |    : show photos page (html)
+     |- photo_index.html
+     |    : photo index (html)
      |- test_index.html
      |    : part of displaying test run list (html)
      |- result_XXX.html
      |    : part of displaying test result for each component (html)
      |- admin_XXX.html
      |    : admin page (html)
+     |- error.html
+     |   : error page (html)
      |- parts
           : header, loader, navigate bar, footer

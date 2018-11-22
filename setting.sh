@@ -4,17 +4,14 @@
 ############### user setting #################
 ##############################################
 
-# set apache
+# set apache ( set true if you use apache, or false if not )
 APACHE=true
-# set python version ( set true if you use python3 )
+# set python version ( set true if you use python3 , or false if you use python2 )
 PYTHON3=true
 # set IP address
 IPADDRESS="'127.0.0.1'"
 # set port of mongoDB
 PORT="27017"
-# set username and password of admin page
-ADMIN="'admin'"
-PASS="'password'"
 
 ##############################################
 
@@ -37,8 +34,6 @@ sed -i -e "s/IPADDRESS/${IPADDRESS}/g" ${APP}
 sed -i -e "s/PORT/${PORT}/g" ${APP}
 sed -i -e "s/PORT/${PORT}/g" ${FEI4}
 sed -i -e "s/PORT/${PORT}/g" ${USER}
-sed -i -e "s/ADMIN/${ADMIN}/g" ${APP}
-sed -i -e "s/PASS/${PASS}/g" ${APP}
 
 if ${PYTHON3} ; then
   sed -i -e "/python2/d" ${USER}
