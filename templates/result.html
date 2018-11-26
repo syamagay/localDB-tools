@@ -6,19 +6,26 @@
         <tr>
           <th scope="col" class="text-center" rowspan="2">Run Number</th>
           <th scope="col" class="text-center" rowspan="2">Test Type</th>
+          <th scope="col" class="text-center" rowspan="2">Stage</th>
           <th scope="col" class="text-center" colspan="2">Environment</th>
+          <th scope="col" class="text-center" colspan="2">Runner</th>
         </tr>
         <tr>
           <th scope="col" class="text-center" width="200">HV[V]</th>
           <th scope="col" class="text-center" width="200">Temp[℃]</th>
+          <th scope="col" class="text-center" width="200">Institution</th>
+          <th scope="col" class="text-center" width="200">UserIdentity</th>
         </tr>
       </thead>
       <tbody>
         <tr>
           <td scope="col" align="center" >{{ component['results'][0]['runNumber'] }}</td>
           <td scope="col" align="center" >{{ component['results'][0]['testType'] }}</td>
+          <td scope="col" align="center" >{{ component['results'][0]['stage'] }}</td>
           <td scope="col" align="center" >{{ component['results'][0]['environment']['hv'] }}</td>
           <td scope="col" align="center" >{{ component['results'][0]['environment']['cool'] }}</td>
+          <td scope="col" align="center" >{{ component['results'][0]['institution'] }}</td>
+          <td scope="col" align="center" >{{ component['results'][0]['userIdentity'] }}</td>
         </tr>
         {% set index = [] %}
         {% for comment in component['results'][0]['comments'] %}
@@ -30,7 +37,7 @@
           {% if comment['userid'] == session['user_id'] %}
           {% else %}
             <tr>
-              <td scope="col" align="center" colspan="3">{{ comment['comment'] }}</td>
+              <td scope="col" align="center" colspan="6">{{ comment['comment'] }}</td>
               <td scope="col" align="center" >
                 {{ comment['user'] }}
                 {% if (session['edit'] == 1) and (comment['institute'] == session['institute']) %}
@@ -49,7 +56,7 @@
           {% if session['write'] == 1 %}
             <tr>
         		  <form action="edit_comment" method="post" enctype="multipart/form-data">
-                <td scope="col" align="center" colspan="3">
+                <td scope="col" align="center" colspan="6">
                   <input type = "txt" class="form-control input-normal" placeholder="comment" name = "text">
                 </td>
                 <td scope="col" align="center middle" >
@@ -68,7 +75,7 @@
         {% else %}
           <tr>
       		  <form action="edit_comment" method="post" enctype="multipart/form-data">
-              <td scope="col" align="center" colspan="3">
+              <td scope="col" align="center" colspan="6">
                 <input type = "txt" class="form-control input-normal" placeholder="comment" name = "text" value = "{{ component['results'][0]['comments'][index[0]]['comment'] }}">
               </td>
               <td scope="col" align="center middle" >
@@ -90,24 +97,26 @@
 </div>
 <div class="row align-items-top justify-content-center">
   <div class="col">
-    {% for result in component['results'] %}
-      {% if loop.index == 1 %}
-      <div class="row align-items-top justify-content-space-evenly">
-      {% elif loop.index %4 == 1 %}
-      </div>
-      <div class="row align-items-top justify-content-space-evenly">
-      {% else %}
-      {% endif %}
-        <div class="col">
-          <center>
-          <p> {{ result['filename'] }} </p>
-          <a href={{ result['url'] }} target="_brank" rel="noopener noreferrer">
-            <img src={{ result['url'] }} title={{ result['filename'] }} width="250" height="250">
-            </img>
-          </a>
-          </center>
+    {% if "url" in component['results'][0] %}
+      {% for result in component['results'] %}
+        {% if loop.index == 1 %}
+        <div class="row align-items-top justify-content-space-evenly">
+        {% elif loop.index %4 == 1 %}
         </div>
-    {% endfor %}
+        <div class="row align-items-top justify-content-space-evenly">
+        {% else %}
+        {% endif %}
+          <div class="col">
+            <center>
+            <p> {{ result['filename'] }} </p>
+            <a href={{ result['url'] }} target="_brank" rel="noopener noreferrer">
+              <img src={{ result['url'] }} title={{ result['filename'] }} width="250" height="250">
+              </img>
+            </a>
+            </center>
+          </div>
+      {% endfor %}
       </div>
+    {% endif %}
   </div>
 </div>

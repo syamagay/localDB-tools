@@ -11,27 +11,28 @@
     }, 
     "noisescan": {
         "NoiseOccupancy": [
-            0, 
-            false
+            1, 
+            false,
+            100
         ], 
         "NoiseMask": [
-            1, 
+            2, 
             false
         ]
     }, 
     "selftrigger": {
         "OccupancyMap-0": [
-            1000, 
+            200, 
             false
         ]
     }, 
     "digitalscan": {
         "EnMask": [
-            1, 
+            2, 
             false
         ], 
         "OccupancyMap": [
-            1000, 
+            200, 
             false
         ]
     }, 
@@ -41,7 +42,7 @@
             false
         ], 
         "ThresholdMap": [
-            1000, 
+            4000, 
             false
         ]
     }, 
