@@ -5,13 +5,13 @@
 ##############################################
 
 # set apache ( set true if you use apache, or false if not )
-APACHE=false
+APACHE=true
 # set python version ( set true if you use python3 , or false if you use python2 )
-PYTHON3=false
+PYTHON3=true
 # set IP address
-CHANGEIP="'192.168.1.43'"
+CHANGEIP="'127.0.0.1'"
 # set port of mongoDB
-CHANGEPORT="28000"
+CHANGEPORT="27017"
 # set username and password of admin page, not admin account name and password
 CHANGEADMIN="'admin'"
 CHANGEPASS="'password'"
