@@ -38,7 +38,8 @@ def drawScan(scan_type, num_scan, log, Max, map_list):
 
     ROOT.gROOT.SetBatch()
 
-    max_value = func.readJson("{}/parameter.json".format( os.path.dirname(os.path.abspath(__file__)) )) 
+    dataJson = func.readJson("{}/parameter.json".format( os.path.dirname(os.path.abspath(__file__)) )) 
+    defaultJson = func.readJson("{}/parameter_default.json".format( os.path.dirname(os.path.abspath(__file__)) )) 
 
 ############
 # Main loop
@@ -46,15 +47,19 @@ def drawScan(scan_type, num_scan, log, Max, map_list):
 
     for map_type in datDict[scan_type]:
         if map_list[map_type[0]]: 
+
             if Max == 0 : 
-                h1d_max=3000
-                Max = ""
+                h1d_max=int(defaultJson[scan_type][map_type[0]][0])
             else :
-                h1d_max=Max
+                h1d_max=int(Max)
+            if len(defaultJson[scan_type][map_type[0]])==3 :
+                h1d_bin=int(defaultJson[scan_type][map_type[0]][2])
+            else :
+                h1d_bin=h1d_max
 
             h1 = ROOT.TH1D(map_type[0]+"_Dist_"+num_scan,
                            map_type[0]+"_Dist_"+num_scan+";"+map_type[1],
-                           1000, 0, 1000)
+                           h1d_bin, 0, h1d_max)
         
             h2 = ROOT.TH2D(map_type[0]+"_"+num_scan,
                            map_type[0]+"_"+num_scan+";Column;Row",
@@ -104,13 +109,11 @@ def drawScan(scan_type, num_scan, log, Max, map_list):
 
     
             path_plot = num_scan + "_" +  map_type[0]
-            Plot.Plot1D_fromHistos(h1, log, path_plot+"_1", "#Ch.", "histo", Max)
-            Plot.Plot2D_fromHistos(h2, log, path_plot+"_2", map_type[1], Max)
+            Plot.Plot1D_fromHistos(h1, log, path_plot+"_1", "#Ch.", "histo", h1d_max)
+            Plot.Plot2D_fromHistos(h2, log, path_plot+"_2", map_type[1], h1d_max)
 
-            if Max == "":
-                max_value[scan_type][map_type[0]] = [int(h2.GetBinContent(h2.GetMaximumBin())),log]
-            else:
-                max_value[scan_type][map_type[0]] = [int(Max),log]
+            #dataJson[scan_type][map_type[0]] = [int(h2.GetBinContent(h2.GetMaximumBin())),log]
+            dataJson[scan_type][map_type[0]] = [int(h1d_max),log]
 
-    func.writeJson("{}/parameter.json".format( os.path.dirname(os.path.abspath(__file__)) ), max_value) 
-    #return max_value
+    func.writeJson("{}/parameter.json".format( os.path.dirname(os.path.abspath(__file__)) ), dataJson) 
+    #return dataJson

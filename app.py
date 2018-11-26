@@ -508,8 +508,8 @@ def edit_comment() :
                                                                          "datetime"  : datetime.datetime.utcnow(), 
                                                                          "institute" : session['institute'] } }} )
         update_mod( "testRun", query )
-        userquery = { "userName" : session['user_name'] }
-        localdb.user.update( userquery , { '$push' : { 'commentTestRun' : query }})
+        #userquery = { "userName" : session['user_name'] }
+        #localdb.user.update( userquery , { '$push' : { 'commentTestRun' : query }})
  
     forUrl = "show_{}".format( session['component'] )
 
@@ -537,8 +537,8 @@ def remove_comment() :
         query = { "_id" : ObjectId(run['testRun']) }
         mongo.db.testRun.update( query, { '$pull' : { 'comments' : { "user" : request.form.get( 'user' ) }}} )
         update_mod( "testRun", query )
-        userquery = { "userName" : request.form.get('user') }
-        localdb.user.update( userquery , { '$pull' : { 'commentTestRun' : query }})
+        #userquery = { "userName" : request.form.get('user') }
+        #localdb.user.update( userquery , { '$pull' : { 'commentTestRun' : query }})
 
     forUrl = "show_{}".format( session['component'] )
 

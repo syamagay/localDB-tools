@@ -47,7 +47,7 @@ scanList = { "selftrigger"   : [( "OccupancyMap-0", "#Hit" ),],
              "thresholdscan" : [( "ThresholdMap", "Threshold[e]" ),    ( "NoiseMap", "Noise[e]" )],
              "digitalscan"   : [( "OccupancyMap", "Occupancy" ),       ( "EnMask", "EnMask" )],
              "analogscan"    : [( "OccupancyMap", "Occupancy" ),       ( "EnMask", "EnMask" )]}
-stageList = [ "encapsulation", "wirebond" ]
+stageList = [ "wirebond", "encapsulation" ]
 
 #############
 # set dbs
@@ -132,24 +132,33 @@ def fill_summary( thisComponent ) :
                 for scan in scanList :
                     query = { '$or' : runIds, "testType" : scan, "display" : True }
                     thisRun = yarrdb.testRun.find_one( query )
-                    values = {}
+                    mapList = []
                     if thisRun :
-                        env_dict = fill_env( thisRun )
-                        values.update({ "env" : env_dict })
-                        data_entries = thisRun['attachments']
-                        for data in data_entries :
-                            if data['filename'] == "{0}_{1}".format( thisComponent['serialNumber'], scanList[scan][0][0] ) :
-                                binary = base64.b64encode( fs.get(ObjectId(data['code'])).read() ).decode()
-                                if data['contentType'] == "png" :
-                                    values.update({ "2D" : img.bin_to_image( data['contentType'], binary ) })
-                            elif data['filename'] == "{0}_{1}_Dist".format( thisComponent['serialNumber'], scanList[scan][0][0] ) :
-                                binary = base64.b64encode( fs.get(ObjectId(data['code'])).read() ).decode()
-                                if data['contentType'] == "png" :
-                                    values.update({ "1D" : img.bin_to_image( data['contentType'], binary ) })
-                    scandict.update({ scan : { "url1D" : values.get('1D'),
-                                               "url2D" : values.get('2D'),
-                                               "mapType" : scanList[scan][0][0],
-                                               "environment" : values.get('env') }})
+                        for mapType in scanList[scan] :
+                            values = {}
+                            env_dict = fill_env( thisRun )
+                            values.update({ "env" : env_dict })
+                            data_entries = thisRun['attachments']
+                            for data in data_entries :
+                                if data['filename'] == "{0}_{1}".format( thisComponent['serialNumber'], mapType[0] ) :
+                                    binary = base64.b64encode( fs.get(ObjectId(data['code'])).read() ).decode()
+                                    if data['contentType'] == "png" :
+                                        values.update({ "2D" : img.bin_to_image( data['contentType'], binary ) })
+                                elif data['filename'] == "{0}_{1}_Dist".format( thisComponent['serialNumber'], mapType[0] ) :
+                                    binary = base64.b64encode( fs.get(ObjectId(data['code'])).read() ).decode()
+                                    if data['contentType'] == "png" :
+                                        values.update({ "1D" : img.bin_to_image( data['contentType'], binary ) })
+                            mapList.append({ "url1D" : values.get('1D'),
+                                             "url2D" : values.get('2D'),
+                                             "mapType" : mapType[0],
+                                             "environment" : values.get('env') })
+                    scandict.update({ scan : { "map" : mapList,
+                                               "num" : len(mapList) }})
+#                    scandict.update({ scan : { "url1D" : values.get('1D'),
+#                                               "url2D" : values.get('2D'),
+#                                               "mapType" : scanList[scan][0][0],
+#                                               "environment" : values.get('env') }})
+
                 if not scandict == {} :
                     summaryIndex.append({ "stage"    : stage,
                                           "scan"     : scandict })
@@ -276,8 +285,26 @@ def fill_results( item, runId ) :
                                      "url"         : url,
                                      "comments"    : list(thisRun['comments']),
                                      "filename"    : data['filename'].split("_",1)[1],
+                                     "stage"       : thisComponentTestRun['stage'],
+                                     "institution" : thisRun['institution'],
+                                     "userIdentity": thisRun['userIdentity'],
                                      "environment" : env_dict,
                                      "display"     : data.get('display',False) })
+        else :
+            query = { "testRun" : runId }
+            thisComponentTestRun = yarrdb.componentTestRun.find_one( query )
+            query = { "_id" : ObjectId(runId) }
+            thisRun = yarrdb.testRun.find_one( query )
+            env_dict = fill_env( thisRun ) 
+            results.append({ "testType"    : thisRun['testType'],
+                             "runNumber"   : thisRun['runNumber'],
+                             "runId"       : thisRun['_id'],
+                             "comments"    : list(thisRun['comments']),
+                             "stage"       : thisComponentTestRun['stage'],
+                             "institution" : thisRun['institution'],
+                             "userIdentity": thisRun['userIdentity'],
+                             "environment" : env_dict,
+                             "display"     : False })
 
     return results
 
@@ -324,6 +351,8 @@ def fill_roots( item, runId, doroot ) :
                         max_value = func.readJson( "{}/parameter.json".format( os.path.dirname(os.path.abspath(__file__)) )) 
                         filename = PLOT_DIR + "/" + thisRun['testType'] + "/" + str(thisRun['runNumber']) + "_" + mapType[0] + "_{}.png".format(i)
                         url = "" 
+                        query = { "testRun" : str(thisRun['_id']) }
+                        stage = yarrdb.componentTestRun.find_one( query )['stage']
                         if os.path.isfile( filename ) :
                             binary_image = open( filename, 'rb' )
                             code_base64 = base64.b64encode(binary_image.read()).decode()
@@ -336,6 +365,9 @@ def fill_roots( item, runId, doroot ) :
                                          "runId"       : runId,
                                          "comments"    : list(thisRun['comments']),
                                          "path"        : filename, 
+                                         "stage"       : stage,
+                                         "institution" : thisRun['institution'],
+                                         "userIdentity": thisRun['userIdentity'],
                                          "url"         : url, 
                                          "environment" : env_dict,
                                          "setLog"      : max_value[thisRun['testType']][mapType[0]][1], 

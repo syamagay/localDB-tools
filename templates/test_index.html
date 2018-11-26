@@ -9,6 +9,7 @@
          <tr>
            <th scope="col" rowspan="2" width="40" class="text-center">Run<br>number</th>
            <th scope="col" rowspan="2" width="150" class="text-center">Date</th>
+           <th scope="col" rowspan="2" width="150" class="text-center">Stage</th>
            <th scope="col" rowspan="1" colspan="2" style="font-size: 5pt;" width="200" class="text-center">Environment</th>
          </tr>
          <tr>
@@ -29,6 +30,7 @@
                  <a href="{{ url_for(component['url'], id=component['_id'], runNumber=run['runNumber'], runId=run['_id']) }}">{{ run['runNumber'] }}</a>
                </td>
                <td align="center">{{ run['datetime'] }}</td>
+               <td align="center">{{ run['stage'] }}</td>
                <td align="center">{{ run['environment']['hv'] }}</td>
                <td align="center">{{ run['environment']['cool'] }}</td>
              </tr>
