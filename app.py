@@ -1,14 +1,17 @@
 ##################################
 ###   Import Module 
 ##################################
+# usersetting
+import userset
+
 # use PyROOT
-try    : import root
-except : pass 
+try    : 
+    import root
+    DOROOT = True
+except : 
+    DOROOT = False 
 
 import os, pwd, glob, hashlib, datetime, shutil
-os.environ['LIBPATH']=ROOTLIB
-os.environ['LD_LIBRARY_PATH']=ROOTLIB
-os.environ['PYTHONPATH']=ROOTLIB
 
 # use Flask scheme
 from flask import Flask, request, redirect, url_for, render_template, session, abort
@@ -57,11 +60,16 @@ scanList = { "selftrigger"   : [( "OccupancyMap-0", "#Hit" ),],
              "thresholdscan" : [( "ThresholdMap", "Threshold[e]" ),    ( "NoiseMap", "Noise[e]" )],
              "digitalscan"   : [( "OccupancyMap", "Occupancy" ),       ( "EnMask", "EnMask" )],
              "analogscan"    : [( "OccupancyMap", "Occupancy" ),       ( "EnMask", "EnMask" )]}
+stageList = [ "encapsulation" ]
+############
+# login list
+loginlist = [ "logged_in", "user_id", "user_name", "institute", "read", "write", "edit" ]
+poplist = [ "signup", "component", "parentId", "code", "runNumber", "runId", "reanalysis", "mapType", "log", "max", "doroot" ]
 
 ##############
 # call mongodb
 app = Flask( __name__ )
-app.config["MONGO_URI"] = "mongodb://localhost:PORT/yarrdb"
+app.config["MONGO_URI"] = "mongodb://localhost:"+str(userset.PORT)+"/yarrdb"
 mongo = PyMongo( app )
 fs = gridfs.GridFS( mongo.db )
 
@@ -69,7 +77,7 @@ fs = gridfs.GridFS( mongo.db )
 # auth
 app.config["SECRET_KEY"] = os.urandom(24)
 auth = HTTPDigestAuth()
-adpage = { ADMIN : PASS }
+adpage = { userset.ADMIN : userset.PASS }
 
 ####################
 # add path to static
@@ -78,7 +86,7 @@ app.register_blueprint(static.app)
 
 #############
 # for user db
-client = MongoClient( host='localhost', port=PORT )
+client = MongoClient( host='localhost', port=userset.PORT )
 localdb = client['yarrlocal']
 
 ##########
@@ -90,13 +98,14 @@ def clean_dir( path ) :
 
 def fill_env( thisRun ) :
     env_dict = { "hv"    : thisRun.get( 'environment', { "key" : "value" } ).get( 'hv',    "" ),
-                 "cool"  : thisRun.get( 'environment', { "key" : "value" } ).get( 'cool',  "" ),
-                 "stage" : thisRun.get( 'environment', { "key" : "value" } ).get( 'stage', "" ) }
+                 "cool"  : thisRun.get( 'environment', { "key" : "value" } ).get( 'cool',  "" )}
     return env_dict
 
 def update_mod( collection, query ) :
-    mongo.db[collection].update( query, { '$set' : { 'sys.rev' : int( mongo.db[collection].find_one( query )['sys']['rev'] + 1 ), 
-                                                     'sys.mts' : datetime.datetime.utcnow() }})
+    mongo.db[collection].update( query, 
+                                 { '$set' : { 'sys.rev' : int( mongo.db[collection].find_one( query )['sys']['rev'] + 1 ), 
+                                              'sys.mts' : datetime.datetime.utcnow() }}, 
+                                 multi=True )
 def count_photoNum() :
     if localdb.counter.find({ "type" : "photoNumber" }).count() == 0 :
         localdb.counter.insert({ "type" : "photoNumber", "num" : 1 })
@@ -112,11 +121,11 @@ def count_photoNum() :
 # top page
 @app.route('/', methods=['GET'])
 def show_modules_and_chips() :
-    session['signup'] = False
+    # pop session
+    for key in poplist :
+        session.pop(key,None)
+
     clean_dir( STAT_DIR )
-    session['component'] = ""
-    session['componentid'] = "" 
-    session['parentid'] = "" 
 
     query = { "componentType" : "Module" }
     component_entries = mongo.db.component.find( query )
@@ -145,32 +154,40 @@ def show_modules_and_chips() :
 def show_component() :
 
     component = {}
+    # get from session
+    Component = session.get( 'component' )
+    ComponentId = request.args.get( 'id' )
+    ParentId = session.get( 'parentId' )
+    Code = session.get('code')
+    #RunNumber = session.get('runNumber')
+    RunId = session.get('runId')
+    doroot = session.get('doroot', False)
 
     # this component
-    query = { "_id" : ObjectId(session.get('componentid')) }
+    query = { "_id" : ObjectId(ComponentId) }
     thisComponent = mongo.db.component.find_one( query )
     # this module
-    query = { "_id" : ObjectId(session.get( 'parentid' )) }
+    query = { "_id" : ObjectId(ParentId) }
     thisModule = mongo.db.component.find_one( query )
     # chips of module
-    query = { "parent" : session.get( 'parentid' ) }
+    query = { "parent" : ParentId }
     child_entries = mongo.db.childParentRelation.find( query )
 
     # fill chip and module information
-    component_chips = []
+    components = {}
+    components.update({ "this" : ComponentId })
+    components.update({ "chips" : [] })
     chips = []
-    if session['component'] == "chip" :
-        component_chips.append({ "component" : session.get('componentid') })
     for child in child_entries :
-        if session['component'] == "module" :
-            component_chips.append({ "component" : child['child'] })
+        if Component == "module" :
+            components['chips'].append({ "component" : child['child'] })
 
         query = { "_id" : ObjectId(child['child']) }
         thisChip = mongo.db.component.find_one( query )
         component['componentType'] = thisChip['componentType']
         chips.append({ "_id"          : child['child'],
                        "serialNumber" : thisChip["serialNumber"] })
-    module = { "_id"           : session.get( 'parentid' ),
+    module = { "_id"           : ParentId,
                "serialNumber"  : thisModule["serialNumber"] }
     
     if component['componentType'] in FE.keys() :
@@ -183,55 +200,83 @@ def show_component() :
     # fill photo index
     photoIndex = FE[asic].fill_photoIndex( thisComponent )
     # show photo
-    photos = FE[asic].fill_photos( thisComponent, request.args.get('code') )
+    photos = FE[asic].fill_photos( thisComponent, Code )
 
     # fill result display 
     resultDisplay = FE[asic].fill_resultDisplay( thisComponent )
     # fill result index
-    resultIndex = FE[asic].fill_resultIndex( component_chips ) 
+    resultIndex = FE[asic].fill_resultIndex( components ) 
     # fill results 
-    results = FE[asic].fill_results( component_chips, int(request.args.get('runNumber')) )
+    results = FE[asic].fill_results( components, RunId )
+    # fill roots
+    roots = FE[asic].fill_roots( components, RunId, doroot )
+    # fill summary ( module )
+    summary = FE[asic].fill_summary( thisComponent )
 
-    component.update({ "_id"           : session.get( 'componentid' ),
+    component.update({ "_id"           : ComponentId,
                        "serialNumber"  : thisComponent['serialNumber'],
                        "module"        : module,
                        "chips"         : chips,
-                       "url"           : "show_{}".format(session['component']),
+                       "url"           : "show_{}".format(Component),
                        "photoDisplay"  : photoDisplay,
                        "photoIndex"    : photoIndex,
                        "photos"        : photos,
                        "resultDisplay" : resultDisplay,
                        "resultIndex"   : resultIndex,
-                       "results"       : results })
+                       "results"       : results,
+                       "roots"         : roots,
+                       "summary"       : summary })
 
     return render_template( "component.html", component=component )
 
 #############
 # module page
-@app.route('/module', methods=['GET'])
+@app.route('/module', methods=['GET','POST'])
 def show_module() :
+    if not session.get('runId') == request.args.get( 'runId' ) :
+        for key in poplist :
+            session.pop(key,None)
     session['component'] = "module"
-    session['componentid'] = request.args.get( 'id' )
-    session['parentid'] = request.args.get( 'id' )
 
-    session['reanalysis'] = request.form.get( 'reanalysis', "False" )
+    # get from args
+    componentId = request.args.get( 'id' )
+    session['parentId'] = request.args.get( 'id' )
+
+    session['code'] = request.args.get( 'code', "" )
+    session['runId'] = request.args.get( 'runId' )
+
+    # get from form
+    session['reanalysis'] = request.form.get( 'reanalysis', False )
     session['mapType'] = request.form.get( 'mapType' )
     session['log'] = request.form.get('log',False)
     session['max'] = request.form.get('max',0) 
 
-    return redirect( url_for("show_component", runNumber=request.args.get( 'runNumber', 0 ), code=request.args.get( 'code', "" )) )
+    return redirect( url_for("show_component", id=componentId) )
+
+@app.route('/doroot', methods=['GET', 'POST'])
+def doroot() :
+    session['doroot'] = request.form.get('doroot',False)
+
+    return redirect( url_for("show_component", id=request.args.get('id')) )
 
 ###########
 # chip page
 @app.route('/chip', methods=['GET', 'POST'])
 def show_chip() :
+    if not session.get('runId') == request.args.get( 'runId' ) :
+        for key in poplist :
+            session.pop(key,None)
     session['component'] = "chip"
-    session['componentid'] = request.args.get( 'id' )
-    query = { "child" : request.args.get('id') }
-    session['parentid'] = mongo.db.childParentRelation.find_one( query )['parent']
 
-    return redirect( url_for("show_component", runNumber=request.args.get( 'runNumber', 0 ), code=request.args.get( 'code', "" )) )
+    # get from args
+    componentId = request.args.get( 'id' )
+    session['code'] = request.args.get( 'code', "" )
+    session['runId'] = request.args.get( 'runId' )
 
+    query = { "child" : componentId }
+    session['parentId'] = mongo.db.childParentRelation.find_one( query )['parent']
+
+    return redirect( url_for("show_component", id=componentId) )
 
 ############
 # tag method
@@ -244,10 +289,10 @@ def tag() :
     for data in data_entries :
         if data['code'] == request.args.get( 'code' ) :
             if session.get('tag') == "tag" :
-                 mongo.db[collection].update( query, { '$set' : { 'attachments.{}.display'.format( data_entries.index(data) ) : "True" }})
+                 mongo.db[collection].update( query, { '$set' : { 'attachments.{}.display'.format( data_entries.index(data) ) : True }})
                  update_mod( collection, query )
             elif session.get('tag') == "untag" :
-                 mongo.db[collection].update( query, { '$unset' : { 'attachments.{}.display'.format( data_entries.index(data) ) : "True" }})
+                 mongo.db[collection].update( query, { '$unset' : { 'attachments.{}.display'.format( data_entries.index(data) ) : True }})
                  mongo.db[collection].update( query, { '$set'   : { 'attachments.{}.description'.format( data_entries.index(data) ) : "" }})
                  update_mod( collection, query )
             else :
@@ -259,20 +304,24 @@ def tag() :
     session.pop('tagid')
     session.pop('tag')
 
-    return redirect( url_for(forUrl, id=request.args.get( 'id' ), code=request.args.get( 'code' )) )
+    return redirect( url_for(forUrl, id=request.args.get( 'id' )) )
 
 @app.route('/tag_image', methods=['GET','POST'])
 def tag_image() :
-    session['tagid'] = request.form.get('id')
+    session['tagid'] = request.form.get( 'id' )
     session['collection'] = "component"
-    session['tag'] = str(request.form.get('tag'))
+    session['tag'] = str(request.form.get( 'tag' ))
 
     return redirect( url_for("tag", id=request.form.get( 'id' ), code=request.form.get( 'code' )) )
 
 @app.route('/tag_result', methods=['GET','POST'])
 def tag_result() :
-    session['tagid'] = request.form.get('runId')
-    session['collection'] = "testRun"
+    if session['component'] == "module" :
+        session['tagid'] = request.form.get('id')
+        session['collection'] = "component"
+    if session['component'] == "chip" :
+        session['tagid'] = request.form.get('runId')
+        session['collection'] = "testRun"
     session['tag'] = str(request.form.get('tag'))
 
     return redirect( url_for("tag", id=request.form.get( 'id' ), code=request.form.get('code')) )
@@ -307,7 +356,7 @@ def add_attachment_result() :
                                                                       "dateTime"    : date,
                                                                       "title"       : "",
                                                                       "description" : "",
-                                                                      "display"     : "True",
+                                                                      "display"     : True,
                                                                       "imageType"   : "result",
                                                                       "contentType" : filename.rsplit( '.', 1 )[1],
                                                                       "filename"    : filename,
@@ -317,6 +366,92 @@ def add_attachment_result() :
     forUrl = "show_{}".format( session['component'] )
 
     return redirect( url_for(forUrl, id=request.form.get( 'id' )) )
+
+@app.route('/add_summary', methods=['GET', 'POST'])
+def add_summary() :
+    componentId = request.args.get( 'id' )
+    RunId = session.get( 'runId' )
+
+    if not DOROOT :
+        forUrl = "show_{}".format( session['component'] )
+        return redirect( url_for(forUrl, id=componentId) )
+
+    session.pop('doroot',None)
+    
+    # serialNumber
+    query = { "_id" : ObjectId(componentId) }
+    serialNumber = mongo.db.component.find_one( query )['serialNumber']
+    # stage
+    query = { "testRun" : RunId }
+    stage = mongo.db.componentTestRun.find_one( query )['stage']
+    # is first creation componentTestRun and TestRun for module
+    query = { "component" : componentId, "testRun" : RunId }
+    if mongo.db.componentTestRun.find( query ).count() == 0 :
+        query = { "_id" : ObjectId(RunId) }
+        docs = { "_id"         : 0,
+                 "sys"         : 0 }
+        moduleTestRun = mongo.db.testRun.find_one( query, docs )
+        moduleTestRun.update({ "attachments" : [] })
+        moduleTestRun.update({ "sys" : { "rev" : 0,
+                                         "cts" : datetime.datetime.utcnow(),
+                                         "mts" : datetime.datetime.utcnow() }})
+        RunId = str(mongo.db.testRun.insert( moduleTestRun ))
+        moduleComponentTestRun = { "component"   : componentId,
+                                   "testType"    : moduleTestRun['testType'],
+                                   "testRun"     : RunId,
+                                   "stage"       : stage,
+                                   "runNumber"   : moduleTestRun['runNumber'],
+                                   "sys"         : { "rev" : 0,
+                                                     "cts" : datetime.datetime.utcnow(),
+                                                     "mts" : datetime.datetime.utcnow() }} 
+        moduleComponentRunId = mongo.db.componentTestRun.insert( moduleComponentTestRun )
+    # add attachments into module TestRun
+    query = { "component" : componentId, "testRun" : RunId }
+    thisComponentTestRun = mongo.db.componentTestRun.find_one( query )
+    query = { "_id" : ObjectId(RunId) }
+    thisRun = mongo.db.testRun.find_one( query )
+    for mapType in scanList[thisRun['testType']] :
+        for i in [ "1", "2" ] :
+            if i == "1" :
+                filename = "{0}_{1}_Dist".format( serialNumber, mapType[0] )
+            if i == "2" :
+                filename = "{0}_{1}".format( serialNumber, mapType[0] )
+            for attachment in mongo.db.testRun.find_one( query )['attachments'] :
+                if filename == attachment.get('filename') :
+                    fs.delete( ObjectId(attachment.get('code')) )
+                    mongo.db.testRun.update( query, { '$pull' : { "attachments" : { "code" : attachment.get('code') }}}) 
+            filepath = PLOT_DIR + "/" + thisRun['testType'] + "/" + str(thisRun['runNumber']) + "_" + mapType[0] + "_{}.png".format(i)
+            binary_image = open( filepath, 'rb' )
+            image = fs.put( binary_image.read(), filename=filename )
+            binary_image.close()
+            mongo.db.testRun.update( query, { '$push' : { "attachments" : { "code" : str(image),
+                                                                            "dateTime" : datetime.datetime.utcnow(),
+                                                                            "title" : "title",
+                                                                            "description" : "describe",
+                                                                            "contentType" : "png",
+                                                                            "filename" : filename }}}) 
+
+    # change display bool
+    components = [{ "component" : componentId }]
+    query = { "parent" : componentId }
+    for child in mongo.db.childParentRelation.find( query ) :
+        components.append({ "component" : child['child'] })
+    query = { '$or' : components, "testType" : thisComponentTestRun['testType'], "stage" : thisComponentTestRun['stage'] }
+    runIds = []
+    for run in mongo.db.componentTestRun.find( query ) :
+        runIds.append({ "_id" : ObjectId(run['testRun']) })
+    query = { '$or' : runIds, "display" : True }
+    if not mongo.db.testRun.find( query ).count() == 0 :
+        update_mod( "testRun", query ) 
+        mongo.db.testRun.update( query, { '$set' : { "display" : False }}, multi=True )
+    query.pop("display",None)
+    query.update({ "runNumber" : thisRun['runNumber'], "institution" : thisRun['institution'], "userIdentity" : thisRun['userIdentity'] })
+    update_mod( "testRun", query ) 
+    mongo.db.testRun.update( query, { '$set' : { "display" : True }}, multi=True )
+
+    forUrl = "show_{}".format( session['component'] )
+
+    return redirect( url_for(forUrl, id=componentId) )
 
 @app.route('/edit_description', methods=['GET','POST'])
 def edit_description() :
@@ -565,4 +700,4 @@ def add_user() :
     return redirect( url_for('admin_page') ) 
 
 if __name__ == '__main__':
-    app.run(host=IPADDRESS) # change hostID
+    app.run(host=userset.IPADDRESS) # change hostID

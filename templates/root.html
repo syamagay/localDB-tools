@@ -1,0 +1,92 @@
+{% if session['component'] == "module" %}
+  {% if component['roots']['runId'] %} 
+    {% if component['roots']['doroot'] %} 
+      {% if component['roots']['rootsw'] %}
+        <hr color="#BBBBBB" width="80%" size="9">
+        {% if session['logged_in'] == True %}
+          {% if session['edit'] == 1 %}
+            <div class="row align-items-top justify-content-center">
+              <div class="col">
+                <div class="row align-items-top justify-content-center">
+                  <form action="{{ url_for('add_summary', id=component['_id']) }}" method=post class=entries style="font-size: 8pt">  
+                    <p><input type = "submit" value = "add summary plot"></p>
+                  </form>
+                </div>
+              </div>
+            </div>
+          {% endif %}
+        {% endif %}
+    
+        <div class="row align-items-top justify-content-center">
+          <div class="col">
+            {% if component['roots']['results'][0]['url'] == _brank %}
+              <div style="font-size: 14pt;">{{component['roots']['results'][0]['comment']}}</div>
+             {% else %}
+              {% for result in component['roots']['results'] %}
+                {% if loop.index %2 == 1 %}
+                <div class="row align-items-top justify-content-space-evenly">
+                {% endif %}
+                  <div class="col-md-5">
+                    <center>
+                      <p>
+                        {{result['mapType']}}
+                      </p>
+                      <a href={{result['url']}} target="_brank" rel="noopener noreferrer">
+                        <img src={{result['url']}} title={{result['mapType']}} width="300" height="300">
+                        </img>
+                      </a>
+                    </center>
+                  </div>
+                  {% if loop.index %2  == 0 %}
+                  <div class="col-md-2">
+                    <center>
+                      <h5 style="font-size: 10pt"> Setting parameters </h5>
+                      <form action="{{ url_for('show_module', id=component['_id'], runNumber=component['roots']['results'][0]['runNumber'], runId=component['roots']['results'][0]['runId']) }}" method=post class=entries style="font-size: 8pt">  
+                        <input type="hidden" name="mapType" value={{result['mapType']}}>
+                        <input type="hidden" name="reanalysis" value="True">
+                        <p style="font-size: 8pt;">Range max <input type = "txt" name = "max" value = {{result['maxValue']}} size="4"></p>
+                        <p style="font-size: 8pt;"><input type = "checkbox" name = "log" value = "True"> Set log scale</p>
+                        <p><input type = "submit" value = "Make histogram"></p>
+                      </form>
+                      <br>
+                      <br>
+                      <h5 style="font-size: 8pt"> Current setting </h5>
+                      <ol style="list-style-type: none;font-size: 7pt; text-align: left;">
+                      <li> Range max     : {{result['maxValue']}}</li>
+                      <li> Set log scale : {{result['setLog']}}</li>
+                      </ol>
+                    </center>
+                  </div>
+                </div>
+                {% endif %}
+              {% endfor %}
+            {% endif %}
+          </div>
+        </div>
+      {% else %}
+        <hr color="#BBBBBB" width="80%" size="9">
+    
+        <div class="row align-items-top justify-content-center">
+          <div class="col">
+            <div class="row align-items-top justify-content-center">
+              <font color=#ff0000 size=2">NO ROOT SOFTWARE</font>
+            </div>
+          </div>
+        </div>
+      {% endif %}
+    {% else %}
+      <hr color="#BBBBBB" width="80%" size="9">
+      
+      <div class="row align-items-top justify-content-center">
+        <div class="col">
+          <div class="row align-items-top justify-content-center">
+            <form action="{{ url_for('doroot',id=component['_id']) }}" method=post class=entries style="font-size: 8pt">  
+            <input type="hidden" name="doroot" value=True >
+            <p><input type="submit" value="doroot" ></p>
+            </form>
+          </div>
+        </div>
+      </div>
+    {% endif %}
+  {% endif %}
+{% endif %}

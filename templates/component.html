@@ -60,76 +60,19 @@
                         {% endfor %}
                       </td>
                     </tr>
-                    {% for photo in component['photoDisplay'] %}
-                    <tr>
-                      <td>
-                        {{ photo['photoNumber'] }}
-                      </td>
-                      <td>
-                        <a href={{ photo['url'] }} target="_brank" rel="noopener noreferrer">
-                          <img src={{ photo['url'] }} title={{ photo['filename'] }} width="250" height="250">
-                          </img>
-                        </a>
-                        {% if session['logged_in'] == True %}
-                          {% if session['edit'] == 1 %}
-                            <form action="{{ url_for('tag_image') }}" method=post class=entries style="font-size: 8pt">  
-                              <input type="hidden" name="code" value={{ photo['code'] }} >
-                              <input type="hidden" name="id" value={{ component['_id'] }} >
-                              <p><input type = "submit" value = "untag" name="tag"></p>
-                            </form>
-                          {% endif %}
-                        {% endif %}
-                      </td>
-                    </tr>
-                    {% endfor %}
-                    {% if session['logged_in'] == True %}
-                      {% if session['write'] == 1 %}
-                        <tr>
-                          <td>
-                            Picture
-                          </td>
-                          <td>
-                            <h4>no picture</h4>
-                            <h5 style="font-size: 10pt"> upload picture to database </h5>
-  								          <form action="{{ url_for('add_attachment') }}" method="post" enctype="multipart/form-data">
-                  	    	    <input type="hidden" name="type" value="module" />
-                  	    	    <input type="hidden" name="id" value={{ component['_id'] }} />
-                              <div class="form-horizontal">
-                                <p>
-                                  <input type=file id=file name=file accept="image/*">
-                                </p>
-                                <p>
-                 		        		   <h5 style="font-size: 10pt"> stage : <input type="text" placeholder="stage" name="stage" id="stage" /></h5>
-                	         	    </p>
-                                <p>
-                  	    	    	   <h5 style="font-size: 10pt"> description : <input type="text" placeholder="description" name="description" id="description" /></h5>
-                		        		</p>
-                                <p>
-  									        		   <button type="submit" class="btn">upload</button>
-  									        	   </p>
-  									        	 </div>
-                            </form>
-                          </td>
-                        </tr>
-                      {% endif %}
-                    {% endif %}
                   </tbody>
                 </table>
             </div>
         </div>
 
-        {% include "display_index.html" %}
+        {% include "summary_index.html" %}
 
         {% if component['results'][0] == _brank %}
         {% else %}
-          {% if session['component'] == "module" %}
-            {% include "result_module.html" %}
-          {% elif session['component'] == "chip" %}
-            {% include "result_chip.html" %}
-          {% endif %}
+          {% include "result.html" %}
         {% endif %}
+        {% include "root.html" %}
 
-        {% include "photo_index.html" %}
         {% include "test_index.html" %}
     </div>
 {% endblock %}

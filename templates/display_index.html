@@ -6,7 +6,7 @@
         <h4 style="font-size: 10pt;"><i class="fa fa-chevron-right"></i> {{ result['testType'] }}</h4>
         <thead class="table-dark" style="background: #222222;">
           <tr>
-            <th colspan="5" scope="col" class="text-center">Result</th>
+            <th colspan="4" scope="col" class="text-center">Result</th>
           </tr>
         </thead>
         <tbody>
@@ -16,19 +16,17 @@
               <td scope="col" class="text-center" width="200">Map Type</td>
               <td scope="col" class="text-center" width="200">HV[V]</td>
               <td scope="col" class="text-center" width="200">Temp[℃]</td>
-              <td scope="col" class="text-center" width="200">stage</td>
             </tr>
             <tr>
               <td scope="col" align="center" >{{ display['runNumber'] }}</td>
               <td scope="col" align="center" >{{ display['filename'] }}</td>
               <td scope="col" align="center" >{{ display['environment']['hv'] }}</td>
               <td scope="col" align="center" >{{ display['environment']['cool'] }}</td>
-              <td scope="col" align="center" >{{ display['environment']['stage'] }}</td>
             </tr>
             {% if display['description'] == "" %}
             {% else %}
               <tr>
-                <td colspan="5" align="center">
+                <td colspan="4" align="center">
                   {% if session['logged_in'] == True %}
                     {% if session['edit'] == 1 %}
       			  		    <form action="edit_description" method="post" enctype="multipart/form-data">
@@ -47,19 +45,28 @@
               </tr>
             {% endif %}
             <tr>
-              <td colspan="5" align="center">
+              <td colspan="4" align="center">
                 <a href={{ display['url'] }} target="_brank" rel="noopener noreferrer">
                   <img src={{ display['url'] }} title={{ display['filename'] }} width="250" height="250">
                   </img>
                 </a>
                 {% if session['logged_in'] == True %}
                   {% if session['edit'] == 1 %}
+                  {% if session['component'] == "chip" %}
   					        <form action="{{ url_for('tag_result') }}" method="post"  class=entries style="font-size: 8pt">
                       <input type="hidden" name="code" value={{ display['code'] }} >
                       <input type="hidden" name="runId" value={{ display['runId'] }} >
                       <input type="hidden" name="id" value={{ component['_id'] }} >
                       <p><input type = "submit" value = "untag" name="tag"></p>
                     </form>
+                  {% elif session['component'] == "module" %}
+          		      <form action="{{ url_for('remove_attachment') }}" method="post">
+              	      <input type="hidden" name="type" value="module" />
+              	      <input type="hidden" name="id" value={{ component['_id'] }} />
+                      <input type="hidden" name="code" value={{ display['code'] }} >
+                      <p><input type="submit" value="untag"></p>
+                    </form>
+                  {% endif %}
                   {% endif %}
                 {% endif %}
               </td>

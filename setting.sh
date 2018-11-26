@@ -5,40 +5,36 @@
 ##############################################
 
 # set apache ( set true if you use apache, or false if not )
-APACHE=true
+APACHE=false
 # set python version ( set true if you use python3 , or false if you use python2 )
-PYTHON3=true
+PYTHON3=false
 # set IP address
-IPADDRESS="'127.0.0.1'"
+CHANGEIP="'192.168.1.43'"
 # set port of mongoDB
-PORT="27017"
+CHANGEPORT="28000"
 # set username and password of admin page, not admin account name and password
-ADMIN="'admin'"
-PASS="'password'"
+CHANGEADMIN="'admin'"
+CHANGEPASS="'password'"
 
 ##############################################
 
 # chenge codes 
-APP="app.py"
-FEI4="fei4.py"
 NAV="./templates/parts/nav.html"
 USER="userfunc.py"
-ROOT="root.py"
 SHELL="make_pipinstall.sh"
+SETTING="userset.py"
 
 # check ROOT library
 if [ -n "${ROOTSYS}" ]; then
-  ROOTLIB="'`echo ${ROOTSYS}`/lib'"
+  CHANGEROOTLIB="'`echo ${ROOTSYS}`/lib'"
 else
-  ROOTLIB=""
+  CHANGEROOTLIB=""
 fi
 
-sed -i -e "s/IPADDRESS/${IPADDRESS}/g" ${APP}
-sed -i -e "s/PORT/${PORT}/g" ${APP}
-sed -i -e "s/PORT/${PORT}/g" ${FEI4}
-sed -i -e "s/PORT/${PORT}/g" ${USER}
-sed -i -e "s/ADMIN/${ADMIN}/g" ${APP}
-sed -i -e "s/PASS/${PASS}/g" ${APP}
+sed -i -e "s/CHANGEIP/${CHANGEIP}/g" ${SETTING}
+sed -i -e "s/CHANGEPORT/${CHANGEPORT}/g" ${SETTING}
+sed -i -e "s/CHANGEADMIN/${CHANGEADMIN}/g" ${SETTING}
+sed -i -e "s/CHANGEPASS/${CHANGEPASS}/g" ${SETTING}
 
 if ${PYTHON3} ; then
   sed -i -e "/python2/d" ${USER}
@@ -50,15 +46,12 @@ fi
 
 if $APACHE ; then
   if [ -n "${ROOTLIB}" ]; then
-    sed -i -e "s!ROOTLIB!${ROOTLIB}!g" ${APP}
-    sed -i -e "s!ROOTLIB!${ROOTLIB}!g" ${ROOT}
+    sed -i -e "s!ROOTLIB!${ROOTLIB}!g" ${SETTING}
   else
-    sed -i -e "/ROOTLIB/d" ${APP}
-    sed -i -e "/ROOTLIB/d" ${ROOT}
+    sed -i -e "/ROOTLIB/d" ${SETTING}
   fi
   sed -i -e "s/YARR/yarr/g" ${NAV} 
 else
   sed -i -e "s/YARR//g" ${NAV}
-  sed -i -e "/ROOTLIB/d" ${APP}
-  sed -i -e "/ROOTLIB/d" ${ROOT}
+  sed -i -e "/ROOTLIB/d" ${SETTING}
 fi

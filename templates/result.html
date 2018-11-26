@@ -6,12 +6,11 @@
         <tr>
           <th scope="col" class="text-center" rowspan="2">Run Number</th>
           <th scope="col" class="text-center" rowspan="2">Test Type</th>
-          <th scope="col" class="text-center" colspan="3">Environment</th>
+          <th scope="col" class="text-center" colspan="2">Environment</th>
         </tr>
         <tr>
           <th scope="col" class="text-center" width="200">HV[V]</th>
           <th scope="col" class="text-center" width="200">Temp[℃]</th>
-          <th scope="col" class="text-center" width="200">stage</th>
         </tr>
       </thead>
       <tbody>
@@ -20,7 +19,6 @@
           <td scope="col" align="center" >{{ component['results'][0]['testType'] }}</td>
           <td scope="col" align="center" >{{ component['results'][0]['environment']['hv'] }}</td>
           <td scope="col" align="center" >{{ component['results'][0]['environment']['cool'] }}</td>
-          <td scope="col" align="center" >{{ component['results'][0]['environment']['stage'] }}</td>
         </tr>
         {% set index = [] %}
         {% for comment in component['results'][0]['comments'] %}
@@ -32,7 +30,7 @@
           {% if comment['userid'] == session['user_id'] %}
           {% else %}
             <tr>
-              <td scope="col" align="center" colspan="4">{{ comment['comment'] }}</td>
+              <td scope="col" align="center" colspan="3">{{ comment['comment'] }}</td>
               <td scope="col" align="center" >
                 {{ comment['user'] }}
                 {% if (session['edit'] == 1) and (comment['institute'] == session['institute']) %}
@@ -51,7 +49,7 @@
           {% if session['write'] == 1 %}
             <tr>
         		  <form action="edit_comment" method="post" enctype="multipart/form-data">
-                <td scope="col" align="center" colspan="4">
+                <td scope="col" align="center" colspan="3">
                   <input type = "txt" class="form-control input-normal" placeholder="comment" name = "text">
                 </td>
                 <td scope="col" align="center middle" >
@@ -70,7 +68,7 @@
         {% else %}
           <tr>
       		  <form action="edit_comment" method="post" enctype="multipart/form-data">
-              <td scope="col" align="center" colspan="4">
+              <td scope="col" align="center" colspan="3">
                 <input type = "txt" class="form-control input-normal" placeholder="comment" name = "text" value = "{{ component['results'][0]['comments'][index[0]]['comment'] }}">
               </td>
               <td scope="col" align="center middle" >
@@ -102,25 +100,7 @@
       {% endif %}
         <div class="col">
           <center>
-          <p>
-            {{ result['filename'] }}
-            {% if session['write'] == 1 %}
-              <form action="{{ url_for('tag_result') }}" method=post class=entries style="font-size: 8pt">  
-                <input type="hidden" name="code" value={{ result['code'] }} >
-                <input type="hidden" name="runId" value={{ result['runId'] }} >
-                <input type="hidden" name="id" value={{ component['_id'] }} >
-                {% if result['display'] == "True" %}
-                  {% if session['edit'] == 1 %}
-                    <p><input type = "submit" value = "untag" name="tag"></p>
-                  {% else %}
-                    <p><input type = "submit" value = "already tagged" name="tag" disabled="disabled"></p>
-                  {% endif %}
-                {% else %}
-                  <p><input type = "submit" value = "tag" name="tag"></p>
-                {% endif %}
-              </form>
-            {% endif %}
-          </p>
+          <p> {{ result['filename'] }} </p>
           <a href={{ result['url'] }} target="_brank" rel="noopener noreferrer">
             <img src={{ result['url'] }} title={{ result['filename'] }} width="250" height="250">
             </img>

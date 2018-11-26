@@ -9,30 +9,28 @@
          <tr>
            <th scope="col" rowspan="2" width="40" class="text-center">Run<br>number</th>
            <th scope="col" rowspan="2" width="150" class="text-center">Date</th>
-           <th scope="col" rowspan="1" colspan="3" style="font-size: 5pt;" width="200" class="text-center">Environment</th>
+           <th scope="col" rowspan="1" colspan="2" style="font-size: 5pt;" width="200" class="text-center">Environment</th>
          </tr>
          <tr>
            <th scope="col" class="text-center">HV[V]</th>
            <th scope="col" class="text-center">Temp[℃]</th>
-           <th scope="col" class="text-center">stage</th>
          </tr>
        </thead>
        <tbody>
            {% for run in result['run'] %}
-           {% if run['result'] == "True" %}
+           {% if run['summary'] %}
+             <tr style="background: #FFEEAA;">
+           {% elif run['result'] %}
              <tr>
-           {% elif run['result'] == "False" %}
-             <tr style="background: #AAAAAA;">
            {% else %}
              <tr style="background: #AABBCC;">
            {% endif %}
                <td align="center">
-                 <a href="{{ url_for(component['url'], id=component['_id'], runNumber=run['runNumber']) }}">{{ run['runNumber'] }}</a>
+                 <a href="{{ url_for(component['url'], id=component['_id'], runNumber=run['runNumber'], runId=run['_id']) }}">{{ run['runNumber'] }}</a>
                </td>
                <td align="center">{{ run['datetime'] }}</td>
                <td align="center">{{ run['environment']['hv'] }}</td>
                <td align="center">{{ run['environment']['cool'] }}</td>
-               <td align="center">{{ run['environment']['stage'] }}</td>
              </tr>
            {% endfor %}
        </tbody>
