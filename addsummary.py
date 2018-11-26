@@ -87,13 +87,15 @@ for stage in stageList :
     i+=1
 print( " " )
 try :
-    dataJson.update({ "stage" : stageList[int(raw_input( "# Type stage number >> " ))]}) 
+    dataJson.update({ "stage" : stageList[int(raw_input( "# Type stage number >> " ))]}) #python2
+    dataJson.update({ "stage" : stageList[int(input( "# Type stage number >> " ))]}) #python3
     print("# ok.")
     print( " " )
 except :
     print( "# Enter STAGE NUMBER, exist ... ")
     sys.exit()     
-dataJson.update({ "serialNumber" : raw_input( "# Type serial number of module >> " )}) 
+dataJson.update({ "serialNumber" : raw_input( "# Type serial number of module >> " )}) #python2 
+dataJson.update({ "serialNumber" : input( "# Type serial number of module >> " )}) #python3 
 query = { "serialNumber" : dataJson['serialNumber'] }
 if not yarrdb.component.find( query ).count() == 1 :
     print( "# Not found module " + dataJson['serialNumber'] + ", exit ... " )
@@ -112,11 +114,11 @@ print( "  userIdentity : " + str(dataJson['userIdentity']) )
 print( " ---------------------------------- " )
 print( " " )
 
-#if not raw_input( "# Are there any mistakes? Type 'y' if continue >> " ) == "y" :
-#    print( "# exit ... " )
-#    sys.exit()     
+if not raw_input( "# Are there any mistakes? Type 'y' if continue >> " ) == "y" : #python2
+if not input( "# Are there any mistakes? Type 'y' if continue >> " ) == "y" : #python3
+    print( "# exit ... " )
+    sys.exit()     
 
-#print( " " )
 query = { "serialNumber" : dataJson['serialNumber'] }
 thisComponent = yarrdb.component.find_one( query )
 
@@ -127,30 +129,82 @@ chips.append({ "component" : str(thisComponent['_id']) })
 for child in child_entries :
     chips.append({ "component" : child['child'] })
 
-print( "       < Plots information >        " )
 for scan in scanList :
     runNumber = 0
+    runNumbers = {}
     query = { '$or' : chips, "stage" : dataJson['stage'], "testType" : scan }
     run_entries = yarrdb.componentTestRun.find( query )
     for run in run_entries :
         query = { "_id" : ObjectId(run['testRun']), "institution" : dataJson['institution'], "userIdentity" : dataJson['userIdentity'] }
         thisRun = yarrdb.testRun.find_one( query )
+        dateTime = func.setTime( thisRun['date'] )
+        runNumbers.update({ thisRun['runNumber'] : [ thisRun['_id'], dateTime ] })
         if thisRun['runNumber'] > runNumber :
-            dateTime = func.setTime( thisRun['date'] )
             runNumber = thisRun['runNumber']
             dataJson.update({ scan : { "runNumber" : runNumber,
                                        "datetime"  : dateTime }})
+    print( " " )
+    print( "      < " + scan + " >       " )
     print( " ---------------------------------- " )
-    print( "  testType    : " + scan )
+    if dataJson.get(scan) :
+        print( "  runNumber   : " + str(dataJson[scan].get( 'runNumber', "None" )) + " (last run)")
+        print( "  datetime    : " + str(dataJson[scan].get( 'datetime', "None" )))
+    else :
+        print( "  data        : None" )
+    print( " ---------------------------------- " )
+    print( " " )
+    answer = raw_input( "# Type 'y' if continue, or type 'c' if change number >> " ) #python2
+    answer = input( "# Type 'y' if continue, or type 'c' if change number >> " ) #python3
+    if answer == "c" :
+        print( " " )
+        print( "--- Run number list ---" )
+        for n in runNumbers :
+            print( str(n) + " : " + runNumbers[n][1] )
+        print( " " )
+        number = int(raw_input( "# Enter run number from this list for summary plot >> " )) #python2
+        number = int(input( "# Enter run number from this list for summary plot >> " )) #python3 
+        if not number in runNumbers :
+            print( "# Enter RUN NUMBER from this LIST, exit ... " )
+            sys.exit()     
+ 
+        dataJson[scan]['runNumber'] = number
+        query = { "_id" : runNumbers[number][0] }
+        thisRun = yarrdb.testRun.find_one( query )
+        dateTime = func.setTime( thisRun['date'] )
+        runNumber = thisRun['runNumber']
+        dataJson.update({ scan : { "runNumber" : runNumber,
+                                   "datetime"  : dateTime }})
+        print( " " )
+        print( "      < " + scan + " >       " )
+        print( " ---------------------------------- " )
+        if dataJson.get(scan) :
+            print( "  runNumber   : " + str(dataJson[scan].get( 'runNumber', "None" )))
+            print( "  datetime    : " + str(dataJson[scan].get( 'datetime', "None" )))
+        print( " ---------------------------------- " )
+        print( " " )
+        if not raw_input( "# Type 'y' if continue >> " ) == "y" : #python2
+        if not input( "# Type 'y' if continue >> " ) == "y" : #python3
+            print( "# exit ... " )
+            sys.exit()     
+    elif not answer == "y" :
+        print( "# exit ... " )
+        sys.exit()     
+        
+print( " " )
+print( "      < Confirm information >       " )
+print( " ---------------------------------- " )
+for scan in scanList :
+    print( "  testType    : " + scan ) 
     if dataJson.get(scan) :
         print( "  runNumber   : " + str(dataJson[scan].get( 'runNumber', "None" )))
         print( "  datetime    : " + str(dataJson[scan].get( 'datetime', "None" )))
     else :
         print( "  data        : None" )
-print( " ---------------------------------- " )
+    print( " ---------------------------------- " )
 print( " " )
 
-if not raw_input( "# Are there any mistakes? Type 'y' if continue >> " ) == "y" :
+if not raw_input( "# Are there any mistakes? Type 'y' if continue >> " ) == "y" : #python2
+if not input( "# Are there any mistakes? Type 'y' if continue >> " ) == "y" : #python3
     print( "# exit ... " )
     sys.exit()     
 
@@ -186,14 +240,15 @@ for scan in scanList :
         for mapType in scanList[thisRun['testType']] :
             mapList.update({ mapType[0] : True })
         root.drawScan( thisRun['testType'], str(thisRun['runNumber']), False, 0, mapList )
-        print( "# done. " )
+        print( "done. " )
     else :
         print( "# Not make. " )
     print( "--- Finish : " + scan + " ---" )
     print( " " )
 
 print( "# Finish to make histograms of all scans." )
-if not raw_input( "# Continue to insert plots into Database? Type 'y' if continue >> " ) == "y" :
+if not raw_input( "# Continue to insert plots into Database? Type 'y' if continue >> " ) == "y" : #python2
+if not input( "# Continue to insert plots into Database? Type 'y' if continue >> " ) == "y" : #python3
     print( "# exit ... " )
     sys.exit()     
 
