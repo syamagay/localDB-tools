@@ -5,7 +5,7 @@
   ## Setting 
   
   requirements
-  *  mongodb ( running ) 
+  * mongodb ( running ) 
   * python 2.X or 3.X ( which can use PyROOT )
   * python modules : install_list
   * YARR S/W
@@ -29,8 +29,8 @@
   setting before running web-app 
 
   modify setting.sh
-  * APACHE : true : run by apache
-  * PYTHON3 : true : you use python3
+  * APACHE : set true if you run this app by apache, or false if not
+  * PYTHON3 : set true if you use python3, or false if use python2
   * IPADDRESS : where you run this web app ( default : "'127.0.0.1'" )
   * PORT : port of mongoDB ( default : "27017" )
   modify codes by executing setting.sh
@@ -54,7 +54,7 @@
         WSGIApplicationGroup %{GLOBAL}
         LoadModule wsgi_module /usr/local/Python/3.5.1/lib/python3.5/site-packages/mod_wsgi/server/mod_wsgi-py35.cpython-35m-x86_64-linux-gnu.so # modify for your environment
         WSGIDaemonProcess app user=apache group=apache threads=5
-        WSGIScriptAlias /yarr /var/www/web-app-db-yarr/.wsgi
+        WSGIScriptAlias /yarrdb /var/www/web-app-db-yarr/.wsgi
         <Directory /var/www/web-app-db-yarr>
             WSGIProcessGroup app
             WSGIScriptReloading On
@@ -86,6 +86,18 @@
   ```
   
 # helpful information
+  ## Add summary plots
+  You can add summary results in summary page in local
+  * modify module_runnumber.json
+  ```
+    "userIdentity" : "...", # change to user who run scan program
+    "institution" : "..." # change to user's institution
+  ```
+  * run addsummary.py
+  ```
+   $ python addsummary.py
+  ```
+
   ## Setup pyenv 
   yum install some packages
 
