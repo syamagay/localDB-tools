@@ -50,7 +50,7 @@ if $APACHE ; then
   else
     sed -i -e "/ROOTLIB/d" ${SETTING}
   fi
-  sed -i -e "s/YARR/yarr/g" ${NAV} 
+  sed -i -e "s/YARR/yarrdb/g" ${NAV} 
 else
   sed -i -e "s/YARR//g" ${NAV}
   sed -i -e "/ROOTLIB/d" ${SETTING}
