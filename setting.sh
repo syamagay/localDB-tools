@@ -12,9 +12,6 @@ PYTHON3=true
 CHANGEIP="'127.0.0.1'"
 # set port of mongoDB
 CHANGEPORT="27017"
-# set username and password of admin page, not admin account name and password
-CHANGEADMIN="'admin'"
-CHANGEPASS="'password'"
 
 ##############################################
 

@@ -15,7 +15,6 @@ import os, pwd, glob, hashlib, datetime, shutil
 
 # use Flask scheme
 from flask import Flask, request, redirect, url_for, render_template, session, abort
-from flask_httpauth import HTTPDigestAuth
 
 # use mongodb scheme
 import pymongo
@@ -76,8 +75,6 @@ fs = gridfs.GridFS( mongo.db )
 ######
 # auth
 app.config["SECRET_KEY"] = os.urandom(24)
-auth = HTTPDigestAuth()
-adpage = { userset.ADMIN : userset.PASS }
 
 ####################
 # add path to static
@@ -656,14 +653,7 @@ def signup() :
     session['signup'] = True
     return render_template( "signup.html", userInfo=userinfo, stage=stage )
 
-@auth.get_password
-def get_pw(username) :
-    if username in adpage :
-        return adpage.get(username)
-    return redirect( url_for('show_modules_and_chips') ) 
-
 @app.route('/admin',methods=['GET','POST'])
-@auth.login_required
 def admin_page() :
     request_entries = localdb.request.find({}, { "userName" : 0, "password" : 0 })
     user_entries = localdb.user.find({ "type" : "user" }, { "userName" : 0, "password" : 0 })
