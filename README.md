@@ -2,17 +2,16 @@
 
 # basic information
 
-  ## Setting 
+  ## Requirements
   
-  requirements
   * mongodb ( running ) 
   * python 2.X or 3.X ( which can use PyROOT )
   * python modules : install_list
   * YARR S/W
   
-  ## preparetion
+  ## Preparetion
   
-  set library path to ROOT and python
+  1, Set library path to ROOT and python
   
   ```
   $ source path/to/devtoolset-2/enable
@@ -20,33 +19,32 @@
   $ source path/to/bin/thisroot.sh
   ```
   
-  git clone this source
+  2, Git clone this source
   
   ```
   $ git clone https://gitlab.cern.ch/akubota/web-app-db-yarr.git
   ```
   
-  setting before running web-app 
+  ## User Setting
 
-  modify setting.sh
+  1, Modify and excute setting.sh to change some codes for user
   * APACHE : set true if you run this app by apache, or false if not
   * PYTHON3 : set true if you use python3, or false if use python2
   * IPADDRESS : where you run this web app ( default : "'127.0.0.1'" )
   * PORT : port of mongoDB ( default : "27017" )
-  modify codes by executing setting.sh
 
   ```
    $ ./setting.sh
   ```
 
-  install python modules by executing make_pipinstall.sh and pipinstall.py
+  2, Install python modules by executing make_pipinstall.sh and pipinstall.py
 
   ```
    $ ./make_pipinstall.sh ---> generate pipinstall.py
    $ python pipinstall.py 
   ```
 
-  modify web-app-db-yarr.conf if you use apache system 
+  3, Modify web-app-db-yarr.conf if you use apache system 
 
   ```
     WSGISocketPrefix run/wsgi
@@ -65,12 +63,22 @@
     </VirtualHost>
   ```
 
-  run web-app-db-yarr
+  ## running web-app-db-yarr
+
+  You can run web-app-db-yarr by excuting app.py, and check viewer by typing localhost:5000 or <IPADDRESS>:5000 in browser
 
   ```
    $  python app.py
-   **first running** 
-  Set administrator account ...
+  ```
+
+  1, Create administrator account ( initial excuting )
+
+  ```
+   $  python app.py
+   ...
+   
+   Set administrator account ...
+ 
    < necessary information >
    - userName
    - firstName
@@ -79,21 +87,27 @@
    - email
    - passWord
    - passWord agein
+ 
   Continue (y/n) >>
+
   # type "y" and enter information if you set administrator account 
-  # after input or typing "n", web-app-db-yarr starts 
-  # you can check viewer by typing <IPADDRESS>:5000 in browser
+  # after creation or typing "n", web-app-db-yarr starts 
   ```
   
 # helpful information
   ## Add summary plots
-  You can add summary results in summary page in local
+
+  You can add summary results for each stage and module in summary page by excuting script
+
   * modify module_runnumber.json
+
   ```
     "userIdentity" : "...", # change to user who run scan program
-    "institution" : "..." # change to user's institution
+    "institution"  : "..." # change to user's institution
   ```
+
   * run addsummary.py
+
   ```
    $ python addsummary.py
   ```
