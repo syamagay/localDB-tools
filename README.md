@@ -99,11 +99,27 @@
 
   You can add summary results for each stage and module in summary page by excuting script
 
+  _CAUTION_
+  _This script can insert plots into database without outputting them to the display._
+  _Please check the plots in browser before excuting this script._
+
   * modify module_runnumber.json
 
   ```
     "userIdentity" : "...", # change to user who run scan program
     "institution"  : "..." # change to user's institution
+  ```
+
+  * modify parameter_default.json 
+
+  ```
+   "testType" : {
+        "mapType" : [
+            #,                 # max value of x axis (1D plot) and z axis (2D plot)
+            bool[true/false],  # true if set log scale, or false if linear scale
+            #                  # number of bins (1D plot) (same as max value if it is blank)
+         ],
+   }
   ```
 
   * run addsummary.py
