@@ -7,14 +7,9 @@
        <h4 style="font-size: 10pt;"><i class="fa fa-chevron-right"></i> {{ result['testType'] }}</h4>
        <thead class="table-dark" style="background: #222222;">
          <tr>
-           <th scope="col" rowspan="2" width="40" class="text-center">Run<br>number</th>
-           <th scope="col" rowspan="2" width="150" class="text-center">Date</th>
-           <th scope="col" rowspan="2" width="150" class="text-center">Stage</th>
-           <th scope="col" rowspan="1" colspan="2" style="font-size: 5pt;" width="200" class="text-center">Environment</th>
-         </tr>
-         <tr>
-           <th scope="col" class="text-center">HV[V]</th>
-           <th scope="col" class="text-center">Temp[℃]</th>
+           <th scope="col" width="40" class="text-center">Run<br>number</th>
+           <th scope="col" width="150" class="text-center">Date</th>
+           <th scope="col" width="150" class="text-center">Stage</th>
          </tr>
        </thead>
        <tbody>
@@ -31,8 +26,6 @@
                </td>
                <td align="center">{{ run['datetime'] }}</td>
                <td align="center">{{ run['stage'] }}</td>
-               <td align="center">{{ run['environment']['hv'] }}</td>
-               <td align="center">{{ run['environment']['cool'] }}</td>
              </tr>
            {% endfor %}
        </tbody>

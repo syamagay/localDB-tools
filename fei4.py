@@ -30,7 +30,7 @@ from werkzeug import secure_filename # for upload system
 import img # binary to dataURI
 
 # other function
-import func, userfunc
+import func, userfunc, listset
 
 ##################
 # path/to/save/dir 
@@ -40,14 +40,6 @@ PIC_DIR = '{}/upload'.format( USER_DIR )
 DAT_DIR = '{}/dat'.format( USER_DIR )
 PLOT_DIR = '{}/result'.format( USER_DIR )
 STAT_DIR = '{}/static'.format( USER_DIR )
-
-scanList = { "selftrigger"   : [( "OccupancyMap-0", "#Hit" ),],
-             "noisescan"     : [( "NoiseOccupancy","NoiseOccupancy" ), ( "NoiseMask", "NoiseMask" )],
-             "totscan"       : [( "MeanTotMap", "Mean[ToT]" ),         ( "SigmaTotMap", "Sigma[ToT]" )],
-             "thresholdscan" : [( "ThresholdMap", "Threshold[e]" ),    ( "NoiseMap", "Noise[e]" )],
-             "digitalscan"   : [( "OccupancyMap", "Occupancy" ),       ( "EnMask", "EnMask" )],
-             "analogscan"    : [( "OccupancyMap", "Occupancy" ),       ( "EnMask", "EnMask" )]}
-stageList = [ "wirebond", "encapsulation" ]
 
 #############
 # set dbs
@@ -61,9 +53,10 @@ def clean_dir( path ) :
     for i in r:
         os.remove(i)
 
-def fill_env( thisRun ) :
-    env_dict = { "hv"    : thisRun.get( 'environment', { "key" : "value" } ).get( 'hv', "" ),
-                 "cool"  : thisRun.get( 'environment', { "key" : "value" } ).get( 'cool', "" )}
+def fill_env( thisComponentTestRun ) :
+    env_list = thisComponentTestRun.get('environments',[])
+    env_dict = { "list" : env_list,
+                 "num"  : len(env_list) }
     return env_dict
 
 def fill_photoDisplay( thisComponent ) :
@@ -118,7 +111,7 @@ def fill_photos( thisComponent, code ) :
 
 def fill_summary( thisComponent ) :
     summaryIndex = []
-    for stage in stageList :
+    for stage in listset.stage :
         query = { "component" : str(thisComponent['_id']), "stage" : stage }
         componentTestRun_entries = yarrdb.componentTestRun.find( query )
         runIds = []
@@ -129,14 +122,15 @@ def fill_summary( thisComponent ) :
             run_entries = yarrdb.testRun.find( query )
             if not run_entries.count() == 0 :
                 scandict = {}
-                for scan in scanList :
+                for scan in listset.scan :
                     query = { '$or' : runIds, "testType" : scan, "display" : True }
                     thisRun = yarrdb.testRun.find_one( query )
                     mapList = []
                     if thisRun :
-                        for mapType in scanList[scan] :
+                        for mapType in listset.scan[scan] :
                             values = {}
-                            env_dict = fill_env( thisRun )
+                            thisComponentTestRun = yarrdb.componentTestRun.find_one({ "testRun" : str(thisRun['_id']) })
+                            env_dict = fill_env( thisComponentTestRun )
                             values.update({ "env" : env_dict })
                             data_entries = thisRun['attachments']
                             for data in data_entries :
@@ -154,79 +148,15 @@ def fill_summary( thisComponent ) :
                                              "environment" : values.get('env') })
                     scandict.update({ scan : { "map" : mapList,
                                                "num" : len(mapList) }})
-#                    scandict.update({ scan : { "url1D" : values.get('1D'),
-#                                               "url2D" : values.get('2D'),
-#                                               "mapType" : scanList[scan][0][0],
-#                                               "environment" : values.get('env') }})
 
                 if not scandict == {} :
                     summaryIndex.append({ "stage"    : stage,
                                           "scan"     : scandict })
     return summaryIndex
 
-def fill_resultDisplay( thisComponent ) :
-    resultDisplay = []
-    if session['component'] == "module" :
-        if "attachments" in thisComponent : 
-            data_entries = thisComponent['attachments']
-            for scan in scanList :
-                displayList = []
-                for data in data_entries :
-                    if data.get( 'imageType' ) == "result" :
-                        if scan == data.get( 'filename', "" ).rsplit( '_', 3 )[1] :
-                            binary = base64.b64encode( fs.get(ObjectId(data['code'])).read() ).decode()
-                            url = img.bin_to_image( data['contentType'], binary )
-                            runNumber = data['filename'].rsplit( '_', 3 )[0]
-                            mapType   = data['filename'].rsplit( '_', 3 )[2].rsplit( '.', 1 )[0].rsplit( '-', 1 )[0]
-                            env_dict = fill_env( data ) 
-
-                            displayList.append({ "url"         : url,
-                                                 "runNumber"   : runNumber,
-                                                 "runId"       : "",
-                                                 "collection"  : "component",
-                                                 "environment" : env_dict,
-                                                 "description" : data['description'],
-                                                 "code"        : data['code'],
-                                                 "htmlurl"     : "remove_attachment",
-                                                 "filename"    : mapType })
-                if not displayList == [] :
-                    resultDisplay.append({ "testType" : scan,
-                                           "display"  : displayList })
-
-    if session['component'] == "chip" :
-        for scan in scanList :
-            query = { "component" : str(thisComponent['_id']), "testType" : scan }
-            run_entries = yarrdb.componentTestRun.find( query )
-            displayList = []
-            for run in run_entries :
-                query = { "_id" : ObjectId(run['testRun']) }
-                thisRun = yarrdb.testRun.find_one( query )
-                env_dict = fill_env( thisRun )
-    
-                display_entries = thisRun['attachments']
-                for data in display_entries :
-                    if data.get( 'display' ) == True :
-                        binary = base64.b64encode( fs.get( ObjectId(data['code']) ).read() ).decode()
-                        url = img.bin_to_image( data['contentType'], binary )
-    
-                        displayList.append({ "runNumber"   : thisRun['runNumber'],
-                                             "runId"       : thisRun['_id'],
-                                             "code"        : data['code'],
-                                             "htmlurl"     : "tag_result",
-                                             "environment" : env_dict,
-                                             "description" : data['description'],
-                                             "collection"  : "testRun",
-                                             "filename"    : data['filename'].rsplit("_",1)[1],
-                                             "url"         : url })
-    
-            if not displayList == [] :
-                resultDisplay.append({ "testType" : scan,
-                                       "display"  : displayList })
-
-    return resultDisplay
-
 def fill_runIndex( thisRun, runIndex=[] ) :
-    env_dict = fill_env( thisRun )
+    thisComponentTestRun = yarrdb.componentTestRun.find_one({ "testRun" : str(thisRun['_id']) })
+    env_dict = fill_env( thisComponentTestRun )
     keys = [ "runNumber", "institution", "userIdentity" ]
     if not dict(( k, thisRun.get(k) ) for k in keys) in [ dict(( k, runItem.get(k) ) for k in keys) for runItem in runIndex ] :
         if ( 'png' or 'pdf' ) in [ data.get('contentType') for data in thisRun['attachments'] ] :
@@ -247,7 +177,7 @@ def fill_runIndex( thisRun, runIndex=[] ) :
     return env_dict
 def fill_resultIndex( item ) :
     resultIndex = []
-    for scan in scanList :
+    for scan in listset.scan :
         runIndex = []
         for i in [ 1, 2 ] :
             if i == 1 :
@@ -271,8 +201,8 @@ def fill_results( item, runId ) :
         thisComponentTestRun = yarrdb.componentTestRun.find_one( query )
         query = { "_id" : ObjectId(runId) }
         thisRun = yarrdb.testRun.find_one( query )
-        env_dict = fill_env( thisRun ) 
         if thisComponentTestRun :
+            env_dict = fill_env( thisComponentTestRun ) 
             data_entries = thisRun['attachments']
             for data in data_entries :
                 if data['contentType'] == 'pdf' or data['contentType'] == 'png' :
@@ -295,7 +225,7 @@ def fill_results( item, runId ) :
             thisComponentTestRun = yarrdb.componentTestRun.find_one( query )
             query = { "_id" : ObjectId(runId) }
             thisRun = yarrdb.testRun.find_one( query )
-            env_dict = fill_env( thisRun ) 
+            env_dict = fill_env( thisComponentTestRun ) 
             results.append({ "testType"    : thisRun['testType'],
                              "runNumber"   : thisRun['runNumber'],
                              "runId"       : thisRun['_id'],
@@ -318,7 +248,8 @@ def fill_roots( item, runId, doroot ) :
                 results = []
                 query = { "_id" : ObjectId(runId) }
                 thisRun = yarrdb.testRun.find_one( query )
-                env_dict = fill_env( thisRun ) 
+                thisComponentTestRun = yarrdb.componentTestRun.find_one({ "testRun" : str(thisRun['_id']) })
+                env_dict = fill_env( thisComponentTestRun ) 
                 reanalysis = session.get('reanalysis')
                 if not reanalysis :
                     clean_dir( DAT_DIR )
@@ -338,7 +269,7 @@ def fill_roots( item, runId, doroot ) :
                                 f.write( fs.get(ObjectId(data['code']) ).read())
                                 f.close()
                 mapList = {}
-                for mapType in scanList[thisRun['testType']] :
+                for mapType in listset.scan[thisRun['testType']] :
                     if reanalysis and not mapType[0] == session.get( 'mapType' ) :
                         mapList.update({ mapType[0] : False })
                     else :
@@ -346,7 +277,7 @@ def fill_roots( item, runId, doroot ) :
 
                 root.drawScan( thisRun['testType'], str(thisRun['runNumber']), bool(session.get( 'log' )), int( session.get( 'max' )), mapList )
 
-                for mapType in scanList[thisRun['testType']] :
+                for mapType in listset.scan[thisRun['testType']] :
                     for i in [ "1", "2" ] :
                         max_value = func.readJson( "{}/parameter.json".format( os.path.dirname(os.path.abspath(__file__)) )) 
                         filename = PLOT_DIR + "/" + thisRun['testType'] + "/" + str(thisRun['runNumber']) + "_" + mapType[0] + "_{}.png".format(i)

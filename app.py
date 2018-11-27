@@ -32,7 +32,7 @@ from werkzeug import secure_filename # for upload system
 import img # binary to dataURI
 
 # other function
-import func, userfunc
+import func, userfunc, listset
 # function for each fe types
 import fei4
 FE = { "default" : fei4, "FE-I4B" : fei4 }
@@ -52,14 +52,6 @@ if os.path.isdir( USER_DIR ) :
 
 for DIR in DIRS :
     os.mkdir( DIR )
-
-scanList = { "selftrigger"   : [( "OccupancyMap-0", "#Hit" ),],
-             "noisescan"     : [( "NoiseOccupancy","NoiseOccupancy" ), ( "NoiseMask", "NoiseMask" )],
-             "totscan"       : [( "MeanTotMap", "Mean[ToT]" ),         ( "SigmaTotMap", "Sigma[ToT]" )],
-             "thresholdscan" : [( "ThresholdMap", "Threshold[e]" ),    ( "NoiseMap", "Noise[e]" )],
-             "digitalscan"   : [( "OccupancyMap", "Occupancy" ),       ( "EnMask", "EnMask" )],
-             "analogscan"    : [( "OccupancyMap", "Occupancy" ),       ( "EnMask", "EnMask" )]}
-stageList = [ "encapsulation" ]
 ############
 # login list
 loginlist = [ "logged_in", "user_id", "user_name", "institute", "read", "write", "edit" ]
@@ -93,9 +85,10 @@ def clean_dir( path ) :
     for i in r:
         os.remove(i)
 
-def fill_env( thisRun ) :
-    env_dict = { "hv"    : thisRun.get( 'environment', { "key" : "value" } ).get( 'hv',    "" ),
-                 "cool"  : thisRun.get( 'environment', { "key" : "value" } ).get( 'cool',  "" )}
+def fill_env( thisComponentTestRun ) :
+    env_list = thisComponentTestRun['environments']
+    env_dict = { "list" : env_list,
+                 "num"  : len(env_list) }
     return env_dict
 
 def update_mod( collection, query ) :
@@ -199,8 +192,6 @@ def show_component() :
     # show photo
     photos = FE[asic].fill_photos( thisComponent, Code )
 
-    # fill result display 
-    resultDisplay = FE[asic].fill_resultDisplay( thisComponent )
     # fill result index
     resultIndex = FE[asic].fill_resultIndex( components ) 
     # fill results 
@@ -218,7 +209,6 @@ def show_component() :
                        "photoDisplay"  : photoDisplay,
                        "photoIndex"    : photoIndex,
                        "photos"        : photos,
-                       "resultDisplay" : resultDisplay,
                        "resultIndex"   : resultIndex,
                        "results"       : results,
                        "roots"         : roots,
@@ -344,7 +334,8 @@ def add_attachment_result() :
     query = { '$or' : chips, "runNumber" : int( runNumber ) }
     query = { "_id" : ObjectId(mongo.db.componentTestRun.find_one( query )['testRun']) }
     thisRun = mongo.db.testRun.find_one( query )
-    env_dict = fill_env( thisRun )
+    thisComponentTestRun = mongo.db.componentTestRun.find_one({ "testRun" : str(thisRun['_id']) })
+    env_dict = fill_env( thisComponentTestRun )
  
     query = { "_id" : image }
     date = mongo.db.fs.files.find_one( query )['uploadDate']
@@ -407,7 +398,7 @@ def add_summary() :
     thisComponentTestRun = mongo.db.componentTestRun.find_one( query )
     query = { "_id" : ObjectId(RunId) }
     thisRun = mongo.db.testRun.find_one( query )
-    for mapType in scanList[thisRun['testType']] :
+    for mapType in listset.scan[thisRun['testType']] :
         for i in [ "1", "2" ] :
             if i == "1" :
                 filename = "{0}_{1}_Dist".format( serialNumber, mapType[0] )
