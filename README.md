@@ -122,10 +122,73 @@
    }
   ```
 
-  * run addsummary.py
+  * run addsummary.py (flowchart is as follow)
 
   ```
    $ python addsummary.py
+   
+   --- stage list ---
+   0 : wire bond
+   1 : encapsulation
+
+   # Type stage number >> 0
+   # ok.
+
+   # Type serial number of module >> ###-001
+   # found.
+
+   # Start to add summary plots 
+    
+         < General information >       
+    ---------------------------------- 
+     serialNumber : ###-001
+     stage        : wirebond
+     institution  : ...
+     userIdentity : ...
+    ---------------------------------- 
+ 
+   # Are there any mistakes? Type 'y' if continue >> y
+    
+         < Confirm information >       
+    ---------------------------------- 
+     0, analogscan
+     runNumber   : 1003                 <---- by default the latest scan is set in this stage and test type
+     datetime    : 20XX/XX/XX XX:XX:XX
+    ----------------------------------
+     1, digitalscan
+     runNumber   : 1006                 <---- by default the latest scan is set in this stage and test type
+     datetime    : 20XX/XX/XX XX:XX:XX
+    ----------------------------------
+
+   # Type 'y' if continue to make plots, or type the number preceding scan name if change run number >> 0 
+ 
+     testType        : analogscan
+     Run number list : 
+                       1000 : 20XX/XX/XX XX:XX:XX
+                       1001 : 20XX/XX/XX XX:XX:XX
+                       1002 : 20XX/XX/XX XX:XX:XX
+                       1003 : 20XX/XX/XX XX:XX:XX
+   # Enter run number from this list for summary plot >> 1001 <---- you can change to other scan from latest scan
+
+         < Confirm information >       
+    ---------------------------------- 
+     0, analogscan
+     runNumber   : 1001                 <---- change
+     datetime    : 20XX/XX/XX XX:XX:XX
+    ----------------------------------
+     1, digitalscan
+     runNumber   : 1006                 <---- by default the latest scan is set in this stage and test type
+     datetime    : 20XX/XX/XX XX:XX:XX
+    ----------------------------------
+
+   # Type 'y' if continue to make plots, or type the number preceding scan name if change run number >> y <---- this answer will only decide whether to make histogram
+ 
+   # Start to make histograms.
+   # Finish to make histograms of all scans.
+
+   # Continue to insert plots into Database? Type 'y' if continue >> y <---- do not type "y" if you don't want to insert into database, then you can exit.
+   # done.
+
   ```
 
   ## Setup pyenv 

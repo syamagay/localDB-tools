@@ -191,8 +191,8 @@ while not answer == "y" :
         print( " ---------------------------------- \n" )
     answer = "" 
     while answer == "" :
-        answer = raw_input( "# Type 'y' if continue to make plots, or type the number before scan name if change run number >> " ) #python2
-        answer = input( "# Type 'y' if continue to make plots, or type the number before scan name if change run number >> " ) #python3
+        answer = raw_input( "# Type 'y' if continue to make plots, or type the number preceding scan name if change run number >> " ) #python2
+        answer = input( "# Type 'y' if continue to make plots, or type the number preceding scan name if change run number >> " ) #python3
     print( " " )
 
 runIds = {}
@@ -230,7 +230,7 @@ for scan in listset.scan :
         print( "failure. " )
     print( "--- Finish : " + scan + " ---\n" )
 
-print( "# Finish to make histograms of all scans." )
+print( "# Finish to make histograms of all scans.\n" )
 if not raw_input( "# Continue to insert plots into Database? Type 'y' if continue >> " ) == "y" : #python2
 if not input( "# Continue to insert plots into Database? Type 'y' if continue >> " ) == "y" : #python3
     print( "# exit ... " )
@@ -311,3 +311,4 @@ for scan in listset.scan :
         update_mod( "testRun", query ) 
         yarrdb.testRun.update( query, { '$set' : { "display" : True }}, multi=True )
 
+print( "Finish." )
