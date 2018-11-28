@@ -210,6 +210,7 @@ def fill_resultIndex( item ) :
         if not runIndex == [] :
             runIndex = sorted(runIndex, key=lambda x:x['datetime'])
             resultIndex.append({ "testType" : scan,
+                                 "num"      : len(runIndex),
                                  "run"      : runIndex })
     return resultIndex
 

@@ -1,10 +1,10 @@
 <h4 style="font-size: 13pt;"><i class="fa fa-cog"></i> Test index</h4>
-<a data-toggle="collapse" href="#testindex" aria-controls="testindex"> view more</a>
-<div class="row align-items-top collapse" id="testindex">
+<div class="row align-items-top">
 {% for result in component['resultIndex'] %}
    <div class="col-md-4">
+    <a data-toggle="collapse" href='#{{ result['testType'] }}' aria-controls="testindex"><h4 style="font-size: 10pt;"><i class="fa fa-chevron-right"></i> {{ result['testType'] }} ( {{ result['num'] }} )</h4></a>
+     <div class="row align-items-top collapse" id={{ result['testType'] }}>
      <table class="table table-sm table-hover table-bordered" style="font-size: 7pt;">
-       <h4 style="font-size: 10pt;"><i class="fa fa-chevron-right"></i> {{ result['testType'] }}</h4>
        <thead class="table-dark" style="background: #222222;">
          <tr>
            <th scope="col" width="40" class="text-center">Run<br>number</th>
@@ -30,6 +30,7 @@
            {% endfor %}
        </tbody>
      </table>
+     </div>
    </div>
 {% endfor %}
 </div>
