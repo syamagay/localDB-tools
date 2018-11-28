@@ -147,7 +147,7 @@
      userIdentity : ...
     ---------------------------------- 
  
-   # Are there any mistakes? Type 'y' if continue >> y
+   # Continue to check results of this module? Type 'y' if continue >> y
     
          < Confirm information >       
     ---------------------------------- 
@@ -160,7 +160,7 @@
      datetime    : 20XX/XX/XX XX:XX:XX
     ----------------------------------
 
-   # Type 'y' if continue to make plots, or type the number preceding scan name if change run number >> 0 
+   # Type 'y' if continue to make plots, or type the number before scan name if change run number >> 0 
  
      testType        : analogscan
      Run number list : 
@@ -168,6 +168,7 @@
                        1001 : 20XX/XX/XX XX:XX:XX
                        1002 : 20XX/XX/XX XX:XX:XX
                        1003 : 20XX/XX/XX XX:XX:XX
+
    # Enter run number from this list for summary plot >> 1001 <---- you can change to other scan from latest scan
 
          < Confirm information >       
@@ -181,7 +182,7 @@
      datetime    : 20XX/XX/XX XX:XX:XX
     ----------------------------------
 
-   # Type 'y' if continue to make plots, or type the number preceding scan name if change run number >> y <---- this answer will only decide whether to make histogram
+   # Type 'y' if continue to make plots, or type the number before scan name if change run number >> y <---- this answer will only decide whether to make histogram
  
    # Start to make histograms.
    # Finish to make histograms of all scans.

@@ -176,7 +176,12 @@ def fill_summary( thisComponent ) :
 
 def fill_resultIndex( item ) :
     resultIndex = {}
-    for scan in listset.scan :
+    if session['component'] == "module" :
+        scanlist = [ "selftrigger", "noisescan", "totscan", "thresholdscan", "digitalscan", "analogscan" ] 
+    else :
+        scanlist = [ "selftrigger", "noisescan", "totscan", "thresholdscan", "digitalscan", "analogscan", "pixelpreamp", "globalpreamp", "pixelthreshold", "globalthreshold", "tune_pixelpreamp", "tune_globalpreamp", "tune_pixelthreshold", "tune_globalthreshold" ] 
+    #for scan in listset.scan :
+    for scan in scanlist :
         runIndex = []
         numberids = []
         keys = [ "runNumber", "institution", "userIdentity" ]

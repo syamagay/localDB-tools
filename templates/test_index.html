@@ -5,6 +5,17 @@
 {% set _=index.append("totscan") %}
 {% set _=index.append("noisescan") %}
 {% set _=index.append("selftrigger") %}
+{% if session['component'] == "chip" %}
+  {% set _=index.append("globalpreamp") %}
+  {% set _=index.append("pixelpreamp") %}
+  {% set _=index.append("globalthreshold") %}
+  {% set _=index.append("pixelthreshold") %}
+  {% set _=index.append("tune_globalpreamp") %}
+  {% set _=index.append("tune_pixelpreamp") %}
+  {% set _=index.append("tune_globalthreshold") %}
+  {% set _=index.append("tune_pixelthreshold") %}
+{% endif %}
+
 <h4 style="font-size: 13pt;"><i class="fa fa-cog"></i> Test index</h4>
 <div class="row align-items-top">
 {% for scan in index %}

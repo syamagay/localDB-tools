@@ -111,8 +111,8 @@ print( " ---------------------------------- " )
 print( " " )
 answer = ""
 while answer == "" :
-    answer = raw_input( "# Are there any mistakes? Type 'y' if continue >> " ) #python2
-    answer = str(input( "# Are there any mistakes? Type 'y' if continue >> " )) #python3
+    answer = raw_input( "# Continue to check results of this module? Type 'y' if continue >> " ) #python2
+    answer = str(input( "# Continue to check results of this module? Type 'y' if continue >> " )) #python3
 if not answer == "y" : 
     print( "# exit ... " )
     sys.exit()
@@ -192,8 +192,8 @@ while not answer == "y" :
         print( " ---------------------------------- \n" )
     answer = "" 
     while answer == "" :
-        answer = raw_input( "# Type 'y' if continue to make plots, or type the number preceding scan name if change run number >> " ) #python2
-        answer = str(input( "# Type 'y' if continue to make plots, or type the number preceding scan name if change run number >> " )) #python3
+        answer = raw_input( "# Type 'y' if continue to make plots, or type the number before scan name if change run number >> " ) #python2
+        answer = str(input( "# Type 'y' if continue to make plots, or type the number before scan name if change run number >> " )) #python3
     print( " " )
 
 runIds = {}
