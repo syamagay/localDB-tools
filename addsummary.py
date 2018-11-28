@@ -75,7 +75,6 @@ print( " " )
 num = ""
 while num == "" :
     num = raw_input( "# Type stage number >> " ) #python2
-    num = input( "# Type stage number >> " ) #python3
 if not num.isdigit() :
     print( "# Enter STAGE NUMBER, exist ... ")
     sys.exit()
@@ -89,7 +88,6 @@ print("# ok.\n")
 serialNumber = ""
 while serialNumber == "" :
     serialNumber = raw_input( "# Type serial number of module >> " ) #python2
-    serialNumber = input( "# Type serial number of module >> " ) #python3
 dataJson.update({ "serialNumber" : serialNumber }) 
 query = { "serialNumber" : dataJson['serialNumber'] }
 if not yarrdb.component.find( query ).count() == 1 :
@@ -112,7 +110,6 @@ print( " " )
 answer = ""
 while answer == "" :
     answer = raw_input( "# Are there any mistakes? Type 'y' if continue >> " ) #python2
-    answer = input( "# Are there any mistakes? Type 'y' if continue >> " ) #python3
 if not answer == "y" : 
     print( "# exit ... " )
     sys.exit()
@@ -163,7 +160,6 @@ while not answer == "y" :
         number = ""
         while number == "" :
             number = raw_input( "# Enter run number from this list for summary plot >> " ) #python2
-            number = input( "# Enter run number from this list for summary plot >> " ) #python3
             if not number.isdigit() :
                 print("# Enter NUMBER.")
                 number = ""
@@ -178,7 +174,7 @@ while not answer == "y" :
         dateTime = func.setTime( thisRun['date'] )
         runNumber = thisRun['runNumber']
         dataJson.update({ scannum[int(answer)] : { "runNumber" : runNumber,
-                                                       "datetime"  : dateTime }})
+                                                   "datetime"  : dateTime }})
     print( "      < Confirm information >       " )
     print( " ---------------------------------- " )
     for i in [ 0, 1, 2, 3, 4, 5 ] :
@@ -188,23 +184,24 @@ while not answer == "y" :
             print( "  datetime    : " + str(dataJson[scannum[i]].get( 'datetime', "None" )))
         else :
             print( "  data        : None" )
+            dataJson.update({ scannum[i] : { "runNumber" : None } }) 
         print( " ---------------------------------- \n" )
     answer = "" 
     while answer == "" :
         answer = raw_input( "# Type 'y' if continue to make plots, or type the number preceding scan name if change run number >> " ) #python2
-        answer = input( "# Type 'y' if continue to make plots, or type the number preceding scan name if change run number >> " ) #python3
     print( " " )
 
 runIds = {}
 for scan in listset.scan :
     runIds.update({ scan : [] })
-    query = { '$or' : chips, "stage" : dataJson['stage'], "testType" : scan, "runNumber" : dataJson[scan]['runNumber'] }
-    run_entries = yarrdb.componentTestRun.find( query )
-    for run in run_entries :
-        query = { "_id" : ObjectId(run['testRun']), "institution" : dataJson['institution'], "userIdentity" : dataJson['userIdentity'] }
-        thisRun = yarrdb.testRun.find_one( query )
-        if thisRun : 
-            runIds[scan].append({ "_id" : thisRun['_id'] })
+    if dataJson[scan].get('runNumber',None) :
+        query = { '$or' : chips, "stage" : dataJson['stage'], "testType" : scan, "runNumber" : dataJson[scan]['runNumber'] }
+        run_entries = yarrdb.componentTestRun.find( query )
+        for run in run_entries :
+            query = { "_id" : ObjectId(run['testRun']), "institution" : dataJson['institution'], "userIdentity" : dataJson['userIdentity'] }
+            thisRun = yarrdb.testRun.find_one( query )
+            if thisRun : 
+                runIds[scan].append({ "_id" : thisRun['_id'] })
 
 # make histogram
 print( "# Start to make histograms.\n" )
@@ -232,7 +229,6 @@ for scan in listset.scan :
 
 print( "# Finish to make histograms of all scans.\n" )
 if not raw_input( "# Continue to insert plots into Database? Type 'y' if continue >> " ) == "y" : #python2
-if not input( "# Continue to insert plots into Database? Type 'y' if continue >> " ) == "y" : #python3
     print( "# exit ... " )
     sys.exit()     
 

@@ -23,6 +23,8 @@
             {% for scan in index %}
               {% for summary in stage_results['scan'][scan]['map'] %}
                 <td scope="col" class="text-center">{{ summary['mapType'] }}</td>
+              {% else %}
+                <td scope="col" class="text-center">None.</td>
               {% endfor %}
             {% endfor %}
           </tr>
@@ -30,33 +32,43 @@
             {% for scan in index %}
               {% for summary in stage_results['scan'][scan]['map'] %}
                 <td width="80" align="center">
-                  {% if summary['url2D'] == None %}
+                  {% if summary['code2D'] == None %}
                     <p style="font-size: 15pt;">None.</p> 
                   {% else %}
-                    <a href={{ summary['url2D'] }} target="_brank" rel="noopener noreferrer">
-                      <img src={{ summary['url2D'] }} title={{ summary['mapType'] }} width="80" height="80">
+                    <a href="{{ url_for('show_summary', code=summary['code2D'], scan=scan, stage=stage_results['stage']) }}" target="_brank" rel="noopener noreferrer">
+                      <img src={{ summary['url2Dthum'] }} title={{ summary['mapType'] }} width="80" height="80">
                       </img>
                     </a>
                   {% endif %}
                 </td>
-              {% endfor %}
-            {% endfor %}
-          </tr>
-          <tr>
-            {% for scan in index %}
-              {% for summary in stage_results['scan'][scan]['map'] %}
+                {% else %}
                 <td width="80" align="center">
-                  {% if summary['url1D'] == None %}
-                  {% else %}
-                    <a href={{ summary['url1D'] }} target="_brank" rel="noopener noreferrer">
-                      <img src={{ summary['url1D'] }} title={{ summary['mapType'] }} width="80" height="60">
-                      </img>
-                    </a>
-                  {% endif %}
+                  <p style="font-size: 15pt;">None.</p> 
                 </td>
               {% endfor %}
             {% endfor %}
           </tr>
+          {% if session['component'] == "module" %}
+            <tr>
+              {% for scan in index %}
+                {% for summary in stage_results['scan'][scan]['map'] %}
+                  <td width="80" align="center">
+                    {% if summary['code1D'] == None %}
+                    {% else %}
+                      <a href="{{ url_for('show_summary', code=summary['code1D'], scan=scan, stage=stage_results['stage']) }}" target="_brank" rel="noopener noreferrer">
+                        <img src={{ summary['url1Dthum'] }} title={{ summary['mapType'] }} width="80" height="60">
+                        </img>
+                      </a>
+                    {% endif %}
+                  </td>
+                {% else %}
+                  <td width="80" align="center">
+                    <p style="font-size: 15pt;">None.</p> 
+                  </td>
+                {% endfor %}
+              {% endfor %}
+            </tr>
+        {% endif %}
         </tbody>
       </table>
     </div>

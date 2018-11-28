@@ -28,6 +28,8 @@ import base64 # Base64 encoding scheme
 import gridfs # gridfs system 
 from werkzeug import secure_filename # for upload system
 import img # binary to dataURI
+from PIL import Image
+import io
 
 # other function
 import func, userfunc, listset
@@ -135,15 +137,33 @@ def fill_summary( thisComponent ) :
                             data_entries = thisRun['attachments']
                             for data in data_entries :
                                 if data['filename'] == "{0}_{1}".format( thisComponent['serialNumber'], mapType[0] ) :
-                                    binary = base64.b64encode( fs.get(ObjectId(data['code'])).read() ).decode()
                                     if data['contentType'] == "png" :
-                                        values.update({ "2D" : img.bin_to_image( data['contentType'], binary ) })
+                                        filePath = "{0}/thum/{1}_{2}_{3}.png".format( PLOT_DIR, stage, scan, data['filename'] )
+                                        values.update({ "2Dcode" : data['code'] })
+                                        if not os.path.isfile(filePath) :
+                                            binary = fs.get(ObjectId(data['code'])).read()
+                                            image_bin = io.BytesIO( binary )
+                                            image = Image.open( image_bin )
+                                            image.thumbnail((int(image.width/4),int(image.height/4)))
+                                            image.save( filePath )
+                                        url = url_for( 'result.static', filename='thum/{0}_{1}_{2}.png'.format( stage, scan, data['filename'] ))
+                                        values.update({ "2Dthum" : url })
                                 elif data['filename'] == "{0}_{1}_Dist".format( thisComponent['serialNumber'], mapType[0] ) :
-                                    binary = base64.b64encode( fs.get(ObjectId(data['code'])).read() ).decode()
                                     if data['contentType'] == "png" :
-                                        values.update({ "1D" : img.bin_to_image( data['contentType'], binary ) })
-                            mapList.append({ "url1D" : values.get('1D'),
-                                             "url2D" : values.get('2D'),
+                                        filePath = "{0}/thum/{1}_{2}_{3}.png".format( PLOT_DIR, stage, scan, data['filename'] )
+                                        values.update({ "1Dcode" : data['code'] })
+                                        if not os.path.isfile(filePath) :
+                                            binary = fs.get(ObjectId(data['code'])).read()
+                                            image_bin = io.BytesIO( binary )
+                                            image = Image.open( image_bin )
+                                            image.thumbnail((int(image.width/4),int(image.height/4)))
+                                            image.save( filePath )
+                                        url = url_for( 'result.static', filename='thum/{0}_{1}_{2}.png'.format( stage, scan, data['filename'] ))
+                                        values.update({ "1Dthum" : url })
+                            mapList.append({ "url1Dthum" : values.get('1Dthum'),
+                                             "url2Dthum" : values.get('2Dthum'),
+                                             "code1D" : values.get('1Dcode'),
+                                             "code2D" : values.get('2Dcode'),
                                              "mapType" : mapType[0],
                                              "environment" : values.get('env') })
                     scandict.update({ scan : { "map" : mapList,
@@ -154,46 +174,45 @@ def fill_summary( thisComponent ) :
                                           "scan"     : scandict })
     return summaryIndex
 
-def fill_runIndex( thisRun, runIndex=[] ) :
-    thisComponentTestRun = yarrdb.componentTestRun.find_one({ "testRun" : str(thisRun['_id']) })
-    env_dict = fill_env( thisComponentTestRun )
-    keys = [ "runNumber", "institution", "userIdentity" ]
-    if not dict(( k, thisRun.get(k) ) for k in keys) in [ dict(( k, runItem.get(k) ) for k in keys) for runItem in runIndex ] :
-        if ( 'png' or 'pdf' ) in [ data.get('contentType') for data in thisRun['attachments'] ] :
-            result = True
-        else :
-            result = False
-        query = { "testRun" : str(thisRun['_id']) }
-        stage = yarrdb.componentTestRun.find_one( query )['stage']
-        runIndex.append({ "_id"          : thisRun['_id'],
-                          "runNumber"    : thisRun['runNumber'],
-                          "datetime"     : func.setTime(thisRun['date']),
-                          "userIdentity" : thisRun['userIdentity'],
-                          "institution"  : thisRun['institution'],
-                          "result"       : result,
-                          "stage"        : stage,
-                          "summary"      : thisRun.get('display'),
-                          "environment"  : env_dict })
-    return env_dict
 def fill_resultIndex( item ) :
     resultIndex = []
     for scan in listset.scan :
         runIndex = []
+        numberids = []
+        keys = [ "runNumber", "institution", "userIdentity" ]
         for i in [ 1, 2 ] :
             if i == 1 :
                 query = { "component" : item.get( 'this' ), "testType" : scan }
-            if ( i == 2 ) and ( session['component'] == "module" ) :
+            elif session['component'] == "module" :
                 query = { '$or' : item.get( 'chips' ), "testType" : scan }
+            else :
+                continue
             run_entries = yarrdb.componentTestRun.find( query )
             for run in run_entries :
-                query = { "_id" : ObjectId(run['testRun']) }
+                if numberids == [] :
+                    query = { "_id" : ObjectId(run['testRun']) }
+                else :
+                    query = { "_id" : ObjectId(run['testRun']), '$and' : numberids }
                 thisRun = yarrdb.testRun.find_one( query )
-                env_dict = fill_runIndex( thisRun, runIndex )
+                if thisRun :
+                    numberid = []
+                    for key in keys :
+                        numberid.append({ key : { '$ne' : thisRun[key] }})
+                    numberids.append({ '$or' : numberid })
+                    result = ( 'png' or 'pdf' ) in [ data.get('contentType') for data in thisRun['attachments'] ]
+                    stage = run['stage']
+                    runIndex.append({ "_id"          : str(thisRun['_id']),
+                                      "runNumber"    : thisRun['runNumber'],
+                                      "datetime"     : func.setTime(thisRun['date']),
+                                      "result"       : result,
+                                      "stage"        : stage,
+                                      "summary"      : thisRun.get('display') })
         if not runIndex == [] :
             runIndex = sorted(runIndex, key=lambda x:x['datetime'])
             resultIndex.append({ "testType" : scan,
                                  "run"      : runIndex })
     return resultIndex
+
 def fill_results( item, runId ) :
     results = []
     if not runId == None :

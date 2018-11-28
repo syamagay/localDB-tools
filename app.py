@@ -30,6 +30,8 @@ import base64 # Base64 encoding scheme
 import gridfs # gridfs system 
 from werkzeug import secure_filename # for upload system
 import img # binary to dataURI
+from PIL import Image
+import io
 
 # other function
 import func, userfunc, listset
@@ -44,12 +46,11 @@ USER_DIR = '/tmp/{}'.format( USER )
 PIC_DIR = '{}/upload'.format( USER_DIR )
 DAT_DIR = '{}/dat'.format( USER_DIR )
 PLOT_DIR = '{}/result'.format( USER_DIR )
+THUM_DIR = '{}/result/thum'.format( USER_DIR )
 STAT_DIR = '{}/static'.format( USER_DIR )
-DIRS = [ USER_DIR, PIC_DIR, DAT_DIR, PLOT_DIR, STAT_DIR ] 
-
+DIRS = [ USER_DIR, PIC_DIR, DAT_DIR, PLOT_DIR, STAT_DIR, THUM_DIR ] 
 if os.path.isdir( USER_DIR ) :
     shutil.rmtree( USER_DIR )
-
 for DIR in DIRS :
     os.mkdir( DIR )
 ############
@@ -80,6 +81,11 @@ localdb = client['yarrlocal']
 
 ##########
 # function
+def make_dir() :
+    if not os.path.isdir( USER_DIR ) :
+        for DIR in DIRS :
+            os.mkdir( DIR )
+
 def clean_dir( path ) :
     r = glob.glob( path + "/*" )
     for i in r:
@@ -111,6 +117,8 @@ def count_photoNum() :
 # top page
 @app.route('/', methods=['GET'])
 def show_modules_and_chips() :
+    make_dir()
+
     # pop session
     for key in poplist :
         session.pop(key,None)
@@ -440,6 +448,28 @@ def add_summary() :
     forUrl = "show_{}".format( session['component'] )
 
     return redirect( url_for(forUrl, id=componentId) )
+
+@app.route('/show_summary', methods=['GET'])
+def show_summary() :
+    code = request.args.get('code')
+    scan = request.args.get('scan')
+    stage = request.args.get('stage')
+    query = { "_id" : ObjectId(code) }
+    data = mongo.db.fs.files.find_one( query )
+    if not "png" in data['filename'] : 
+        filePath = "{0}/{1}_{2}_{3}.png".format( PLOT_DIR, stage, scan, data['filename'] )
+    else :
+        filePath = "{0}/{1}_{2}_{3}".format( PLOT_DIR, stage, scan, data['filename'] )
+    binary = fs.get(ObjectId(code)).read()
+    image_bin = io.BytesIO( binary )
+    image = Image.open( image_bin )
+    image.save( filePath )
+    if not "png" in data['filename'] : 
+        url = url_for( 'result.static', filename='{0}_{1}_{2}.png'.format( stage, scan, data['filename'] ))
+    else :
+        url = url_for( 'result.static', filename='{0}_{1}_{2}'.format( stage, scan, data['filename'] ))
+ 
+    return redirect( url )
 
 @app.route('/edit_description', methods=['GET','POST'])
 def edit_description() :
