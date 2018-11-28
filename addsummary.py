@@ -175,10 +175,11 @@ while not answer == "y" :
         print( " " )
         query = { "_id" : runNumbers[scannum[int(answer)]][number][0] }
         thisRun = yarrdb.testRun.find_one( query )
-        dateTime = func.setTime( thisRun['date'] )
-        runNumber = thisRun['runNumber']
-        dataJson.update({ scannum[int(answer)] : { "runNumber" : runNumber,
-                                                   "datetime"  : dateTime }})
+        if thisRun :
+            dateTime = func.setTime( thisRun['date'] )
+            runNumber = thisRun['runNumber']
+            dataJson.update({ scannum[int(answer)] : { "runNumber" : runNumber,
+                                                       "datetime"  : dateTime }})
     print( "      < Confirm information >       " )
     print( " ---------------------------------- " )
     for i in [ 0, 1, 2, 3, 4, 5 ] :

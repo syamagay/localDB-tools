@@ -12,7 +12,6 @@ import userset
 
 # use Flask scheme
 from flask import Flask, request, redirect, url_for, render_template, session, abort
-from flask_httpauth import HTTPDigestAuth
 
 # use mongodb scheme
 import pymongo
