@@ -22,5 +22,6 @@ parameter.json
 pipinstall.py
 install_log
 static/*upload
+module_runnumber.json
 
 # End of https://www.gitignore.io/api/virtualenv

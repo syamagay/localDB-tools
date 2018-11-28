@@ -103,11 +103,14 @@
   _This script can insert plots into database without outputting them to the display._
   _Please check the plots in browser before excuting this script._
 
-  * modify module_runnumber.json
+  * make json file "module_runnumber.json" ( sample : "module_runnumber.json.save" )
 
   ```
-    "userIdentity" : "...", # change to user who run scan program
-    "institution"  : "..." # change to user's institution
+    {
+        "userIdentity" : "...",  # change to user who run scan program
+    
+        "institution"  : "..."   # change to user's institution
+    }
   ```
 
   * modify parameter_default.json 
