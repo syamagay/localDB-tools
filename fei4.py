@@ -5,10 +5,10 @@ except :
     DOROOT = False 
 #DOROOT=False
 
-import os, pwd, glob, hashlib, datetime, shutil
+import os, pwd, glob, hashlib, datetime, shutil, json
 
 # usersetting
-import userset
+import listset
 
 # use Flask scheme
 from flask import Flask, request, redirect, url_for, render_template, session, abort
@@ -26,7 +26,6 @@ from bson.binary import BINARY_SUBTYPE
 import base64 # Base64 encoding scheme
 import gridfs # gridfs system 
 from werkzeug import secure_filename # for upload system
-import img # binary to dataURI
 from PIL import Image
 import io
 
@@ -44,7 +43,7 @@ STAT_DIR = '{}/static'.format( USER_DIR )
 
 #############
 # set dbs
-client = MongoClient( host='localhost', port=userset.PORT )
+client = MongoClient( host='localhost', port=listset.PORT )
 yarrdb = client['yarrdb']
 localdb = client['yarrlocal']
 fs = gridfs.GridFS( yarrdb )
@@ -218,46 +217,44 @@ def fill_resultIndex( item ) :
     return resultIndex
 
 def fill_results( item, runId ) :
-    results = []
+    results = {}
     if not runId == None :
         query = { "component" : item.get( 'this' ), "testRun" : runId }
         thisComponentTestRun = yarrdb.componentTestRun.find_one( query )
         query = { "_id" : ObjectId(runId) }
         thisRun = yarrdb.testRun.find_one( query )
+        plots = []
+        config = []
         if thisComponentTestRun :
-            env_dict = fill_env( thisComponentTestRun ) 
             data_entries = thisRun['attachments']
             for data in data_entries :
                 if data['contentType'] == 'pdf' or data['contentType'] == 'png' :
                     binary = base64.b64encode( fs.get( ObjectId(data['code']) ).read() ).decode()
-                    url = img.bin_to_image( data['contentType'], binary )
-                    results.append({ "testType"    : thisRun['testType'],
-                                     "runNumber"   : thisRun['runNumber'],
-                                     "runId"       : thisRun['_id'],
-                                     "code"        : data['code'],
-                                     "url"         : url,
-                                     "comments"    : list(thisRun['comments']),
-                                     "filename"    : data['filename'].split("_",1)[1],
-                                     "stage"       : thisComponentTestRun['stage'],
-                                     "institution" : thisRun['institution'],
-                                     "userIdentity": thisRun['userIdentity'],
-                                     "environment" : env_dict,
-                                     "display"     : data.get('display',False) })
+                    url = func.bin_to_image( data['contentType'], binary )
+                    plots.append({ "code"        : data['code'],
+                                   "url"         : url,
+                                   "filename"    : data['filename'].split("_",1)[1] })
+                #elif data['contentType'] == 'after' :
+                #    filename = USER_DIR + "/test.json"
+                #    #func.writeJson( filename, fs.get( ObjectId(data['code']) ).read().decode() )
+                #    with open( filename, 'bw' ) as f :
+                #        f.write( fs.get( ObjectId(data['code']) ).read() )
         else :
             query = { "testRun" : runId }
             thisComponentTestRun = yarrdb.componentTestRun.find_one( query )
-            query = { "_id" : ObjectId(runId) }
-            thisRun = yarrdb.testRun.find_one( query )
-            env_dict = fill_env( thisComponentTestRun ) 
-            results.append({ "testType"    : thisRun['testType'],
-                             "runNumber"   : thisRun['runNumber'],
-                             "runId"       : thisRun['_id'],
-                             "comments"    : list(thisRun['comments']),
-                             "stage"       : thisComponentTestRun['stage'],
-                             "institution" : thisRun['institution'],
-                             "userIdentity": thisRun['userIdentity'],
-                             "environment" : env_dict,
-                             "display"     : False })
+
+        env_dict = fill_env( thisComponentTestRun ) 
+
+        results.update({ "testType"  : thisRun['testType'],
+                         "runNumber" : thisRun['runNumber'],
+                         "runId"     : str(thisRun['_id']),
+                         "comments"  : list(thisRun['comments']),
+                         "stage"     : thisComponentTestRun['stage'],
+                         "institution" : thisRun['institution'],
+                         "userIdentity" : thisRun['userIdentity'],
+                         "environment" : env_dict,
+                         "plots"        : plots,
+                         "config"       : config }) 
 
     return results
 
@@ -311,7 +308,7 @@ def fill_roots( item, runId, doroot ) :
                             binary_image = open( filename, 'rb' )
                             code_base64 = base64.b64encode(binary_image.read()).decode()
                             binary_image.close()
-                            url = img.bin_to_image( 'png', code_base64 ) 
+                            url = func.bin_to_image( 'png', code_base64 ) 
                         results.append({ "testType"    : thisRun['testType'], 
                                          "mapType"     : mapType[0], 
                                          "filename"    : mapType[0], 

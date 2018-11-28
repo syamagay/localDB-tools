@@ -67,7 +67,7 @@
 
         {% include "summary_index.html" %}
 
-        {% if component['results'][0] == _brank %}
+        {% if component['results'] == {} %}
         {% else %}
           {% include "result.html" %}
         {% endif %}

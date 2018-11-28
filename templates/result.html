@@ -7,11 +7,11 @@
           <th scope="col" class="text-center" rowspan="2">Run Number</th>
           <th scope="col" class="text-center" rowspan="2">Test Type</th>
           <th scope="col" class="text-center" rowspan="2">Stage</th>
-          <th scope="col" class="text-center" colspan={{ component['results'][0]['environment']['num'] }}>Environment</th>
+          <th scope="col" class="text-center" colspan={{ component['results']['environment']['num'] }}>Environment</th>
           <th scope="col" class="text-center" colspan="2">Runner</th>
         </tr>
         <tr>
-          {% for env in component['results'][0]['environment']['list'] %}
+          {% for env in component['results']['environment']['list'] %}
             <th scope="col" class="text-center" width="200">{{ env['description'] }}</th>
           {% endfor %}
           <th scope="col" class="text-center" width="200">Institution</th>
@@ -20,22 +20,22 @@
       </thead>
       <tbody>
         <tr>
-          <td scope="col" align="center" >{{ component['results'][0]['runNumber'] }}</td>
-          <td scope="col" align="center" >{{ component['results'][0]['testType'] }}</td>
-          <td scope="col" align="center" >{{ component['results'][0]['stage'] }}</td>
-          {% for env in component['results'][0]['environment']['list'] %}
+          <td scope="col" align="center" >{{ component['results']['runNumber'] }}</td>
+          <td scope="col" align="center" >{{ component['results']['testType'] }}</td>
+          <td scope="col" align="center" >{{ component['results']['stage'] }}</td>
+          {% for env in component['results']['environment']['list'] %}
             <th scope="col" class="text-center" width="200">{{ env['value'] }}</th>
           {% endfor %}
-          <td scope="col" align="center" >{{ component['results'][0]['institution'] }}</td>
-          <td scope="col" align="center" >{{ component['results'][0]['userIdentity'] }}</td>
+          <td scope="col" align="center" >{{ component['results']['institution'] }}</td>
+          <td scope="col" align="center" >{{ component['results']['userIdentity'] }}</td>
         </tr>
         {% set index = [] %}
-        {% for comment in component['results'][0]['comments'] %}
+        {% for comment in component['results']['comments'] %}
           {% if comment['userid'] == session['user_id'] %}
             {% set index = index.append(loop.index-1) %}
           {% endif %}
         {% endfor %}
-        {% for comment in component['results'][0]['comments'] %}
+        {% for comment in component['results']['comments'] %}
           {% if comment['userid'] == session['user_id'] %}
           {% else %}
             <tr>
@@ -45,7 +45,7 @@
                 {% if (session['edit'] == 1) and (comment['institute'] == session['institute']) %}
              		  <form action="remove_comment" method="post" enctype="multipart/form-data">
                   	<input type="hidden" value="{{ comment['user'] }}" name="user">
-                    <input type="hidden" name="runNumber" value={{ component['results'][0]['runNumber'] }} >
+                    <input type="hidden" name="runNumber" value={{ component['results']['runNumber'] }} >
                     <input type="hidden" name="id" value={{ component['_id'] }} >
                     <p><input type = "submit" value = "remove"></p>
                   </form>
@@ -64,7 +64,7 @@
                 <td scope="col" align="center middle" >
            		    <input type="hidden" value="{{ session['user_name'] }}" name="user">
                   {{ session['user_name'] }}
-                  <input type="hidden" name="runNumber" value={{ component['results'][0]['runNumber'] }} >
+                  <input type="hidden" name="runNumber" value={{ component['results']['runNumber'] }} >
                   <input type="hidden" name="id" value={{ component['_id'] }} >
                   <p><input type = "submit" value = "update"></p>
                 {% if session['edit'] == 1 %}
@@ -78,12 +78,12 @@
           <tr>
       		  <form action="edit_comment" method="post" enctype="multipart/form-data">
               <td scope="col" align="center" colspan="6">
-                <input type = "txt" class="form-control input-normal" placeholder="comment" name = "text" value = "{{ component['results'][0]['comments'][index[0]]['comment'] }}">
+                <input type = "txt" class="form-control input-normal" placeholder="comment" name = "text" value = "{{ component['results']['comments'][index[0]]['comment'] }}">
               </td>
               <td scope="col" align="center middle" >
          		    <input type="hidden" value="{{ session['user_name'] }}" name="user">
                 {{ session['user_name'] }}
-                <input type="hidden" name="runNumber" value={{ component['results'][0]['runNumber'] }} >
+                <input type="hidden" name="runNumber" value={{ component['results']['runNumber'] }} >
                 <input type="hidden" name="id" value={{ component['_id'] }} >
                 <p><input type = "submit" value = "update"></p>
               {% if session['edit'] == 1 %}
@@ -97,28 +97,20 @@
     </table>
   </div>
 </div>
-<div class="row align-items-top justify-content-center">
-  <div class="col">
-    {% if "url" in component['results'][0] %}
-      {% for result in component['results'] %}
-        {% if loop.index == 1 %}
-        <div class="row align-items-top justify-content-space-evenly">
-        {% elif loop.index %4 == 1 %}
-        </div>
-        <div class="row align-items-top justify-content-space-evenly">
-        {% else %}
-        {% endif %}
-          <div class="col">
-            <center>
-            <p> {{ result['filename'] }} </p>
+<h4 style="font-size: 10pt;"><i class="fa fa-folder-open"></i> Plot </h4>
+<div class="row align-items-top">
+    {% if not component['results']['plots'] == [] %}
+      {% for result in component['results']['plots'] %}
+        <div class="col-md-3">
+          <a data-toggle="collapse" href='#{{ result['filename'] }}' aria-controls="testindex"><h4 style="font-size: 10pt;"><i class="fa fa-caret-right"></i> {{ result['filename'] }} </h4></a>
+          <div class="collapse" id={{ result['filename'] }}>
             <a href={{ result['url'] }} target="_brank" rel="noopener noreferrer">
-              <img src={{ result['url'] }} title={{ result['filename'] }} width="250" height="250">
-              </img>
+            <img src={{ result['url'] }} title={{ result['filename'] }} width="250" height="250">
+            </img>
             </a>
-            </center>
           </div>
+        </div>
       {% endfor %}
-      </div>
     {% endif %}
-  </div>
 </div>
+<br>

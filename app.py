@@ -2,7 +2,7 @@
 ###   Import Module 
 ##################################
 # usersetting
-import userset
+import listset
 
 # use PyROOT
 try    : 
@@ -29,7 +29,6 @@ from bson.binary import BINARY_SUBTYPE
 import base64 # Base64 encoding scheme
 import gridfs # gridfs system 
 from werkzeug import secure_filename # for upload system
-import img # binary to dataURI
 from PIL import Image
 import io
 
@@ -61,7 +60,7 @@ poplist = [ "signup", "component", "parentId", "code", "runNumber", "runId", "re
 ##############
 # call mongodb
 app = Flask( __name__ )
-app.config["MONGO_URI"] = "mongodb://localhost:"+str(userset.PORT)+"/yarrdb"
+app.config["MONGO_URI"] = "mongodb://localhost:"+str(listset.PORT)+"/yarrdb"
 mongo = PyMongo( app )
 fs = gridfs.GridFS( mongo.db )
 
@@ -76,7 +75,7 @@ app.register_blueprint(static.app)
 
 #############
 # for user db
-client = MongoClient( host='localhost', port=userset.PORT )
+client = MongoClient( host='localhost', port=listset.PORT )
 localdb = client['yarrlocal']
 
 ##########
@@ -711,4 +710,4 @@ def add_user() :
     return redirect( url_for('admin_page') ) 
 
 if __name__ == '__main__':
-    app.run(host=userset.IPADDRESS) # change hostID
+    app.run(host=listset.IPADDRESS) # change hostID

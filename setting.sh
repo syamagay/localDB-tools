@@ -19,7 +19,7 @@ CHANGEPORT="27017"
 NAV="./templates/parts/nav.html"
 USER="userfunc.py"
 SHELL="make_pipinstall.sh"
-SETTING="userset.py"
+SETTING="listset.py"
 SUMMARY="addsummary.py"
 
 # check ROOT library
@@ -35,12 +35,10 @@ sed -i -e "s/CHANGEADMIN/${CHANGEADMIN}/g" ${SETTING}
 sed -i -e "s/CHANGEPASS/${CHANGEPASS}/g" ${SETTING}
 
 if ${PYTHON3} ; then
-  sed -i -e "/python2/d" ${USER}
-  sed -i -e "/python2/d" ${SUMMARY}
+  sed -i -e "s/PYTHONV/3/g" ${SETTING}
   sed -i -e "s/PIPPATH/pip3/g" ${SHELL}
 else
-  sed -i -e "/python3/d" ${USER}
-  sed -i -e "/python3/d" ${SUMMARY}
+  sed -i -e "s/PYTHONV/2/g" ${SETTING}
   sed -i -e "s/PIPPATH/pip/g" ${SHELL}
 fi
 

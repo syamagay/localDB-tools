@@ -7,7 +7,7 @@ except :
 import os, sys, pwd, glob, datetime, shutil
 
 # usersetting
-import userset
+import listset
 
 # use mongodb scheme
 import pymongo
@@ -19,14 +19,13 @@ from bson.objectid import ObjectId
 
 # image related module
 import gridfs # gridfs system 
-import img # binary to dataURI
 
 # other function
 import func, userfunc, listset
 
 #############
 # set dbs
-client = MongoClient( host='localhost', port=userset.PORT )
+client = MongoClient( host='localhost', port=listset.PORT )
 yarrdb = client['yarrdb']
 localdb = client['yarrlocal']
 fs = gridfs.GridFS( yarrdb )
@@ -60,6 +59,11 @@ def update_mod( collection, query ) :
                                  multi=True )
 
 #################################################################
+# check python version
+if not listset.pythonv in [ 2, 3 ] :
+    print( "# Set python version by setting.sh" )
+print( "# Use python : version " + str(listset.pythonv) + "\n")
+
 # exit if not enable to use ROOT SW
 if not DOROOT :
     print( "# Can not use ROOT software, exit ..." )
@@ -74,8 +78,10 @@ print( " " )
 # enter stage number
 num = ""
 while num == "" :
-    num = raw_input( "# Type stage number >> " ) #python2
-    num = str(input( "# Type stage number >> " )) #python3
+    if listset.pythonv == 2 :
+        num = raw_input( "# Type stage number >> " ) #python2
+    elif listset.pythonv == 3 :
+        num = str(input( "# Type stage number >> " )) #python3
 if not num.isdigit() :
     print( "# Enter STAGE NUMBER, exist ... ")
     sys.exit()
@@ -88,8 +94,10 @@ print("# ok.\n")
 # serial number
 serialNumber = ""
 while serialNumber == "" :
-    serialNumber = raw_input( "# Type serial number of module >> " ) #python2
-    serialNumber = str(input( "# Type serial number of module >> " )) #python3
+    if listset.pythonv == 2 :
+        serialNumber = raw_input( "# Type serial number of module >> " ) #python2
+    elif listset.pythonv == 3 :
+        serialNumber = str(input( "# Type serial number of module >> " )) #python3
 dataJson.update({ "serialNumber" : serialNumber }) 
 query = { "serialNumber" : dataJson['serialNumber'] }
 if not yarrdb.component.find( query ).count() == 1 :
@@ -111,8 +119,10 @@ print( " ---------------------------------- " )
 print( " " )
 answer = ""
 while answer == "" :
-    answer = raw_input( "# Continue to check results of this module? Type 'y' if continue >> " ) #python2
-    answer = str(input( "# Continue to check results of this module? Type 'y' if continue >> " )) #python3
+    if listset.pythonv == 2 :
+        answer = raw_input( "# Continue to check results of this module? Type 'y' if continue >> " ) #python2
+    elif listset.pythonv == 3 :
+        answer = str(input( "# Continue to check results of this module? Type 'y' if continue >> " )) #python3
 if not answer == "y" : 
     print( "# exit ... " )
     sys.exit()
@@ -163,8 +173,10 @@ while not answer == "y" :
         print( " " )
         number = ""
         while number == "" :
-            number = raw_input( "# Enter run number from this list for summary plot >> " ) #python2
-            number = str(input( "# Enter run number from this list for summary plot >> " )) #python3
+            if listset.pythonv == 2 :
+                number = raw_input( "# Enter run number from this list for summary plot >> " ) #python2
+            elif listset.pythonv == 3 :
+                number = str(input( "# Enter run number from this list for summary plot >> " )) #python3
             if not number.isdigit() :
                 print("# Enter NUMBER.")
                 number = ""
@@ -194,8 +206,10 @@ while not answer == "y" :
         print( " ---------------------------------- \n" )
     answer = "" 
     while answer == "" :
-        answer = raw_input( "# Type 'y' if continue to make plots, or type the number before scan name if change run number >> " ) #python2
-        answer = str(input( "# Type 'y' if continue to make plots, or type the number before scan name if change run number >> " )) #python3
+        if listset.pythonv == 2 :
+            answer = raw_input( "# Type 'y' if continue to make plots, or type the number before scan name if change run number >> " ) #python2
+        elif listset.pythonv == 3 :
+            answer = str(input( "# Type 'y' if continue to make plots, or type the number before scan name if change run number >> " )) #python3
     print( " " )
 
 runIds = {}
@@ -235,10 +249,14 @@ for scan in listset.scan :
     print( "--- Finish : " + scan + " ---\n" )
 
 print( "# Finish to make histograms of all scans.\n" )
-if not raw_input( "# Continue to insert plots into Database? Type 'y' if continue >> " ) == "y" : #python2
-if not str(input( "# Continue to insert plots into Database? Type 'y' if continue >> " )) == "y" : #python3
-    print( "# exit ... " )
-    sys.exit()     
+if listset.pythonv == 2 :
+    if not raw_input( "# Continue to insert plots into Database? Type 'y' if continue >> " ) == "y" : #python2
+        print( "# exit ... " )
+        sys.exit()     
+elif listset.pythonv == 3 :
+    if not str(input( "# Continue to insert plots into Database? Type 'y' if continue >> " )) == "y" : #python3
+        print( "# exit ... " )
+        sys.exit()     
 
 # insert testRun and componentTestRun
 for scan in listset.scan :

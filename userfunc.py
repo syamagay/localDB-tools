@@ -1,5 +1,5 @@
 # user setting
-import userset
+import listset
 
 from bson.objectid import ObjectId 
 from bson.binary import BINARY_SUBTYPE
@@ -10,7 +10,7 @@ from pymongo import MongoClient
 from getpass import getpass
 import hashlib
 
-client = MongoClient(host='localhost', port=userset.PORT)
+client = MongoClient(host='localhost', port=listset.PORT)
 localdb = client['yarrlocal']
 
 def add_request(userinfo) :
@@ -45,6 +45,11 @@ try :
     import sys
     
     if localdb.user.find({ "type" : "administrator" }).count() == 0 :
+        # check python version
+        if not listset.pythonv in [ 2, 3 ] :
+            print( "# Set python version by setting.sh" )
+        print( "# Use python : version " + str(listset.pythonv) + "\n")
+
         print("Set administrator account ...")
         print(" ")
         print("< necessary information >")
@@ -54,20 +59,29 @@ try :
             print(' - ' + item)
             
         print(" ")
-        if raw_input('Continue (y/n) >> ') == 'y' : #python2
-        if input('Continue (y/n) >> ') == 'y' : #python3
+
+        if listset.pythonv == 2 :
+            answer = raw_input('Continue (y/n) >> ')
+        elif listset.pythonv == 3 :
+            answer = input('Continue (y/n) >> ')
+
+        if answer == 'y' : 
         
             print(" ")
             admininfo = []
             for item in items :
                 if not (item == 'passWord' or item == 'passWord again') :
                     print("Input {}".format(item))
-                    admininfo.append(raw_input(' >> ')) #python2
-                    admininfo.append(input(' >> ')) #python3
+                    if listset.pythonv == 2 :
+                        admininfo.append(raw_input(' >> ')) #python2
+                    elif listset.pythonv == 3 :
+                        admininfo.append(input(' >> ')) #python3
                 else :
                     print("Input {}".format(item))
-                    admininfo.append(getpass(' >> ')) #python2
-                    admininfo.append(getpass(' >> ')) #python3
+                    if listset.pythonv == 2 :
+                        admininfo.append(getpass(' >> ')) #python2
+                    elif listset.pythonv == 3 :
+                        admininfo.append(getpass(' >> ')) #python3
             
             if not admininfo[5] == admininfo[6] :
                 print("not match password, exit ...")
@@ -80,8 +94,12 @@ try :
                     print(' - ' + item + ' : ' + admininfo[items.index( item )])
             
             print(" ")
-            if raw_input('Continue (y/n) >> ') == 'y' : #python2
-            if input('Continue (y/n) >> ') == 'y' : #python3
+            if listset.pythonv == 2 :
+                answer = raw_input('Continue (y/n) >> ')
+            elif listset.pythonv == 3 :
+                answer = input('Continue (y/n) >> ')
+    
+            if answer == 'y' : 
                 admininfo[5] = hashlib.md5(admininfo[5].encode("utf-8")).hexdigest()
                 userinfo = { "userName"  : admininfo[0],
                              "firstName" : admininfo[1],
