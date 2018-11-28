@@ -175,7 +175,7 @@ def fill_summary( thisComponent ) :
     return summaryIndex
 
 def fill_resultIndex( item ) :
-    resultIndex = []
+    resultIndex = {}
     for scan in listset.scan :
         runIndex = []
         numberids = []
@@ -209,9 +209,8 @@ def fill_resultIndex( item ) :
                                       "summary"      : thisRun.get('display') })
         if not runIndex == [] :
             runIndex = sorted(runIndex, key=lambda x:x['datetime'])
-            resultIndex.append({ "testType" : scan,
-                                 "num"      : len(runIndex),
-                                 "run"      : runIndex })
+            resultIndex.update({ scan : { "num"      : len(runIndex),
+                                          "run"      : runIndex }})
     return resultIndex
 
 def fill_results( item, runId ) :

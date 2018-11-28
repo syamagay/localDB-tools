@@ -75,6 +75,7 @@ print( " " )
 num = ""
 while num == "" :
     num = raw_input( "# Type stage number >> " ) #python2
+    num = input( "# Type stage number >> " ) #python3
 if not num.isdigit() :
     print( "# Enter STAGE NUMBER, exist ... ")
     sys.exit()
@@ -88,6 +89,7 @@ print("# ok.\n")
 serialNumber = ""
 while serialNumber == "" :
     serialNumber = raw_input( "# Type serial number of module >> " ) #python2
+    serialNumber = input( "# Type serial number of module >> " ) #python3
 dataJson.update({ "serialNumber" : serialNumber }) 
 query = { "serialNumber" : dataJson['serialNumber'] }
 if not yarrdb.component.find( query ).count() == 1 :
@@ -110,6 +112,7 @@ print( " " )
 answer = ""
 while answer == "" :
     answer = raw_input( "# Are there any mistakes? Type 'y' if continue >> " ) #python2
+    answer = input( "# Are there any mistakes? Type 'y' if continue >> " ) #python3
 if not answer == "y" : 
     print( "# exit ... " )
     sys.exit()
@@ -160,6 +163,7 @@ while not answer == "y" :
         number = ""
         while number == "" :
             number = raw_input( "# Enter run number from this list for summary plot >> " ) #python2
+            number = input( "# Enter run number from this list for summary plot >> " ) #python3
             if not number.isdigit() :
                 print("# Enter NUMBER.")
                 number = ""
@@ -189,6 +193,7 @@ while not answer == "y" :
     answer = "" 
     while answer == "" :
         answer = raw_input( "# Type 'y' if continue to make plots, or type the number preceding scan name if change run number >> " ) #python2
+        answer = input( "# Type 'y' if continue to make plots, or type the number preceding scan name if change run number >> " ) #python3
     print( " " )
 
 runIds = {}
@@ -229,6 +234,7 @@ for scan in listset.scan :
 
 print( "# Finish to make histograms of all scans.\n" )
 if not raw_input( "# Continue to insert plots into Database? Type 'y' if continue >> " ) == "y" : #python2
+if not input( "# Continue to insert plots into Database? Type 'y' if continue >> " ) == "y" : #python3
     print( "# exit ... " )
     sys.exit()     
 
