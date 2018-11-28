@@ -140,12 +140,13 @@ for scan in listset.scan :
     for run in run_entries :
         query = { "_id" : ObjectId(run['testRun']), "institution" : dataJson['institution'], "userIdentity" : dataJson['userIdentity'] }
         thisRun = yarrdb.testRun.find_one( query )
-        dateTime = func.setTime( thisRun['date'] )
-        runNumbers[scan].update({ thisRun['runNumber'] : [ thisRun['_id'], dateTime ] })
-        if thisRun['runNumber'] > runNumber :
-            runNumber = thisRun['runNumber']
-            dataJson.update({ scan : { "runNumber" : runNumber,
-                                       "datetime"  : dateTime }})
+        if thisRun :
+            dateTime = func.setTime( thisRun['date'] )
+            runNumbers[scan].update({ thisRun['runNumber'] : [ thisRun['_id'], dateTime ] })
+            if thisRun['runNumber'] > runNumber :
+                runNumber = thisRun['runNumber']
+                dataJson.update({ scan : { "runNumber" : runNumber,
+                                           "datetime"  : dateTime }})
 answer = "first"
 while not answer == "y" :
     if answer == "first" :
