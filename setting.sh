@@ -5,9 +5,9 @@
 ##############################################
 
 # set apache ( set true if you use apache, or false if not )
-APACHE=true
+APACHE=false
 # set python version ( set true if you use python3 , or false if you use python2 )
-PYTHON3=true
+PYTHON3=false
 # set IP address
 CHANGEIP="'127.0.0.1'"
 # set port of mongoDB
