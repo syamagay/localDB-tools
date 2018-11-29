@@ -140,13 +140,15 @@ for child in child_entries :
 i=0
 scannum = {}
 runNumbers = {}
-for scan in listset.scan :
+scanList = [ "digitalscan", "analogscan", "thresholdscan", "totscan", "noisescan", "selftrigger" ] 
+
+for scan in scanList :
     runNumbers.update({ scan : {} })
     scannum.update({ i : scan })
     i+=1
     runNumber = 0
     query = { '$or' : chips, "stage" : dataJson['stage'], "testType" : scan }
-    run_entries = yarrdb.componentTestRun.find( query )
+    run_entries = yarrdb.componentTestRun.find( query ).sort( "runNumber", pymongo.ASCENDING )
     for run in run_entries :
         query = { "_id" : ObjectId(run['testRun']), "institution" : dataJson['institution'], "userIdentity" : dataJson['userIdentity'] }
         thisRun = yarrdb.testRun.find_one( query )
@@ -168,16 +170,18 @@ while not answer == "y" :
     else :
         print( "  testType        : " + scannum[int(answer)] )
         print( "  Run number list : " )
-        for n in runNumbers[scannum[int(answer)]] :
+        for n in sorted(runNumbers[scannum[int(answer)]].keys()) :
             print( "                    " + str(n) + " : " + runNumbers[scannum[int(answer)]][n][1] )
         print( " " )
         number = ""
         while number == "" :
             if listset.pythonv == 2 :
-                number = raw_input( "# Enter run number from this list for summary plot >> " ) #python2
+                number = raw_input( '# Enter run number from this list for summary plot. If you want not to select, type "N". >> ' ) #python2
             elif listset.pythonv == 3 :
-                number = str(input( "# Enter run number from this list for summary plot >> " )) #python3
-            if not number.isdigit() :
+                number = str(input( '# Enter run number from this list for summary plot. If you want not to select, type "N". >> ' )) #python3
+            if number == "N" :
+                number = None
+            elif not number.isdigit() :
                 print("# Enter NUMBER.")
                 number = ""
             elif not int(number) in runNumbers[scannum[int(answer)]] :
@@ -186,13 +190,17 @@ while not answer == "y" :
             else : 
                 number = int(number)
         print( " " )
-        query = { "_id" : runNumbers[scannum[int(answer)]][number][0] }
-        thisRun = yarrdb.testRun.find_one( query )
-        if thisRun :
-            dateTime = func.setTime( thisRun['date'] )
-            runNumber = thisRun['runNumber']
-            dataJson.update({ scannum[int(answer)] : { "runNumber" : runNumber,
-                                                       "datetime"  : dateTime }})
+        if number :
+            query = { "_id" : runNumbers[scannum[int(answer)]][number][0] }
+            thisRun = yarrdb.testRun.find_one( query )
+            if thisRun :
+                dateTime = func.setTime( thisRun['date'] )
+                runNumber = thisRun['runNumber']
+                dataJson.update({ scannum[int(answer)] : { "runNumber" : runNumber,
+                                                           "datetime"  : dateTime }})
+        else :
+                dataJson.pop( scannum[int(answer)] )
+
     print( "      < Confirm information >       " )
     print( " ---------------------------------- " )
     for i in [ 0, 1, 2, 3, 4, 5 ] :
