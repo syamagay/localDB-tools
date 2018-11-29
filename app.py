@@ -36,7 +36,7 @@ import io
 import func, userfunc, listset
 # function for each fe types
 import fei4
-FE = { "default" : fei4, "FE-I4B" : fei4 }
+FE = { "default" : fei4, "FE-I4B" : fei4, "RD53A" : fei4 }
 
 ##################
 # path/to/save/dir 
@@ -126,12 +126,13 @@ def show_modules_and_chips() :
 
     query = { "componentType" : "Module" }
     component_entries = mongo.db.component.find( query )
-    modules = []
+    modules = {}
 
     for component in component_entries :
         query = { "parent" : str(component['_id']) }
         child_entries = mongo.db.childParentRelation.find( query )
         chips = []
+        componentType = "unknown"
         for child in child_entries :
             query = { "_id" : ObjectId(child['child']) }
             thisChip = mongo.db.component.find_one( query )
@@ -139,9 +140,14 @@ def show_modules_and_chips() :
                            "serialNumber"  : thisChip['serialNumber'],
                            "componentType" : thisChip['componentType'],
                            "datetime"      : func.setTime(thisChip['sys']['cts']) }) 
-        modules.append({ "_id"          : str(component['_id']),
-                         "serialNumber" : component['serialNumber'],
-                         "chips"        : chips })
+            componentType = thisChip['componentType']
+        if not componentType in modules :
+            modules.update({ componentType : { "modules" : [], "num" : "" } })
+        modules[componentType]["modules"].append({ "_id"          : str(component['_id']),
+                                                   "serialNumber" : component['serialNumber'],
+                                                   "chips"        : chips })
+    for componentType in modules :
+        modules[componentType].update({ "num" : len(modules[componentType]["modules"]) })
 
     return render_template( "toppage.html", modules=modules )
 

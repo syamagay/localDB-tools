@@ -25,36 +25,48 @@
         {% else %}
           <h2>Summary</h2>
         {% endif %}
-    
-        <table class="table table-sm table-hover" style="font-size: 10pt;">
-          <thead class="table-dark" style="background: #222222;">
-            <tr>
-              <th scope="col" width="110">Module</th>
-              <th scope="col" width="700">Chips</th>
-              <th scope="col" width="110">FE type</th>
-              <th scope="col" width="300">Created date</th>
-            </tr>
-          </thead>
-          <tbody>
-            {% for module in modules %}
+
+      </div>
+    </div>
+  </div>
+
+  <div class="container">
+    <div class="row align-items-center justify-content-center">
+      <div class="col">
+
+        {% for FE in modules %}
+        <a data-toggle="collapse" href='#{{ FE }}' aria-controls="testindex" style="color: black;"><h4 style="font-size: 10pt;"><i class="fa fa-cog"></i> {{ FE }} ( {{ modules[FE]['num'] }} modules )</h4></a>
+
+          <table class="table table-sm table-hover collapse" id={{ FE }} style="font-size: 10pt;">
+            <thead class="table-dark" style="background: #222222;">
               <tr>
-                <td><a href="{{ url_for('show_module', id=module["_id"]) }}">{{ module["serialNumber"] }}</a></td>
-                <td>
-                <div class="wrapper" style="display: flex;justify-content: space-around;">
-                {% for chip in module["chips"] %}
-                  <div class="element">
-                    <a href="{{ url_for('show_chip', id=chip["_id"]) }}">{{ chip["serialNumber"] }}
-                    </a>&ensp;
-                  </div>
-                {% endfor %}
-                </div>
-                </td>
-                <td>{{ module["chips"][0]["componentType"] }}</td>
-                <td>{{ module["chips"][0]["datetime"] }}</td>
+                <th scope="col" width="110">Module</th>
+                <th scope="col" width="700">Chips</th>
+                <th scope="col" width="110">FE type</th>
+                <th scope="col" width="300">Created date</th>
               </tr>
-            {% endfor %}
-          </tbody>
-        </table>
+            </thead>
+            <tbody>
+              {% for module in modules[FE]["modules"] %}
+                <tr>
+                  <td><a href="{{ url_for('show_module', id=module["_id"]) }}">{{ module["serialNumber"] }}</a></td>
+                  <td>
+                  <div class="wrapper" style="display: flex;justify-content: space-around;">
+                  {% for chip in module["chips"] %}
+                    <div class="element">
+                      <a href="{{ url_for('show_chip', id=chip["_id"]) }}">{{ chip["serialNumber"] }}
+                      </a>&ensp;
+                    </div>
+                  {% endfor %}
+                  </div>
+                  </td>
+                  <td>{{ module["chips"][0]["componentType"] }}</td>
+                  <td>{{ module["chips"][0]["datetime"] }}</td>
+                </tr>
+              {% endfor %}
+            </tbody>
+          </table>
+        {% endfor %}
       </div>
     </div>
   </div>

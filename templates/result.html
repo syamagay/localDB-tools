@@ -102,13 +102,11 @@
     {% if not component['results']['plots'] == [] %}
       {% for result in component['results']['plots'] %}
         <div class="col-md-3">
-          <a data-toggle="collapse" href='#{{ result['filename'] }}' aria-controls="testindex"><h4 style="font-size: 10pt;"><i class="fa fa-caret-right"></i> {{ result['filename'] }} </h4></a>
-          <div class="collapse" id={{ result['filename'] }}>
-            <a href={{ result['url'] }} target="_brank" rel="noopener noreferrer">
+          <a data-toggle="collapse" href='#{{ result['filename'] }}' aria-controls="testindex" style="color: green;"><h4 style="font-size: 10pt;"><i class="fa fa-caret-right"></i> {{ result['filename'] }} </h4></a>
+            <a href={{ result['url'] }} class="collapse" id={{ result['filename'] }} target="_brank" rel="noopener noreferrer">
             <img src={{ result['url'] }} title={{ result['filename'] }} width="250" height="250">
             </img>
             </a>
-          </div>
         </div>
       {% endfor %}
     {% endif %}
