@@ -36,10 +36,12 @@ USER = pwd.getpwuid( os.geteuid() ).pw_name
 USER_DIR = '/tmp/{}'.format( USER ) 
 DAT_DIR = '{}/dat'.format( USER_DIR )
 PLOT_DIR = '{}/result'.format( USER_DIR )
+THUM_DIR = '{}/result/thum'.format( USER_DIR )
 
 if os.path.isdir( PLOT_DIR ) :
     shutil.rmtree( PLOT_DIR )
     os.mkdir( PLOT_DIR )
+    os.mkdir( THUM_DIR )
 
 dataPath = "{0}/{1}/identity.json".format( SCRIPT_DIR, "json" )
 parameterPath = "{0}/{1}/parameter_default.json".format( SCRIPT_DIR, "json")

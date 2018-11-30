@@ -46,9 +46,10 @@ DAT_DIR = '{}/dat'.format( USER_DIR )
 PLOT_DIR = '{}/result'.format( USER_DIR )
 THUM_DIR = '{}/result/thum'.format( USER_DIR )
 STAT_DIR = '{}/static'.format( USER_DIR )
-DIRS = [ USER_DIR, PIC_DIR, DAT_DIR, PLOT_DIR, STAT_DIR, THUM_DIR ] 
+DIRS = [ PIC_DIR, DAT_DIR, PLOT_DIR, STAT_DIR, THUM_DIR ] 
 if os.path.isdir( USER_DIR ) :
     shutil.rmtree( USER_DIR )
+    os.mkdir( USER_DIR )
 for DIR in DIRS :
     os.mkdir( DIR )
 ############
@@ -81,7 +82,9 @@ localdb = client['yarrlocal']
 # function
 def make_dir() :
     if not os.path.isdir( USER_DIR ) :
-        for DIR in DIRS :
+        os.mkdir( USER_DIR )
+    for DIR in DIRS :
+        if not os.path.isdir( DIR ) :
             os.mkdir( DIR )
 
 def clean_dir( path ) :
@@ -154,6 +157,8 @@ def show_modules_and_chips() :
 # component page
 @app.route('/component', methods=['GET', 'POST'])
 def show_component() :
+
+    make_dir()
 
     component = {}
     # get from session
