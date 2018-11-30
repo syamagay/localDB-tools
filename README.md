@@ -22,7 +22,6 @@
 
   * CentOS7
   * Firefox or Safari ( I checked that Chrome was not working well )
-
   * mongodb ( running ) ... refer to this wiki : https://github.com/jlab-hep/Yarr/wiki to install 
   * python 2.X or 3.X ( which can use PyROOT )
   * python modules : written in install_list
@@ -47,6 +46,7 @@
   ## User Setting
 
   1) Modify and excute setting.sh to change some codes for user
+
   * APACHE     : set true if you run this app by apache, or false if not
   * PYTHON3    : set true if you use python3, or false if use python2
   * IPADDRESS  : where you run this web app ( default : "'127.0.0.1'" )
