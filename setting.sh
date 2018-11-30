@@ -16,7 +16,6 @@ CHANGEPORT="27017"
 ##############################################
 
 # chenge codes 
-NAV="./templates/parts/nav.html"
 SETTING="scripts/src/listset.py"
 
 # check ROOT library
@@ -43,8 +42,6 @@ if $APACHE ; then
   else
     sed -i -e "/ROOTLIB/d" ${SETTING}
   fi
-  sed -i -e "s/YARR/yarrdb/g" ${NAV} 
 else
-  sed -i -e "s/YARR//g" ${NAV}
   sed -i -e "/ROOTLIB/d" ${SETTING}
 fi

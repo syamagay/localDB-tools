@@ -1,17 +1,36 @@
+# Development Status
+
+  This is the viewer of YARR-DB ( https://github.com/jlab-hep/Yarr/wiki )
+  
+  Currently you can use the following :
+
+  * Check the list of modules and chips whose data taken by YARR in the top page ( for both FE-I4B and RD53A )
+  * Check the result of scan for each module and chip ( for FE-I4B )
+  * Write which run is summary for the module into database and check them in the module page ( for FE-I4B )
+  * Make the plot of scan for each module with adjusting parameters ( for FE-I4B in local )
+
+  Now implementing (comming soon) :
+  
+  * Check the result of scan for each module and chip ( for RD53A )
+  * Write which run is summary for the module into database and check them in the module page ( for RD53A )
+  * Make the plot of scan for each module with adjusting parameters ( for RD53A )
+  * Request to create user account who can upload pictures into database ( for both of asics )
+
 # User guide 
 
-# basic information
-
   ## Requirements
-  
-  * mongodb ( running ) 
+
+  * CentOS7
+  * Firefox or Safari ( I checked that Chrome was not working well )
+
+  * mongodb ( running ) ... refer to this wiki : https://github.com/jlab-hep/Yarr/wiki to install 
   * python 2.X or 3.X ( which can use PyROOT )
-  * python modules : install_list
+  * python modules : written in install_list
   * YARR S/W
   
-  ## Preparetion
+  ## Preparation
   
-  1, Set library path to ROOT and python
+  1) Set library path to ROOT and python
   
   ```
   $ source path/to/devtoolset-2/enable
@@ -19,7 +38,7 @@
   $ source path/to/bin/thisroot.sh
   ```
   
-  2, Git clone this source
+  2) Git clone this source
   
   ```
   $ git clone https://gitlab.cern.ch/akubota/web-app-db-yarr.git
@@ -27,24 +46,24 @@
   
   ## User Setting
 
-  1, Modify and excute setting.sh to change some codes for user
-  * APACHE : set true if you run this app by apache, or false if not
-  * PYTHON3 : set true if you use python3, or false if use python2
-  * IPADDRESS : where you run this web app ( default : "'127.0.0.1'" )
-  * PORT : port of mongoDB ( default : "27017" )
+  1) Modify and excute setting.sh to change some codes for user
+  * APACHE     : set true if you run this app by apache, or false if not
+  * PYTHON3    : set true if you use python3, or false if use python2
+  * IPADDRESS  : where you run this web app ( default : "'127.0.0.1'" )
+  * PORT       : port of mongoDB ( default : "27017" )
 
   ```
    $ ./setting.sh
   ```
 
-  2, Install python modules by executing make_pipinstall.sh and pipinstall.py
+  2) Install python modules by executing make_pipinstall.sh and pipinstall.py in directory web-app-db-yarr/scripts/install/
 
   ```
    $ ./make_pipinstall.sh ---> generate pipinstall.py
    $ python pipinstall.py 
   ```
 
-  3, Modify web-app-db-yarr.conf if you use apache system 
+  3) Modify web-app-db-yarr.conf if you use apache system 
 
   ```
     WSGISocketPrefix run/wsgi
@@ -70,29 +89,6 @@
   ```
    $  python app.py
   ```
-
-  1, Create administrator account ( initial excuting )
-
-  ```
-   $  python app.py
-   ...
-   
-   Set administrator account ...
- 
-   < necessary information >
-   - userName
-   - firstName
-   - lastName
-   - institute
-   - email
-   - passWord
-   - passWord agein
- 
-  Continue (y/n) >>
-
-  # type "y" and enter information if you set administrator account 
-  # after creation or typing "n", web-app-db-yarr starts 
-  ```
   
 # helpful information
   ## Add summary plots
@@ -100,10 +96,12 @@
   You can add summary results for each stage and module in summary page by excuting script
 
   _CAUTION_
+
   _This script can insert plots into database without outputting them to the display._
+
   _Please check the plots in browser before excuting this script._
 
-  * make json file "module_runnumber.json" ( sample : "module_runnumber.json.save" )
+  * make json file "identity.json" in directory web-app-db-yarr/scripts/json/ ( sample : "identity.json.save" )
 
   ```
     {
@@ -113,7 +111,7 @@
     }
   ```
 
-  * modify parameter_default.json 
+  * modify parameter_default.json in directory web-app-db-yarr/scripts/json/
 
   ```
    "testType" : {
@@ -125,10 +123,10 @@
    }
   ```
 
-  * run addsummary.py (flowchart is as follow)
+  * run summary.py in web-app-db-yarr/scripts/writeDB/summary.py (flowchart is as follow)
 
   ```
-   $ python addsummary.py
+   $ python summary.py
    
    --- stage list ---
    0 : wire bond
@@ -172,7 +170,7 @@
                        1002 : 20XX/XX/XX XX:XX:XX
                        1003 : 20XX/XX/XX XX:XX:XX
 
-   # Enter run number from this list for summary plot >> 1001 <---- you can change to other scan from latest scan
+   # Enter run number from this list for summary plot. If you want not to select, type "N". >> 1001 <---- you can change to other scan from latest scan
 
          < Confirm information >       
     ---------------------------------- 
