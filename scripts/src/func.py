@@ -3,7 +3,7 @@ from binascii import a2b_base64 # convert a block of base64 data back to binary
 from pdf2image import convert_from_path # convert pdf to image
 import base64 # Base64 encoding scheme
 import datetime, json
-import listset
+from src import listset
 from bson.objectid import ObjectId 
 import pymongo
 from pymongo import MongoClient
@@ -24,20 +24,6 @@ def setTime(date):
     DIFF_FROM_UTC = 9 # for Japan
     time = (date+datetime.timedelta(hours=DIFF_FROM_UTC)).strftime("%Y/%m/%d %H:%M:%S")
     return time
-
-#def writeJson(fileName, data):
-#    f = open(fileName, 'w')
-#    json.dump(data,f,indent=4)
-#    f.close()        
-# 
-#def readJson(fileName):
-#    try:
-#        f = open(fileName, 'r')
-#    except:
-#        f = open("{}/parameter_default.json".format( os.path.dirname(os.path.abspath(__file__)), 'r'))
-#    json_data = json.load(f)
-#    f.close()  
-#    return json_data
 
 def allowed_file(filename):
    return '.' in filename and \
