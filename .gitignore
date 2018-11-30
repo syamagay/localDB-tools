@@ -9,7 +9,6 @@
 [Ll]ib
 [Ll]ib64
 [Ll]ocal
-[Ss]cripts
 pyvenv.cfg
 .venv
 pip-selfcheck.json
@@ -22,6 +21,6 @@ parameter.json
 pipinstall.py
 install_log
 static/*upload
-module_runnumber.json
+identity.json
 
 # End of https://www.gitignore.io/api/virtualenv

@@ -17,10 +17,7 @@ CHANGEPORT="27017"
 
 # chenge codes 
 NAV="./templates/parts/nav.html"
-USER="userfunc.py"
-SHELL="make_pipinstall.sh"
-SETTING="listset.py"
-SUMMARY="addsummary.py"
+SETTING="scripts/src/listset.py"
 
 # check ROOT library
 if [ -n "${ROOTSYS}" ]; then
@@ -36,10 +33,8 @@ sed -i -e "s/CHANGEPASS/${CHANGEPASS}/g" ${SETTING}
 
 if ${PYTHON3} ; then
   sed -i -e "s/PYTHONV/3/g" ${SETTING}
-  sed -i -e "s/PIPPATH/pip3/g" ${SHELL}
 else
   sed -i -e "s/PYTHONV/2/g" ${SETTING}
-  sed -i -e "s/PIPPATH/pip/g" ${SHELL}
 fi
 
 if $APACHE ; then

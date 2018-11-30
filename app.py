@@ -1,9 +1,6 @@
 ##################################
 ###   Import Module 
 ##################################
-# usersetting
-import listset
-
 # use PyROOT
 try    : 
     import root
@@ -11,7 +8,8 @@ try    :
 except : 
     DOROOT = False 
 
-import os, pwd, glob, hashlib, datetime, shutil
+import os, pwd, glob, hashlib, datetime, shutil, sys
+sys.path.append( os.path.dirname(os.path.abspath(__file__)) + "/scripts" )
 
 # use Flask scheme
 from flask import Flask, request, redirect, url_for, render_template, session, abort
@@ -33,9 +31,10 @@ from PIL import Image
 import io
 
 # other function
-import func, userfunc, listset
+from src import func, listset
 # function for each fe types
-import fei4
+from AsicTypes import fei4
+#import fei4
 FE = { "default" : fei4, "FE-I4B" : fei4, "RD53A" : fei4 }
 
 ##################
@@ -70,7 +69,7 @@ app.config["SECRET_KEY"] = os.urandom(24)
 
 ####################
 # add path to static
-import static
+from src import static
 app.register_blueprint(static.app)
 
 #############
@@ -667,7 +666,7 @@ def signup() :
             return render_template( "signup.html", userInfo=userinfo, nametext=text, stage=stage )
         else :
             if stage == "request" :
-                userfunc.add_request(userinfo)        
+                func.add_request(userinfo)        
                 userinfo = ["","","","","","",""]
                 session['signup'] = False
                 return render_template( "signup.html", userInfo=userinfo, stage=stage )
@@ -694,7 +693,7 @@ def admin_page() :
 @app.route('/remove_user',methods=['GET','POST'])
 def remove_user() :
     userid=request.form.get('id')
-    userfunc.remove_user( userid )
+    func.remove_user( userid )
 
     return redirect( url_for('admin_page') ) 
 
@@ -708,10 +707,10 @@ def add_user() :
             query = { "_id" : ObjectId( user ) }
             userinfo = localdb.request.find_one( query )
             userinfo.update({ "authority" : authority[user_entries.index( user )] })
-            userfunc.add_user( userinfo ) 
-            userfunc.remove_request( user )
+            func.add_user( userinfo ) 
+            func.remove_request( user )
         elif approval[user_entries.index(user)] == "deny" :
-            userfunc.remove_request( user )
+            func.remove_request( user )
 
     return redirect( url_for('admin_page') ) 
 

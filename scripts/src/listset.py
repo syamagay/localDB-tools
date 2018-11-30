@@ -5,12 +5,9 @@ os.environ['LD_LIBRARY_PATH']=ROOTLIB
 os.environ['PYTHONPATH']=ROOTLIB
 sys.path.append(ROOTLIB)
 
-
 # set parammeter
 IPADDRESS=CHANGEIP
-
 PORT=CHANGEPORT
-
 pythonv = PYTHONV
 
 scan = { "selftrigger"   : [( "OccupancyMap-0", "#Hit" ),],

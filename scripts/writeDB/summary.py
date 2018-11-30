@@ -1,13 +1,14 @@
+import os, sys
+SCRIPT_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)) )
+sys.path.append( SCRIPT_DIR )
+
 try    : 
-    import root
+    from src import root
     DOROOT = True
 except : 
     DOROOT = False 
 
-import os, sys, pwd, glob, datetime, shutil
-
-# usersetting
-import listset
+import pwd, glob, datetime, shutil, json
 
 # use mongodb scheme
 import pymongo
@@ -21,13 +22,12 @@ from bson.objectid import ObjectId
 import gridfs # gridfs system 
 
 # other function
-import func, userfunc, listset
+from src import listset, func
 
 #############
 # set dbs
 client = MongoClient( host='localhost', port=listset.PORT )
 yarrdb = client['yarrdb']
-localdb = client['yarrlocal']
 fs = gridfs.GridFS( yarrdb )
 
 ##################
@@ -36,14 +36,19 @@ USER = pwd.getpwuid( os.geteuid() ).pw_name
 USER_DIR = '/tmp/{}'.format( USER ) 
 DAT_DIR = '{}/dat'.format( USER_DIR )
 PLOT_DIR = '{}/result'.format( USER_DIR )
-STAT_DIR = '{}/static'.format( USER_DIR )
 
 if os.path.isdir( PLOT_DIR ) :
     shutil.rmtree( PLOT_DIR )
     os.mkdir( PLOT_DIR )
 
-dataJson = func.readJson("{}/module_runnumber.json".format( os.path.dirname(os.path.abspath(__file__)) )) 
-parameterJson = func.readJson("{}/parameter_default.json".format( os.path.dirname(os.path.abspath(__file__)) )) 
+dataPath = "{0}/{1}/identity.json".format( SCRIPT_DIR, "json" )
+parameterPath = "{0}/{1}/parameter_default.json".format( SCRIPT_DIR, "json")
+if os.path.isfile( dataPath ) :
+    with open( dataPath, 'r' ) as f :
+        dataJson = json.load( f )
+if os.path.isfile( parameterPath ) :
+    with open( parameterPath, 'r' ) as f :
+        parameterJson = json.load( f )
 
 ##########
 # function

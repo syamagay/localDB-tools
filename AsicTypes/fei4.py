@@ -1,17 +1,18 @@
+import os, pwd, glob, sys, json
+APP_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+print(APP_DIR)
+sys.path.append( APP_DIR )
+JSON_DIR = APP_DIR + "/scripts/json"
+
 try    : 
-    import root
+    from src import root
     DOROOT = True
 except : 
     DOROOT = False 
 #DOROOT=False
 
-import os, pwd, glob, hashlib, datetime, shutil, json
-
-# usersetting
-import listset
-
 # use Flask scheme
-from flask import Flask, request, redirect, url_for, render_template, session, abort
+from flask import url_for, session
 
 # use mongodb scheme
 import pymongo
@@ -20,17 +21,15 @@ from pymongo import MongoClient
 
 # handle bson format
 from bson.objectid import ObjectId 
-from bson.binary import BINARY_SUBTYPE
 
 # image related module
 import base64 # Base64 encoding scheme
 import gridfs # gridfs system 
-from werkzeug import secure_filename # for upload system
 from PIL import Image
 import io
 
 # other function
-import func, userfunc, listset
+from src import func, listset
 
 ##################
 # path/to/save/dir 
@@ -299,7 +298,12 @@ def fill_roots( item, runId, doroot ) :
 
                 for mapType in listset.scan[thisRun['testType']] :
                     for i in [ "1", "2" ] :
-                        max_value = func.readJson( "{}/parameter.json".format( os.path.dirname(os.path.abspath(__file__)) )) 
+                        if os.path.isfile( "{}/parameter.json".format( JSON_DIR )) :
+                            with open( "{}/parameter.json".format( JSON_DIR ), 'r' ) as f :
+                                max_value = json.load( f )
+                        else :
+                            with open( "{}/parameter_default.json".format( JSON_DIR ), 'r' ) as f :
+                                max_value = json.load( f )
                         filename = PLOT_DIR + "/" + thisRun['testType'] + "/" + str(thisRun['runNumber']) + "_" + mapType[0] + "_{}.png".format(i)
                         url = "" 
                         query = { "testRun" : str(thisRun['_id']) }

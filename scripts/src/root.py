@@ -4,8 +4,9 @@
 ###############
 
 import glob
-import sys, os, func, pwd 
+import sys, os, func, pwd, json
 sys.path.append( os.path.dirname(os.path.abspath(__file__)) + "/PlotTools" )
+JSON_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)) ) + "/json"
 
 from PlotHelpers import gHelper as PH
 import PlotFromHistos.SimplePlots as Plot
@@ -35,8 +36,14 @@ def drawScan(scan_type, num_scan, log, Max, map_list):
 
     ROOT.gROOT.SetBatch()
 
-    dataJson = func.readJson("{}/parameter.json".format( os.path.dirname(os.path.abspath(__file__)) )) 
-    defaultJson = func.readJson("{}/parameter_default.json".format( os.path.dirname(os.path.abspath(__file__)) )) 
+    if os.path.isfile( "{}/parameter.json".format( JSON_DIR ) ) :
+        filePath = "{}/parameter.json".format( JSON_DIR )
+    else :
+        filePath = "{}/parameter_default.json".format( JSON_DIR )
+    with open( filePath, 'r' ) as f : 
+        dataJson = json.load( f )
+    with open( "{}/parameter_default.json".format( JSON_DIR ), 'r' ) as f : 
+        defaultJson = json.load( f )
 
 ############
 # Main loop
@@ -109,8 +116,10 @@ def drawScan(scan_type, num_scan, log, Max, map_list):
             Plot.Plot1D_fromHistos(h1, log, path_plot+"_1", "#Ch.", "histo", h1d_max)
             Plot.Plot2D_fromHistos(h2, log, path_plot+"_2", map_type[1], h1d_max)
 
-            #dataJson[scan_type][map_type[0]] = [int(h2.GetBinContent(h2.GetMaximumBin())),log]
+            dataJson[scan_type][map_type[0]] = [int(h2.GetBinContent(h2.GetMaximumBin())),log]
             dataJson[scan_type][map_type[0]] = [int(h1d_max),log]
 
-    func.writeJson("{}/parameter.json".format( os.path.dirname(os.path.abspath(__file__)) ), dataJson) 
-    #return dataJson
+    fileName = "{}/parameter.json".format( JSON_DIR )
+    with open( fileName, 'w' ) as f :
+        json.dump( dataJson, f, indent=4 )
+ 
