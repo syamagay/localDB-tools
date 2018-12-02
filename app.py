@@ -33,9 +33,9 @@ import io
 # other function
 from src import func, listset
 # function for each fe types
-from AsicTypes import fei4
+from AsicTypes import fei4, rd53a
 #import fei4
-FE = { "default" : fei4, "FE-I4B" : fei4, "RD53A" : fei4 }
+FE = { "default" : fei4, "FE-I4B" : fei4, "RD53A" : rd53a }
 
 ##################
 # path/to/save/dir 
