@@ -1,13 +1,6 @@
 ##################################
 ###   Import Module 
 ##################################
-# use PyROOT
-try    : 
-    import root
-    DOROOT = True
-except : 
-    DOROOT = False 
-
 import os, pwd, glob, hashlib, datetime, shutil, sys
 sys.path.append( os.path.dirname(os.path.abspath(__file__)) + "/scripts" )
 
@@ -31,6 +24,12 @@ from PIL import Image
 import io
 
 # other function
+# use PyROOT
+try    : 
+    from src import root
+    DOROOT = True
+except : 
+    DOROOT = False 
 from src import func, listset
 # function for each fe types
 from AsicTypes import fei4, rd53a

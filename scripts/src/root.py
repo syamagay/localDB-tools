@@ -4,7 +4,7 @@
 ###############
 
 import glob
-import sys, os, func, pwd, json
+import sys, os, pwd, json
 sys.path.append( os.path.dirname(os.path.abspath(__file__)) + "/PlotTools" )
 JSON_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)) ) + "/json"
 
