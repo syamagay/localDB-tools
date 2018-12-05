@@ -173,46 +173,35 @@ def fill_summary( thisComponent ) :
 
 def fill_resultIndex( item ) :
     resultIndex = {}
-    if session['component'] == "module" :
-        scanlist = [ "std_digitalscan", "std_analogscan" ] 
-    else :
-        scanlist = [ "std_digitalscan", "std_analogscan" ] 
-    #for scan in listset.scan :
-    for scan in scanlist :
-        runIndex = []
-        numberids = []
-        keys = [ "runNumber", "institution", "userIdentity" ]
-        for i in [ 1, 2 ] :
-            if i == 1 :
-                query = { "component" : item.get( 'this' ), "testType" : scan }
-            elif session['component'] == "module" :
-                query = { '$or' : item.get( 'chips' ), "testType" : scan }
-            else :
-                continue
-            run_entries = yarrdb.componentTestRun.find( query )
-            for run in run_entries :
-                if numberids == [] :
-                    query = { "_id" : ObjectId(run['testRun']) }
-                else :
-                    query = { "_id" : ObjectId(run['testRun']), '$and' : numberids }
-                thisRun = yarrdb.testRun.find_one( query )
-                if thisRun :
-                    numberid = []
-                    for key in keys :
-                        numberid.append({ key : { '$ne' : thisRun[key] }})
-                    numberids.append({ '$or' : numberid })
-                    result = ( 'png' or 'pdf' ) in [ data.get('contentType') for data in thisRun['attachments'] ]
-                    stage = run['stage']
-                    runIndex.append({ "_id"          : str(thisRun['_id']),
-                                      "runNumber"    : thisRun['runNumber'],
-                                      "datetime"     : func.setTime(thisRun['date']),
-                                      "result"       : result,
-                                      "stage"        : stage,
-                                      "summary"      : thisRun.get('display') })
-        if not runIndex == [] :
-            runIndex = sorted(runIndex, key=lambda x:x['datetime'])
-            resultIndex.update({ scan : { "num"      : len(runIndex),
-                                          "run"      : runIndex }})
+    numberids = {}
+    keys = [ "runNumber", "institution", "userIdentity" ]
+    query = { '$or': item.get( 'components' ) }
+    run_entries = yarrdb.componentTestRun.find( query ).sort( "component", pymongo.DESCENDING )
+    for run in run_entries :
+        if run.get( 'testType' ) in resultIndex :
+            query = { "_id" : ObjectId(run['testRun']), '$and' : numberids[ run.get( 'testType' ) ] }
+        else :
+            resultIndex.update({ run.get( 'testType' ) : { "run" : [] }})
+            numberids.update({ run.get( 'testType' ) : [] })
+            query = { "_id" : ObjectId(run['testRun']) }
+        thisRun = yarrdb.testRun.find_one( query )
+        if thisRun :
+            numberid = []
+            for key in keys :
+                numberid.append({ key : { '$ne' : thisRun[key] }})
+            numberids[ run.get( 'testType' ) ].append({ '$or' : numberid })
+            result = ( 'png' or 'pdf' ) in [ data.get('contentType') for data in thisRun.get('attachments') ]
+            stage = run['stage']
+            resultIndex[ run.get( 'testType' ) ][ 'run' ].append({ "_id"          : str(thisRun['_id']),
+                                                                   "runNumber"    : thisRun['runNumber'],
+                                                                   "datetime"     : func.setTime(thisRun['date']),
+                                                                   "result"       : result,
+                                                                   "stage"        : stage,
+                                                                   "summary"      : thisRun.get('display') })
+    for scan in resultIndex :
+        runInd = sorted( resultIndex[ scan ][ 'run' ], key=lambda x:x['datetime'])
+        resultIndex.update({ scan : { "num" : len(runInd),
+                                      "run" : runInd }})
     return resultIndex
 
 def fill_results( item, runId ) :

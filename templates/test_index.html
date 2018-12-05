@@ -1,22 +1,20 @@
+{% set order = [] %}
+{% set _=order.append( "digitalscan" ) %}
+{% set _=order.append( "analogscan" ) %}
+{% set _=order.append( "thresholdscan" ) %}
+{% set _=order.append( "totscan" ) %}
+{% set _=order.append( "noisescan" ) %}
+{% set _=order.append( "selftrigger" ) %}
+{% set _=order.append( "global" ) %}
+{% set _=order.append( "pixel" ) %}
 {% set index = [] %}
-{% set _=index.append("std_digitalscan") %}
-{% set _=index.append("std_analogscan") %}
-{% set _=index.append("digitalscan") %}
-{% set _=index.append("analogscan") %}
-{% set _=index.append("thresholdscan") %}
-{% set _=index.append("totscan") %}
-{% set _=index.append("noisescan") %}
-{% set _=index.append("selftrigger") %}
-{% if session['component'] == "chip" %}
-  {% set _=index.append("globalpreamp") %}
-  {% set _=index.append("pixelpreamp") %}
-  {% set _=index.append("globalthreshold") %}
-  {% set _=index.append("pixelthreshold") %}
-  {% set _=index.append("tune_globalpreamp") %}
-  {% set _=index.append("tune_pixelpreamp") %}
-  {% set _=index.append("tune_globalthreshold") %}
-  {% set _=index.append("tune_pixelthreshold") %}
-{% endif %}
+{% for orderedscan in order %}
+  {% for scan in component['resultIndex'] %}
+    {% if orderedscan in scan %}
+      {% set _=index.append( scan ) %}
+    {% endif %}
+  {% endfor %}
+{% endfor %}
 
 <h4 style="font-size: 13pt;"><i class="fa fa-cog"></i> Test index</h4>
 <div class="row align-items-top">

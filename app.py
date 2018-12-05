@@ -183,11 +183,12 @@ def show_component() :
     # fill chip and module information
     components = {}
     components.update({ "this" : ComponentId })
-    components.update({ "chips" : [] })
+    components.update({ "components" : [] })
+    components['components'].append({ "component" : ComponentId })
     chips = []
     for child in child_entries :
         if Component == "module" :
-            components['chips'].append({ "component" : child['child'] })
+            components['components'].append({ "component" : child['child'] })
 
         query = { "_id" : ObjectId(child['child']) }
         thisChip = mongo.db.component.find_one( query )
