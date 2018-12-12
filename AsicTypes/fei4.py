@@ -212,7 +212,7 @@ def fill_resultIndex( item ) :
                                                                    "stage"        : stage,
                                                                    "summary"      : thisRun.get('display') })
     for scan in resultIndex :
-        runInd = sorted( resultIndex[ scan ][ 'run' ], key=lambda x:x['datetime'])
+        runInd = sorted( resultIndex[ scan ][ 'run' ], key=lambda x:x['datetime'], reverse=True)
         resultIndex.update({ scan : { "num" : len(runInd),
                                       "run" : runInd }})
     return resultIndex
