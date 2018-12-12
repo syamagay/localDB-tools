@@ -264,85 +264,81 @@ def fill_results( item, runId ) :
 
     return results
 
-def fill_roots( item, runId, doroot ) :
+def fill_roots( item, runId ) :
     roots = {}
     if not runId == None :
         roots.update({ "runId" : True })
-        if doroot :
-            roots.update({ "doroot" : True })
-            query = { "_id" : ObjectId(runId) }
-            thisRun = yarrdb.testRun.find_one( query )
-            if DOROOT and thisRun['testType'] in listset.scan:
-                results = []
-                thisComponentTestRun = yarrdb.componentTestRun.find_one({ "testRun" : str(thisRun['_id']) })
-                env_dict = fill_env( thisComponentTestRun ) 
-                reanalysis = session.get('reanalysis')
-                if not reanalysis :
-                    clean_dir( DAT_DIR )
-                    chipIds = {}
-                    components = sorted( item.get( 'components' ), key=lambda x:x['component'] )
-                    i=1
-                    for component in components :
-                        if not component['component'] in chipIds :
-                            chipIds.update({ component['component'] : i })
-                            i+=1
-                    query = { '$or' : components, "runNumber" : thisRun['runNumber'], "testType" : thisRun['testType'], "stage" : thisComponentTestRun['stage'] }
-                    run_entries = yarrdb.componentTestRun.find( query )
-                    for run in run_entries :
-                        query = { "_id" : ObjectId(run['testRun']), "institution" : thisRun['institution'], "userIdentity" : thisRun['userIdentity'] }
-                        chiprun = yarrdb.testRun.find_one( query )
-                        if chiprun :
-                            data_entries = chiprun['attachments']
-                            for data in data_entries :
-                                if data['contentType'] == "dat" :
-                                    f = open( '{0}/{1}_{2}_{3}.dat'.format( DAT_DIR, thisRun['runNumber'], 'chipId{}'.format(chipIds[run['component']]), data['filename'].rsplit("_",1)[1] ), 'wb' )
-                                    f.write( fs.get(ObjectId(data['code']) ).read())
-                                    f.close()
-                mapList = {}
-                for mapType in listset.scan[thisRun['testType']] :
-                    if reanalysis and not mapType[0] == session.get( 'mapType' ) :
-                        mapList.update({ mapType[0] : False })
+        query = { "_id" : ObjectId(runId) }
+        thisRun = yarrdb.testRun.find_one( query )
+        if DOROOT and thisRun['testType'] in listset.scan:
+            results = []
+            thisComponentTestRun = yarrdb.componentTestRun.find_one({ "testRun" : str(thisRun['_id']) })
+            env_dict = fill_env( thisComponentTestRun ) 
+            reanalysis = session.get('reanalysis')
+            if not reanalysis :
+                clean_dir( DAT_DIR )
+                chipIds = {}
+                components = sorted( item.get( 'components' ), key=lambda x:x['component'] )
+                i=1
+                for component in components :
+                    if not component['component'] in chipIds :
+                        chipIds.update({ component['component'] : i })
+                        i+=1
+                query = { '$or' : components, "runNumber" : thisRun['runNumber'], "testType" : thisRun['testType'], "stage" : thisComponentTestRun['stage'] }
+                run_entries = yarrdb.componentTestRun.find( query )
+                for run in run_entries :
+                    query = { "_id" : ObjectId(run['testRun']), "institution" : thisRun['institution'], "userIdentity" : thisRun['userIdentity'] }
+                    chiprun = yarrdb.testRun.find_one( query )
+                    if chiprun :
+                        data_entries = chiprun['attachments']
+                        for data in data_entries :
+                            if data['contentType'] == "dat" :
+                                f = open( '{0}/{1}_{2}_{3}.dat'.format( DAT_DIR, thisRun['runNumber'], 'chipId{}'.format(chipIds[run['component']]), data['filename'].rsplit("_",1)[1] ), 'wb' )
+                                f.write( fs.get(ObjectId(data['code']) ).read())
+                                f.close()
+            mapList = {}
+            for mapType in listset.scan[thisRun['testType']] :
+                if reanalysis and not mapType[0] == session.get( 'mapType' ) :
+                    mapList.update({ mapType[0] : False })
+                else :
+                    mapList.update({ mapType[0] : True })
+
+            root.drawScan( thisRun['testType'], str(thisRun['runNumber']), bool(session.get( 'log' )), int( session.get( 'max' )), mapList )
+
+            for mapType in listset.scan[thisRun['testType']] :
+                for i in [ "1", "2" ] :
+                    if os.path.isfile( "{}/parameter.json".format( JSON_DIR )) :
+                        with open( "{}/parameter.json".format( JSON_DIR ), 'r' ) as f :
+                            max_value = json.load( f )
                     else :
-                        mapList.update({ mapType[0] : True })
-
-                root.drawScan( thisRun['testType'], str(thisRun['runNumber']), bool(session.get( 'log' )), int( session.get( 'max' )), mapList )
-
-                for mapType in listset.scan[thisRun['testType']] :
-                    for i in [ "1", "2" ] :
-                        if os.path.isfile( "{}/parameter.json".format( JSON_DIR )) :
-                            with open( "{}/parameter.json".format( JSON_DIR ), 'r' ) as f :
-                                max_value = json.load( f )
-                        else :
-                            with open( "{}/parameter_default.json".format( JSON_DIR ), 'r' ) as f :
-                                max_value = json.load( f )
-                        filename = PLOT_DIR + "/" + thisRun['testType'] + "/" + str(thisRun['runNumber']) + "_" + mapType[0] + "_{}.png".format(i)
-                        url = "" 
-                        stage = thisComponentTestRun['stage']
-                        if os.path.isfile( filename ) :
-                            binary_image = open( filename, 'rb' )
-                            code_base64 = base64.b64encode(binary_image.read()).decode()
-                            binary_image.close()
-                            url = func.bin_to_image( 'png', code_base64 ) 
-                        results.append({ "testType"    : thisRun['testType'], 
-                                         "mapType"     : mapType[0], 
-                                         "filename"    : mapType[0], 
-                                         "runNumber"   : thisRun['runNumber'], 
-                                         "runId"       : runId,
-                                         "comments"    : list(thisRun['comments']),
-                                         "path"        : filename, 
-                                         "stage"       : stage,
-                                         "institution" : thisRun['institution'],
-                                         "userIdentity": thisRun['userIdentity'],
-                                         "url"         : url, 
-                                         "environment" : env_dict,
-                                         "setLog"      : max_value[thisRun['testType']][mapType[0]][1], 
-                                         "maxValue"    : max_value[thisRun['testType']][mapType[0]][0] })
-                roots.update({ "rootsw"  : True,
-                               "results" : results })
-            else :
-                roots.update({ "rootsw" : False })
+                        with open( "{}/parameter_default.json".format( JSON_DIR ), 'r' ) as f :
+                            max_value = json.load( f )
+                    filename = PLOT_DIR + "/" + thisRun['testType'] + "/" + str(thisRun['runNumber']) + "_" + mapType[0] + "_{}.png".format(i)
+                    url = "" 
+                    stage = thisComponentTestRun['stage']
+                    if os.path.isfile( filename ) :
+                        binary_image = open( filename, 'rb' )
+                        code_base64 = base64.b64encode(binary_image.read()).decode()
+                        binary_image.close()
+                        url = func.bin_to_image( 'png', code_base64 ) 
+                    results.append({ "testType"    : thisRun['testType'], 
+                                     "mapType"     : mapType[0], 
+                                     "filename"    : mapType[0], 
+                                     "runNumber"   : thisRun['runNumber'], 
+                                     "runId"       : runId,
+                                     "comments"    : list(thisRun['comments']),
+                                     "path"        : filename, 
+                                     "stage"       : stage,
+                                     "institution" : thisRun['institution'],
+                                     "userIdentity": thisRun['userIdentity'],
+                                     "url"         : url, 
+                                     "environment" : env_dict,
+                                     "setLog"      : max_value[thisRun['testType']][mapType[0]][1], 
+                                     "maxValue"    : max_value[thisRun['testType']][mapType[0]][0] })
+            roots.update({ "rootsw"  : True,
+                           "results" : results })
         else :
-            roots.update({ "doroot" : False })
+            roots.update({ "rootsw" : False })
     else :
         roots.update({ "runId" : False })
 

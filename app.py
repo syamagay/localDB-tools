@@ -54,7 +54,7 @@ for DIR in DIRS :
 ############
 # login list
 loginlist = [ "logged_in", "user_id", "user_name", "institute", "read", "write", "edit" ]
-poplist = [ "signup", "component", "parentId", "code", "runNumber", "runId", "reanalysis", "mapType", "log", "max", "doroot" ]
+poplist = [ "signup", "component", "parentId", "code", "runNumber", "runId", "reanalysis", "mapType", "log", "max" ]
 
 ########
 # Prefix
@@ -185,7 +185,6 @@ def show_component() :
     Code = session.get('code')
     #RunNumber = session.get('runNumber')
     RunId = session.get('runId')
-    doroot = session.get('doroot', False)
 
     # this component
     query = { "_id" : ObjectId(ComponentId) }
@@ -232,7 +231,7 @@ def show_component() :
     # fill results 
     results = FE[asic].fill_results( components, RunId )
     # fill roots
-    roots = FE[asic].fill_roots( components, RunId, doroot )
+    roots = FE[asic].fill_roots( components, RunId )
     # fill summary ( module )
     summary = FE[asic].fill_summary( thisComponent )
 
@@ -274,12 +273,6 @@ def show_module() :
     session['max'] = request.form.get('max',0) 
 
     return redirect( url_for("show_component", id=componentId) )
-
-@app.route('/doroot', methods=['GET', 'POST'])
-def doroot() :
-    session['doroot'] = request.form.get('doroot',False)
-
-    return redirect( url_for("show_component", id=request.args.get('id')) )
 
 ###########
 # chip page
@@ -398,8 +391,6 @@ def add_summary() :
     if not DOROOT :
         forUrl = "show_{}".format( session['component'] )
         return redirect( url_for(forUrl, id=componentId) )
-
-    session.pop('doroot',None)
     
     # serialNumber
     query = { "_id" : ObjectId(componentId) }
