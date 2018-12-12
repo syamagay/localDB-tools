@@ -47,9 +47,8 @@
 
   1) Modify and excute setting.sh to change some codes for user
 
-  * APACHE     : set true if you run this app by apache, or false if not
   * PYTHON3    : set true if you use python3, or false if use python2
-  * IPADDRESS  : where you run this web app ( default : "'127.0.0.1'" )
+  * IPADDRESS  : where you run this web app ( default : "'127.0.0.1'" ... set default number if you use apache system )
   * PORT       : port of mongoDB ( default : "27017" )
 
   ```
@@ -66,25 +65,18 @@
   3) Modify web-app-db-yarr.conf if you use apache system 
 
   ```
-    WSGISocketPrefix run/wsgi
     <VirtualHost *:80>
-        WSGIApplicationGroup %{GLOBAL}
-        LoadModule wsgi_module /usr/local/Python/3.5.1/lib/python3.5/site-packages/mod_wsgi/server/mod_wsgi-py35.cpython-35m-x86_64-linux-gnu.so # modify for your environment
-        WSGIDaemonProcess app user=apache group=apache threads=5
-        WSGIScriptAlias /yarrdb /var/www/web-app-db-yarr/.wsgi
-        <Directory /var/www/web-app-db-yarr>
-            WSGIProcessGroup app
-            WSGIScriptReloading On
-            Order deny,allow
-            Deny from all # modify by yourself
-            Allow from all # modify by yourself
-        </Directory>
+      ProxyPreserveHost On
+      ProxyRequests Off
+      ProxyPass /yarrdb http://localhost:5000/yarrdb
+      ProxyPassReverse /yarrdb http://localhost:5000/yarrdb
     </VirtualHost>
   ```
 
   ## running web-app-db-yarr
 
-  You can run web-app-db-yarr by excuting app.py, and check viewer by typing localhost:5000 or <IPADDRESS>:5000 in browser
+  You can run web-app-db-yarr by excuting app.py, and check viewer by typing localhost:5000/yarrdb or <IPADDRESS>:5000/yarrdb in browser.
+  You can check viewer by typing <IPADDRESS>/yarrdb if you use apache system.
 
   ```
    $  python app.py
@@ -93,7 +85,7 @@
 # helpful information
   ## Add summary plots
 
-  You can add summary results for each stage and module in summary page by excuting script
+  You can add summary results for each stage and module in summary page by excuting script.
 
   _CAUTION_
 
