@@ -172,27 +172,39 @@ def fill_summary( thisComponent ) :
     return summaryIndex
 
 def fill_resultIndex( item ) :
-
     resultIndex = {}
     numberids = {}
+    
+    RunIds = []
     keys = [ "runNumber", "institution", "userIdentity" ]
+
     query = { '$or': item.get( 'components' ) }
     run_entries = yarrdb.componentTestRun.find( query ).sort( "component", pymongo.DESCENDING )
     for run in run_entries :
-        if run.get( 'testType' ) in resultIndex :
-            query = { "_id" : ObjectId(run['testRun']), '$and' : numberids[ run.get( 'testType' ) ] }
-        else :
-            resultIndex.update({ run.get( 'testType' ) : { "run" : [] }})
-            numberids.update({ run.get( 'testType' ) : [] })
+        if not run['testRun'] in RunIds :
             query = { "_id" : ObjectId(run['testRun']) }
-        thisRun = yarrdb.testRun.find_one( query )
-        if thisRun :
-            numberid = []
-            for key in keys :
-                numberid.append({ key : { '$ne' : thisRun[key] }})
-            numberids[ run.get( 'testType' ) ].append({ '$or' : numberid })
+            thisRun = yarrdb.testRun.find_one( query )
             result = ( 'png' or 'pdf' ) in [ data.get('contentType') for data in thisRun.get('attachments') ]
+            query = { "testType"  : run.get( 'testType' ),
+                      "runNumber" : run.get( 'runNumber' ),
+                      "stage"     : run.get( 'stage' ),
+                      '$or'       : item.get( 'components' ) }
+            entries = yarrdb.componentTestRun.find( query )
+            runids = []
+            for entry in entries :
+                runids.append({ "_id" : ObjectId(entry['testRun']) }) 
+            query = { '$or' : runids }
+            for key in keys :
+                query.update({ key : thisRun[key] })
+            entries = yarrdb.testRun.find( query )
+            for entry in entries :
+                RunIds.append(str(entry['_id']))
+                if not result :
+                    result = ( 'png' or 'pdf' ) in [ data.get('contentType') for data in entry.get('attachments') ]
+                    thisRun = entry
             stage = run['stage']
+            if not run.get( 'testType' ) in resultIndex :
+                resultIndex.update({ run.get( 'testType' ) : { "run" : [] }})
             resultIndex[ run.get( 'testType' ) ][ 'run' ].append({ "_id"          : str(thisRun['_id']),
                                                                    "runNumber"    : thisRun['runNumber'],
                                                                    "datetime"     : func.setTime(thisRun['date']),
@@ -231,6 +243,11 @@ def fill_results( item, runId ) :
         else :
             query = { "testRun" : runId }
             thisComponentTestRun = yarrdb.componentTestRun.find_one( query )
+
+            data_entries = thisRun['attachments']
+            for data in data_entries :
+                if data['contentType'] == 'pdf' or data['contentType'] == 'png' :
+                    plots.append({ "filename"    : data['filename'].split("_",1)[1] })
 
         env_dict = fill_env( thisComponentTestRun ) 
 

@@ -1,9 +1,5 @@
 import os, sys
 # set path
-os.environ['LIBPATH']=ROOTLIB
-os.environ['LD_LIBRARY_PATH']=ROOTLIB
-os.environ['PYTHONPATH']=ROOTLIB
-sys.path.append(ROOTLIB)
 
 # set parammeter
 IPADDRESS=CHANGEIP

@@ -56,10 +56,28 @@ for DIR in DIRS :
 loginlist = [ "logged_in", "user_id", "user_name", "institute", "read", "write", "edit" ]
 poplist = [ "signup", "component", "parentId", "code", "runNumber", "runId", "reanalysis", "mapType", "log", "max", "doroot" ]
 
+########
+# Prefix
+class PrefixMiddleware(object):
+    def __init__(self, app, prefix=''):
+        self.app = app
+        self.prefix = prefix
+
+    def __call__(self, environ, start_response):
+
+        if environ['PATH_INFO'].startswith(self.prefix):
+            environ['PATH_INFO'] = environ['PATH_INFO'][len(self.prefix):]
+            environ['SCRIPT_NAME'] = self.prefix
+            return self.app(environ, start_response)
+        else:
+            start_response('404', [('Content-Type', 'text/plain')])
+            return ["This url does not belong to the app.".encode()]
+
 ##############
 # call mongodb
 app = Flask( __name__ )
 app.config["MONGO_URI"] = "mongodb://localhost:"+str(listset.PORT)+"/yarrdb"
+app.wsgi_app = PrefixMiddleware(app.wsgi_app, prefix='/yarrdb')
 mongo = PyMongo( app )
 fs = gridfs.GridFS( mongo.db )
 

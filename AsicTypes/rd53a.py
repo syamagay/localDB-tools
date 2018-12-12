@@ -174,24 +174,37 @@ def fill_summary( thisComponent ) :
 def fill_resultIndex( item ) :
     resultIndex = {}
     numberids = {}
+    
+    RunIds = []
     keys = [ "runNumber", "institution", "userIdentity" ]
+
     query = { '$or': item.get( 'components' ) }
     run_entries = yarrdb.componentTestRun.find( query ).sort( "component", pymongo.DESCENDING )
     for run in run_entries :
-        if run.get( 'testType' ) in resultIndex :
-            query = { "_id" : ObjectId(run['testRun']), '$and' : numberids[ run.get( 'testType' ) ] }
-        else :
-            resultIndex.update({ run.get( 'testType' ) : { "run" : [] }})
-            numberids.update({ run.get( 'testType' ) : [] })
+        if not run['testRun'] in RunIds :
             query = { "_id" : ObjectId(run['testRun']) }
-        thisRun = yarrdb.testRun.find_one( query )
-        if thisRun :
-            numberid = []
-            for key in keys :
-                numberid.append({ key : { '$ne' : thisRun[key] }})
-            numberids[ run.get( 'testType' ) ].append({ '$or' : numberid })
+            thisRun = yarrdb.testRun.find_one( query )
             result = ( 'png' or 'pdf' ) in [ data.get('contentType') for data in thisRun.get('attachments') ]
+            query = { "testType"  : run.get( 'testType' ),
+                      "runNumber" : run.get( 'runNumber' ),
+                      "stage"     : run.get( 'stage' ),
+                      '$or'       : item.get( 'components' ) }
+            entries = yarrdb.componentTestRun.find( query )
+            runids = []
+            for entry in entries :
+                runids.append({ "_id" : ObjectId(entry['testRun']) }) 
+            query = { '$or' : runids }
+            for key in keys :
+                query.update({ key : thisRun[key] })
+            entries = yarrdb.testRun.find( query )
+            for entry in entries :
+                RunIds.append(str(entry['_id']))
+                if not result :
+                    result = ( 'png' or 'pdf' ) in [ data.get('contentType') for data in entry.get('attachments') ]
+                    thisRun = entry
             stage = run['stage']
+            if not run.get( 'testType' ) in resultIndex :
+                resultIndex.update({ run.get( 'testType' ) : { "run" : [] }})
             resultIndex[ run.get( 'testType' ) ][ 'run' ].append({ "_id"          : str(thisRun['_id']),
                                                                    "runNumber"    : thisRun['runNumber'],
                                                                    "datetime"     : func.setTime(thisRun['date']),
@@ -231,6 +244,11 @@ def fill_results( item, runId ) :
             query = { "testRun" : runId }
             thisComponentTestRun = yarrdb.componentTestRun.find_one( query )
 
+            data_entries = thisRun['attachments']
+            for data in data_entries :
+                if data['contentType'] == 'pdf' or data['contentType'] == 'png' :
+                    plots.append({ "filename"    : data['filename'].split("_",1)[1] })
+
         env_dict = fill_env( thisComponentTestRun ) 
 
         results.update({ "testType"  : thisRun['testType'],
@@ -252,30 +270,34 @@ def fill_roots( item, runId, doroot ) :
         roots.update({ "runId" : True })
         if doroot :
             roots.update({ "doroot" : True })
-            if DOROOT :
+            query = { "_id" : ObjectId(runId) }
+            thisRun = yarrdb.testRun.find_one( query )
+            if DOROOT and thisRun['testType'] in listset.scan:
                 results = []
-                query = { "_id" : ObjectId(runId) }
-                thisRun = yarrdb.testRun.find_one( query )
                 thisComponentTestRun = yarrdb.componentTestRun.find_one({ "testRun" : str(thisRun['_id']) })
                 env_dict = fill_env( thisComponentTestRun ) 
                 reanalysis = session.get('reanalysis')
                 if not reanalysis :
                     clean_dir( DAT_DIR )
-                query = { '$or' : item.get( 'chips' ), "runNumber" : thisRun['runNumber'], "testType" : thisRun['testType'] }
-                run_entries = yarrdb.componentTestRun.find( query )
-                runIds = []
-                for run in run_entries :
-                    runIds.append({ "_id" : ObjectId(run['testRun']) })
-                query = { '$or' : runIds, "institution" : thisRun['institution'], "userIdentity" : thisRun['userIdentity'] }
-                run_entries = yarrdb.testRun.find( query )
-                for chiprun in run_entries :
-                    if not reanalysis :
-                        data_entries = chiprun['attachments']
-                        for data in data_entries :
-                            if data['contentType'] == "dat" :
-                                f = open( '{0}/{1}_{2}_{3}.dat'.format( DAT_DIR, thisRun['runNumber'], data['filename'].rsplit("_",2)[1], data['filename'].rsplit("_",2)[2] ), "wb" )
-                                f.write( fs.get(ObjectId(data['code']) ).read())
-                                f.close()
+                    chipIds = {}
+                    components = sorted( item.get( 'components' ), key=lambda x:x['component'] )
+                    i=1
+                    for component in components :
+                        if not component['component'] in chipIds :
+                            chipIds.update({ component['component'] : i })
+                            i+=1
+                    query = { '$or' : components, "runNumber" : thisRun['runNumber'], "testType" : thisRun['testType'], "stage" : thisComponentTestRun['stage'] }
+                    run_entries = yarrdb.componentTestRun.find( query )
+                    for run in run_entries :
+                        query = { "_id" : ObjectId(run['testRun']), "institution" : thisRun['institution'], "userIdentity" : thisRun['userIdentity'] }
+                        chiprun = yarrdb.testRun.find_one( query )
+                        if chiprun :
+                            data_entries = chiprun['attachments']
+                            for data in data_entries :
+                                if data['contentType'] == "dat" :
+                                    f = open( '{0}/{1}_{2}_{3}.dat'.format( DAT_DIR, thisRun['runNumber'], 'chipId{}'.format(chipIds[run['component']]), data['filename'].rsplit("_",1)[1] ), 'wb' )
+                                    f.write( fs.get(ObjectId(data['code']) ).read())
+                                    f.close()
                 mapList = {}
                 for mapType in listset.scan[thisRun['testType']] :
                     if reanalysis and not mapType[0] == session.get( 'mapType' ) :
@@ -295,8 +317,7 @@ def fill_roots( item, runId, doroot ) :
                                 max_value = json.load( f )
                         filename = PLOT_DIR + "/" + thisRun['testType'] + "/" + str(thisRun['runNumber']) + "_" + mapType[0] + "_{}.png".format(i)
                         url = "" 
-                        query = { "testRun" : str(thisRun['_id']) }
-                        stage = yarrdb.componentTestRun.find_one( query )['stage']
+                        stage = thisComponentTestRun['stage']
                         if os.path.isfile( filename ) :
                             binary_image = open( filename, 'rb' )
                             code_base64 = base64.b64encode(binary_image.read()).decode()

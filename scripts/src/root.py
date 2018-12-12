@@ -3,14 +3,13 @@
 ### K. Yajima
 ###############
 
-import glob
 import sys, os, pwd, json
-sys.path.append( os.path.dirname(os.path.abspath(__file__)) + "/PlotTools" )
-JSON_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)) ) + "/json"
+SRC_DIR = os.path.dirname(os.path.abspath(__file__))
+sys.path.append( SRC_DIR + "/PlotTools" )
+SCRIPT_DIR = os.path.dirname( SRC_DIR )
 
 from PlotHelpers import gHelper as PH
 import PlotFromHistos.SimplePlots as Plot
-import base64
 
 import ROOT
 
@@ -18,6 +17,7 @@ USER=pwd.getpwuid( os.geteuid() ).pw_name
 USER_DIR = '/tmp/{}'.format( USER ) 
 DAT_DIR = '{}/dat'.format( USER_DIR )
 PLOT_DIR = '{}/result'.format( USER_DIR )
+JSON_DIR = SCRIPT_DIR + "/json"
 
 ##########
 # Variables
@@ -47,8 +47,6 @@ def drawScan(scan_type, num_scan, log, Max, map_list):
 
 ############
 # Main loop
-    #num_plot = []
-
     for map_type in datDict[scan_type]:
         if map_list[map_type[0]]: 
 
