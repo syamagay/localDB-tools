@@ -276,7 +276,7 @@ def fill_roots( item, runId ) :
             env_dict = fill_env( thisComponentTestRun ) 
             reanalysis = session.get('reanalysis')
             if not reanalysis :
-                clean_dir( DAT_DIR )
+                #clean_dir( DAT_DIR )
                 chipIds = {}
                 components = sorted( item.get( 'components' ), key=lambda x:x['component'] )
                 i=1
@@ -307,12 +307,14 @@ def fill_roots( item, runId ) :
 
             for mapType in listset.scan[thisRun['testType']] :
                 for i in [ "1", "2" ] :
-                    if os.path.isfile( "{}/parameter.json".format( JSON_DIR )) :
-                        with open( "{}/parameter.json".format( JSON_DIR ), 'r' ) as f :
-                            max_value = json.load( f )
-                    else :
-                        with open( "{}/parameter_default.json".format( JSON_DIR ), 'r' ) as f :
-                            max_value = json.load( f )
+                    #if os.path.isfile( "{}/parameter.json".format( JSON_DIR )) :
+                    #    with open( "{}/parameter.json".format( JSON_DIR ), 'r' ) as f :
+                    #        max_value = json.load( f )
+                    #else :
+                    #    with open( "{}/parameter_default.json".format( JSON_DIR ), 'r' ) as f :
+                    #        max_value = json.load( f )
+                    with open( "{}/parameter_default.json".format( JSON_DIR ), 'r' ) as f :
+                        max_value = json.load( f )
                     filename = PLOT_DIR + "/" + thisRun['testType'] + "/" + str(thisRun['runNumber']) + "_" + mapType[0] + "_{}.png".format(i)
                     url = "" 
                     stage = thisComponentTestRun['stage']
