@@ -270,7 +270,7 @@ def fill_roots( item, runId ) :
         roots.update({ "runId" : True })
         query = { "_id" : ObjectId(runId) }
         thisRun = yarrdb.testRun.find_one( query )
-        if DOROOT and thisRun['testType'] in listset.scan:
+        if DOROOT and thisRun['testType'] in listset.scan and session['component'] == "module":
             results = []
             thisComponentTestRun = yarrdb.componentTestRun.find_one({ "testRun" : str(thisRun['_id']) })
             env_dict = fill_env( thisComponentTestRun ) 
