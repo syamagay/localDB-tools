@@ -36,6 +36,13 @@ from arguments import *   # Pass command line arguments into app.py
 from AsicTypes import fei4
 FE = { "default" : fei4, "FE-I4B" : fei4 }
 
+app = Flask( __name__ )
+
+####################
+# add path to static
+import static
+app.register_blueprint(static.app)
+
 ##################
 # path/to/save/dir 
 USER = pwd.getpwuid( os.geteuid() ).pw_name
@@ -51,6 +58,7 @@ if os.path.isdir( USER_DIR ) :
 os.mkdir( USER_DIR )
 for DIR in DIRS :
     os.mkdir( DIR )
+
 ############
 # login list
 loginlist = [ "logged_in", "user_id", "user_name", "institute", "read", "write", "edit" ]
@@ -73,33 +81,26 @@ class PrefixMiddleware(object):
             start_response('404', [('Content-Type', 'text/plain')])
             return ["This url does not belong to the app.".encode()]
 
+app.wsgi_app = PrefixMiddleware(app.wsgi_app, prefix='/yarrdb')
+
 ##############
 # call mongodb
-app = Flask( __name__ )
 args = getArgs()            # Get command line arguments
 if args.username is None:
-    url = "mongodb://" + args.host + ":" + str(args.port) + "/yarrdb"
+    url = "mongodb://" + args.host + ":" + str(args.port) 
 else:
-    url = "mongodb://" + args.username + ":" + args.password + "@" + args.host + ":" + str(args.port) + "/yarrdb"
-print("Connecto to mongoDB server: " + url)
-app.config["MONGO_URI"] = url
-app.wsgi_app = PrefixMiddleware(app.wsgi_app, prefix='/yarrdb')
+    url = "mongodb://" + args.username + ":" + args.password + "@" + args.host + ":" + str(args.port) 
+print("Connecto to mongoDB server: " + url + "/yarrdb")
+app.config["MONGO_URI"] = url + "/yarrdb"
 mongo = PyMongo( app )
 fs = gridfs.GridFS( mongo.db )
 
-######
-# auth
-app.config["SECRET_KEY"] = os.urandom(24)
-
-####################
-# add path to static
-import static
-app.register_blueprint(static.app)
-
-#############
-# for user db
-client = MongoClient( host=args.host, port=args.port )
+client = MongoClient( url )
 localdb = client['yarrlocal']
+
+############
+# secret_key
+app.config["SECRET_KEY"] = os.urandom(24)
 
 ##########
 # function

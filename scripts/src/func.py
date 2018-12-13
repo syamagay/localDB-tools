@@ -5,14 +5,18 @@ import base64 # Base64 encoding scheme
 import datetime, json
 from arguments import *   # Pass command line arguments into app.py
 from bson.objectid import ObjectId 
-import pymongo
 from pymongo import MongoClient
 
 from getpass import getpass
 import hashlib
 
+# set mongodb
 args = getArgs()            # Get command line arguments
-client = MongoClient(host=args.host, port=args.port)
+if args.username is None:
+    url = "mongodb://" + args.host + ":" + str(args.port) 
+else:
+    url = "mongodb://" + args.username + ":" + args.password + "@" + args.host + ":" + str(args.port) 
+client = MongoClient( url )
 localdb = client['yarrlocal']
 
 USER=pwd.getpwuid( os.geteuid() ).pw_name

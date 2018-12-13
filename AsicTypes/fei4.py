@@ -9,18 +9,10 @@ try    :
     DOROOT = True
 except : 
     DOROOT = False 
-#DOROOT=False
 
-# use Flask scheme
-from flask import url_for, session
-
-# use mongodb scheme
-import pymongo
-from flask_pymongo import PyMongo
-from pymongo import MongoClient
-
-# handle bson format
-from bson.objectid import ObjectId 
+from flask import url_for, session  # use Flask scheme
+from pymongo import MongoClient, DESCENDING  # use mongodb scheme
+from bson.objectid import ObjectId  # handle bson format
 
 # image related module
 import base64 # Base64 encoding scheme
@@ -43,9 +35,12 @@ STAT_DIR = '{}/static'.format( USER_DIR )
 
 #############
 # set dbs
-args = getArgs()            # Get command line arguments
-
-client = MongoClient( host=args.host, port=args.port )
+args = getArgs()         
+if args.username is None:
+    url = "mongodb://" + args.host + ":" + str(args.port) 
+else:
+    url = "mongodb://" + args.username + ":" + args.password + "@" + args.host + ":" + str(args.port) 
+client = MongoClient( url )
 yarrdb = client['yarrdb']
 localdb = client['yarrlocal']
 fs = gridfs.GridFS( yarrdb )
@@ -182,7 +177,7 @@ def fill_resultIndex( item ) :
     keys = [ "runNumber", "institution", "userIdentity" ]
 
     query = { '$or': item.get( 'components' ) }
-    run_entries = yarrdb.componentTestRun.find( query ).sort( "component", pymongo.DESCENDING )
+    run_entries = yarrdb.componentTestRun.find( query ).sort( "component", DESCENDING )
     for run in run_entries :
         if not run['testRun'] in RunIds :
             query = { "_id" : ObjectId(run['testRun']) }

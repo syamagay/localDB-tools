@@ -14,11 +14,12 @@ def getArgs():
     parser = argparse.ArgumentParser(formatter_class=argparse.ArgumentDefaultsHelpFormatter)
     parser.add_argument("--config", "-f", help="Config file path", type=str)
     parser.add_argument("--host", help="Host", type=str, default="localhost")
-    parser.add_argument("--port", help="Port", type=str, default="27017")
+    parser.add_argument("--port", help="Port", type=int, default=27017)
     parser.add_argument("--username", "-u", help="User name", type=str)
     parser.add_argument("--password", "-p", help="User password", type=str)
     parser.add_argument("--fhost", help="Flask Host", type=str, default="localhost")
-    parser.add_argument("--fport", help="Flask Port", type=str, default="5000")
+    parser.add_argument("--fport", help="Flask Port", type=int, default=5000)
+    parser.add_argument("--fpython", help="Python Version", type=int, default=2)
     args = parser.parse_args()
 
     # Overwrite arguments from config file
