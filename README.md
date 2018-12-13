@@ -5,13 +5,12 @@
   Currently you can use the following :
 
   * Check the list of modules and chips whose data taken by YARR in the top page ( for both FE-I4B and RD53A )
-  * Check the result of scan for each module and chip ( for FE-I4B )
+  * Check the result of scan for each module and chip ( for both FE-I4B and RD53A )
   * Write which run is summary for the module into database and check them in the module page ( for FE-I4B )
   * Make the plot of scan for each module with adjusting parameters ( for FE-I4B in local )
 
   Now implementing (comming soon) :
   
-  * Check the result of scan for each module and chip ( for RD53A )
   * Write which run is summary for the module into database and check them in the module page ( for RD53A )
   * Make the plot of scan for each module with adjusting parameters ( for RD53A )
   * Request to create user account who can upload pictures into database ( for both of asics )
@@ -45,41 +44,35 @@
   
   ## User Setting
 
-  1) Modify and excute setting.sh to change some codes for user
-
-  * PYTHON3    : set true if you use python3, or false if use python2
-  * IPADDRESS  : where you run this web app ( default : "'127.0.0.1'" ... set default number if you use apache system )
-  * PORT       : port of mongoDB ( default : "27017" )
-
+  1) Make conf.yaml
+  Copy web-app-db-yarr/scripts/yaml/web-conf.yml to web-app-db-yarr/conf.yml.
   ```
-   $ ./setting.sh
+  $ cd path/to/web-app-db-yarr
+  $ cp scripts/yaml/web-conf.yml conf.yml
   ```
+  Change somethings if user's needs.
+  - mongodb host/port ... change if user use mongodb in other server. 
+  - mongodb username/password ... change if user set authorization into mongodb.
+  - flask host/port ... change if user want to check viewer from external server.
+  - python ... change if user use python3
 
-  2) Install python modules by executing make_pipinstall.sh and pipinstall.py in directory web-app-db-yarr/scripts/install/
-
+  2) Install python modules
   ```
+   $ cd path/to/web-app-db-yarr/scripts/install
    $ ./make_pipinstall.sh ---> generate pipinstall.py
    $ python pipinstall.py 
   ```
+  - PIPPATH ... change if user use python3.
 
-  3) Modify web-app-db-yarr.conf if you use apache system 
-
-  ```
-    <VirtualHost *:80>
-      ProxyPreserveHost On
-      ProxyRequests Off
-      ProxyPass /yarrdb http://localhost:5000/yarrdb
-      ProxyPassReverse /yarrdb http://localhost:5000/yarrdb
-    </VirtualHost>
-  ```
+  3) Copy path/to/web-app-db-yarr/scripts/apache/config.conf to /etc/httpd/conf.d/web-app-db-yarr.conf if you use apache system 
 
   ## running web-app-db-yarr
 
-  You can run web-app-db-yarr by excuting app.py, and check viewer by typing localhost:5000/yarrdb or <IPADDRESS>:5000/yarrdb in browser.
-  You can check viewer by typing <IPADDRESS>/yarrdb if you use apache system.
+  You can run web-app-db-yarr by excuting app.py, and check viewer by typing localhost:5000/yarrdb or <IPADDRESS>:5000/yarrdb/ in browser.
+  You can check viewer by typing <IPADDRESS>/yarrdb/ if you use apache system.
 
   ```
-   $  python app.py
+   $  python app.py --config conf.yml
   ```
   
 # helpful information

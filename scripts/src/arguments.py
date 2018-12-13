@@ -30,6 +30,6 @@ def getArgs():
         if "password" in conf["mongoDB"]: args.password = conf["mongoDB"]["password"]
         if "host" in conf["flask"]:       args.fhost = conf["flask"]["host"]
         if "port" in conf["flask"]:       args.fport = conf["flask"]["port"]
-        if "python" in conf["flask"]:       args.fpython = conf["flask"]["python"]
+        if "python" in conf:              args.fpython = conf["python"]
 
     return args
