@@ -1,22 +1,22 @@
 import os, sys
-sys.path.append( os.path.dirname(os.path.dirname(os.path.abspath(__file__)) ) )
+sys.path.append( os.path.dirname(os.path.dirname(os.path.abspath(__file__)) ) + "/src" )
 
 from getpass import getpass
 import hashlib
 
 from pymongo import MongoClient
-from src import listset, func
+import func
+from arguments import *   # Pass command line arguments into app.py
 
-client = MongoClient(host='localhost', port=listset.PORT)
+args = getArgs()            # Get command line arguments
+client = MongoClient(host=args.host, port=args.port)
 localdb = client['yarrlocal']
 
 ### FOR CREATE ADMINISTRATOR CODE###
 
 if localdb.user.find({ "type" : "administrator" }).count() == 0 :
     # check python version
-    if not listset.pythonv in [ 2, 3 ] :
-        print( "# Set python version by setting.sh" )
-    print( "# Use python : version " + str(listset.pythonv) + "\n")
+    print( "# Use python : version " + str(args.fpython) + "\n")
 
     print("Set administrator account ...")
     print(" ")
@@ -28,9 +28,9 @@ if localdb.user.find({ "type" : "administrator" }).count() == 0 :
         
     print(" ")
 
-    if listset.pythonv == 2 :
+    if args.fpython == 2 :
         answer = raw_input('Continue (y/n) >> ')
-    elif listset.pythonv == 3 :
+    elif args.fpython == 3 :
         answer = input('Continue (y/n) >> ')
 
     if answer == 'y' : 
@@ -40,15 +40,15 @@ if localdb.user.find({ "type" : "administrator" }).count() == 0 :
         for item in items :
             if not (item == 'passWord' or item == 'passWord again') :
                 print("Input {}".format(item))
-                if listset.pythonv == 2 :
+                if args.fpython == 2 :
                     admininfo.append(raw_input(' >> ')) #python2
-                elif listset.pythonv == 3 :
+                elif args.fpython == 3 :
                     admininfo.append(input(' >> ')) #python3
             else :
                 print("Input {}".format(item))
-                if listset.pythonv == 2 :
+                if args.fpython == 2 :
                     admininfo.append(getpass(' >> ')) #python2
-                elif listset.pythonv == 3 :
+                elif args.fpython == 3 :
                     admininfo.append(getpass(' >> ')) #python3
         
         if not admininfo[5] == admininfo[6] :
@@ -62,9 +62,9 @@ if localdb.user.find({ "type" : "administrator" }).count() == 0 :
                 print(' - ' + item + ' : ' + admininfo[items.index( item )])
         
         print(" ")
-        if listset.pythonv == 2 :
+        if args.fpython == 2 :
             answer = raw_input('Continue (y/n) >> ')
-        elif listset.pythonv == 3 :
+        elif args.fpython == 3 :
             answer = input('Continue (y/n) >> ')
 
         if answer == 'y' : 

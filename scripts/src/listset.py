@@ -2,10 +2,6 @@ import os, sys
 # set path
 
 # set parammeter
-IPADDRESS=CHANGEIP
-PORT=CHANGEPORT
-pythonv = PYTHONV
-
 scan = { "selftrigger"   : [( "OccupancyMap-0", "#Hit" ),],
          "noisescan"     : [( "NoiseOccupancy","NoiseOccupancy" ), ( "NoiseMask", "NoiseMask" )],
          "totscan"       : [( "MeanTotMap", "Mean[ToT]" ),         ( "SigmaTotMap", "Sigma[ToT]" )],

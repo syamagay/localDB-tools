@@ -1,9 +1,11 @@
 import os, sys
 SCRIPT_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)) )
 sys.path.append( SCRIPT_DIR )
+sys.path.append( SCRIPT_DIR + "/src" )
 
+from arguments import *   # Pass command line arguments into app.py
 try    : 
-    from src import root
+    import root
     DOROOT = True
 except : 
     DOROOT = False 
@@ -22,11 +24,12 @@ from bson.objectid import ObjectId
 import gridfs # gridfs system 
 
 # other function
-from src import listset, func
+import listset, func
 
 #############
 # set dbs
-client = MongoClient( host='localhost', port=listset.PORT )
+args = getArgs()            # Get command line arguments
+client = MongoClient( host=args.host, port=args.port )
 yarrdb = client['yarrdb']
 fs = gridfs.GridFS( yarrdb )
 
@@ -67,9 +70,9 @@ def update_mod( collection, query ) :
 
 #################################################################
 # check python version
-if not listset.pythonv in [ 2, 3 ] :
+if not args.fpython in [ 2, 3 ] :
     print( "# Set python version by setting.sh" )
-print( "# Use python : version " + str(listset.pythonv) + "\n")
+print( "# Use python : version " + str(args.fpython) + "\n")
 
 # exit if not enable to use ROOT SW
 if not DOROOT :
@@ -85,9 +88,9 @@ print( " " )
 # enter stage number
 num = ""
 while num == "" :
-    if listset.pythonv == 2 :
+    if args.fpython == 2 :
         num = raw_input( "# Type stage number >> " ) #python2
-    elif listset.pythonv == 3 :
+    elif args.fpython == 3 :
         num = str(input( "# Type stage number >> " )) #python3
 if not num.isdigit() :
     print( "# Enter STAGE NUMBER, exist ... ")
@@ -101,9 +104,9 @@ print("# ok.\n")
 # serial number
 serialNumber = ""
 while serialNumber == "" :
-    if listset.pythonv == 2 :
+    if args.fpython == 2 :
         serialNumber = raw_input( "# Type serial number of module >> " ) #python2
-    elif listset.pythonv == 3 :
+    elif args.fpython == 3 :
         serialNumber = str(input( "# Type serial number of module >> " )) #python3
 dataJson.update({ "serialNumber" : serialNumber }) 
 query = { "serialNumber" : dataJson['serialNumber'] }
@@ -126,9 +129,9 @@ print( " ---------------------------------- " )
 print( " " )
 answer = ""
 while answer == "" :
-    if listset.pythonv == 2 :
+    if args.fpython == 2 :
         answer = raw_input( "# Continue to check results of this module? Type 'y' if continue >> " ) #python2
-    elif listset.pythonv == 3 :
+    elif args.fpython == 3 :
         answer = str(input( "# Continue to check results of this module? Type 'y' if continue >> " )) #python3
 if not answer == "y" : 
     print( "# exit ... " )
@@ -182,9 +185,9 @@ while not answer == "y" :
         print( " " )
         number = ""
         while number == "" :
-            if listset.pythonv == 2 :
+            if args.fpython == 2 :
                 number = raw_input( '# Enter run number from this list for summary plot. If you want not to select, type "N". >> ' ) #python2
-            elif listset.pythonv == 3 :
+            elif args.fpython == 3 :
                 number = str(input( '# Enter run number from this list for summary plot. If you want not to select, type "N". >> ' )) #python3
             if number == "N" :
                 number = None
@@ -221,9 +224,9 @@ while not answer == "y" :
         print( " ---------------------------------- \n" )
     answer = "" 
     while answer == "" :
-        if listset.pythonv == 2 :
+        if args.fpython == 2 :
             answer = raw_input( "# Type 'y' if continue to make plots, or type the number before scan name if change run number >> " ) #python2
-        elif listset.pythonv == 3 :
+        elif args.fpython == 3 :
             answer = str(input( "# Type 'y' if continue to make plots, or type the number before scan name if change run number >> " )) #python3
     print( " " )
 
@@ -264,11 +267,11 @@ for scan in listset.scan :
     print( "--- Finish : " + scan + " ---\n" )
 
 print( "# Finish to make histograms of all scans.\n" )
-if listset.pythonv == 2 :
+if args.fpython == 2 :
     if not raw_input( "# Continue to insert plots into Database? Type 'y' if continue >> " ) == "y" : #python2
         print( "# exit ... " )
         sys.exit()     
-elif listset.pythonv == 3 :
+elif args.fpython == 3 :
     if not str(input( "# Continue to insert plots into Database? Type 'y' if continue >> " )) == "y" : #python3
         print( "# exit ... " )
         sys.exit()     

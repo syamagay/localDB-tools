@@ -2,7 +2,7 @@
 ###   Import Module 
 ##################################
 import os, pwd, glob, hashlib, datetime, shutil, sys
-sys.path.append( os.path.dirname(os.path.abspath(__file__)) + "/scripts" )
+sys.path.append( os.path.dirname(os.path.abspath(__file__)) + "/scripts/src" )
 
 # use Flask scheme
 from flask import Flask, request, redirect, url_for, render_template, session, abort
@@ -22,20 +22,19 @@ import gridfs # gridfs system
 from werkzeug import secure_filename # for upload system
 from PIL import Image
 import io
-from arguments import *   # Pass command line arguments into app.py
 
 # other function
 # use PyROOT
 try    : 
-    from src import root
+    import root
     DOROOT = True
 except : 
     DOROOT = False 
-from src import func, listset
+import func, listset
+from arguments import *   # Pass command line arguments into app.py
 # function for each fe types
-from AsicTypes import fei4, rd53a
-#import fei4
-FE = { "default" : fei4, "FE-I4B" : fei4, "RD53A" : rd53a }
+from AsicTypes import fei4
+FE = { "default" : fei4, "FE-I4B" : fei4 }
 
 ##################
 # path/to/save/dir 
@@ -94,12 +93,12 @@ app.config["SECRET_KEY"] = os.urandom(24)
 
 ####################
 # add path to static
-from src import static
+import static
 app.register_blueprint(static.app)
 
 #############
 # for user db
-client = MongoClient( host='localhost', port=listset.PORT )
+client = MongoClient( host=args.host, port=args.port )
 localdb = client['yarrlocal']
 
 ##########

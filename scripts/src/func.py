@@ -3,7 +3,7 @@ from binascii import a2b_base64 # convert a block of base64 data back to binary
 from pdf2image import convert_from_path # convert pdf to image
 import base64 # Base64 encoding scheme
 import datetime, json
-from src import listset
+from arguments import *   # Pass command line arguments into app.py
 from bson.objectid import ObjectId 
 import pymongo
 from pymongo import MongoClient
@@ -11,7 +11,8 @@ from pymongo import MongoClient
 from getpass import getpass
 import hashlib
 
-client = MongoClient(host='localhost', port=listset.PORT)
+args = getArgs()            # Get command line arguments
+client = MongoClient(host=args.host, port=args.port)
 localdb = client['yarrlocal']
 
 USER=pwd.getpwuid( os.geteuid() ).pw_name

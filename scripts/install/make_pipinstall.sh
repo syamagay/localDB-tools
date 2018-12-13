@@ -6,22 +6,8 @@ MODULE_TEXT="install_list"
 LOG_TEXT="install_log"
 
 ### COMMAND PATH
-while read line
-do
-    if echo $line | grep 'pythonv' ; then
-        for i in $line
-        do
-            if test $i == 2 ; then 
-                PIPPATH="pip"
-            elif test $i == 3 ; then 
-                PIPPATH="pip3"
-            else
-                echo "Not set python version, exit ... "
-                exit
-            fi
-        done
-    fi
-done < "../src/listset.py"
+PIPPATH="pip"
+#PIPPATH="pip3"
             
 PIP_PATH=`which ${PIPPATH}`
 if [ $? -ne 0 ]; then

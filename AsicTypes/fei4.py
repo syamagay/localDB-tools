@@ -5,7 +5,7 @@ sys.path.append( APP_DIR )
 JSON_DIR = APP_DIR + "/scripts/json"
 
 try    : 
-    from src import root
+    import root
     DOROOT = True
 except : 
     DOROOT = False 
@@ -29,7 +29,8 @@ from PIL import Image
 import io
 
 # other function
-from src import func, listset
+import func, listset
+from arguments import *   # Pass command line arguments into app.py
 
 ##################
 # path/to/save/dir 
@@ -42,7 +43,9 @@ STAT_DIR = '{}/static'.format( USER_DIR )
 
 #############
 # set dbs
-client = MongoClient( host='localhost', port=listset.PORT )
+args = getArgs()            # Get command line arguments
+
+client = MongoClient( host=args.host, port=args.port )
 yarrdb = client['yarrdb']
 localdb = client['yarrlocal']
 fs = gridfs.GridFS( yarrdb )
