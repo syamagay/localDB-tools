@@ -36,10 +36,11 @@ def drawScan(scan_type, num_scan, log, Max, map_list):
 
     ROOT.gROOT.SetBatch()
 
-    if os.path.isfile( "{}/parameter.json".format( JSON_DIR ) ) :
-        filePath = "{}/parameter.json".format( JSON_DIR )
-    else :
-        filePath = "{}/parameter_default.json".format( JSON_DIR )
+    #if os.path.isfile( "{}/parameter.json".format( JSON_DIR ) ) :
+    #    filePath = "{}/parameter.json".format( JSON_DIR )
+    #else :
+    #    filePath = "{}/parameter_default.json".format( JSON_DIR )
+    filePath = "{}/parameter_default.json".format( JSON_DIR )
     with open( filePath, 'r' ) as f : 
         dataJson = json.load( f )
     with open( "{}/parameter_default.json".format( JSON_DIR ), 'r' ) as f : 
@@ -114,10 +115,10 @@ def drawScan(scan_type, num_scan, log, Max, map_list):
             Plot.Plot1D_fromHistos(h1, log, path_plot+"_1", "#Ch.", "histo", h1d_max)
             Plot.Plot2D_fromHistos(h2, log, path_plot+"_2", map_type[1], h1d_max)
 
-            dataJson[scan_type][map_type[0]] = [int(h2.GetBinContent(h2.GetMaximumBin())),log]
-            dataJson[scan_type][map_type[0]] = [int(h1d_max),log]
+            #dataJson[scan_type][map_type[0]] = [int(h2.GetBinContent(h2.GetMaximumBin())),log]
+            #dataJson[scan_type][map_type[0]] = [int(h1d_max),log]
 
-    fileName = "{}/parameter.json".format( JSON_DIR )
-    with open( fileName, 'w' ) as f :
-        json.dump( dataJson, f, indent=4 )
+    #fileName = "{}/parameter.json".format( JSON_DIR )
+    #with open( fileName, 'w' ) as f :
+    #    json.dump( dataJson, f, indent=4 )
  

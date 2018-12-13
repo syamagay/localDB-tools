@@ -49,7 +49,7 @@ STAT_DIR = '{}/static'.format( USER_DIR )
 DIRS = [ PIC_DIR, DAT_DIR, PLOT_DIR, STAT_DIR, THUM_DIR ] 
 if os.path.isdir( USER_DIR ) :
     shutil.rmtree( USER_DIR )
-    os.mkdir( USER_DIR )
+os.mkdir( USER_DIR )
 for DIR in DIRS :
     os.mkdir( DIR )
 ############
