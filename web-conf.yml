@@ -1,0 +1,13 @@
+# Configs for web viewer
+
+mongoDB:
+    host: 127.0.0.1
+    port: 27017
+
+    # For user authentication
+    #username: viewer
+    #password: viewerpass
+
+flask:
+    host: 127.0.0.1
+    port: 5000

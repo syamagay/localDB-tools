@@ -22,6 +22,7 @@ import gridfs # gridfs system
 from werkzeug import secure_filename # for upload system
 from PIL import Image
 import io
+from arguments import *   # Pass command line arguments into app.py
 
 # other function
 # use PyROOT
@@ -76,7 +77,13 @@ class PrefixMiddleware(object):
 ##############
 # call mongodb
 app = Flask( __name__ )
-app.config["MONGO_URI"] = "mongodb://localhost:"+str(listset.PORT)+"/yarrdb"
+args = getArgs()            # Get command line arguments
+if args.username is None:
+    url = "mongodb://" + args.host + ":" + str(args.port) + "/yarrdb"
+else:
+    url = "mongodb://" + args.username + ":" + args.password + "@" + args.host + ":" + str(args.port) + "/yarrdb"
+print("Connecto to mongoDB server: " + url)
+app.config["MONGO_URI"] = url
 app.wsgi_app = PrefixMiddleware(app.wsgi_app, prefix='/yarrdb')
 mongo = PyMongo( app )
 fs = gridfs.GridFS( mongo.db )
@@ -729,4 +736,4 @@ def add_user() :
     return redirect( url_for('admin_page') ) 
 
 if __name__ == '__main__':
-    app.run(host=listset.IPADDRESS) # change hostID
+    app.run(host=args.fhost, port=args.fport)
