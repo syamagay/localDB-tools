@@ -1,7 +1,7 @@
 ##################################
 ###   Import Module 
 ##################################
-import os, pwd, glob, hashlib, datetime, shutil, sys
+import os, pwd, glob, hashlib, datetime, shutil, sys, uuid
 sys.path.append( os.path.dirname(os.path.abspath(__file__)) + "/scripts/src" )
 
 # use Flask scheme
@@ -34,7 +34,6 @@ import func, listset
 from arguments import *   # Pass command line arguments into app.py
 # function for each fe types
 from AsicTypes import fei4
-FE = { "default" : fei4, "FE-I4B" : fei4 }
 
 app = Flask( __name__ )
 
@@ -58,6 +57,7 @@ if os.path.isdir( USER_DIR ) :
 os.mkdir( USER_DIR )
 for DIR in DIRS :
     os.mkdir( DIR )
+
 
 ############
 # login list
@@ -142,6 +142,18 @@ def count_photoNum() :
 # top page
 @app.route('/', methods=['GET'])
 def show_modules_and_chips() :
+
+    if session.get('uuid') :
+        files = glob.glob(DAT_DIR+"/"+str(session.get('uuid'))+"*")
+        for f in files : 
+            os.remove(f)
+
+        result_dir = PLOT_DIR+"/"+str(session.get('uuid'))
+        if os.path.isdir( result_dir ) :
+            shutil.rmtree( result_dir )
+
+    session['uuid'] = str(uuid.uuid4()) 
+
     make_dir()
 
     # pop session
@@ -181,16 +193,16 @@ def show_modules_and_chips() :
 # component page
 @app.route('/component', methods=['GET', 'POST'])
 def show_component() :
-
     make_dir()
 
     component = {}
+    session['chips']=[]
+
     # get from session
     Component = session.get( 'component' )
     ComponentId = request.args.get( 'id' )
     ParentId = session.get( 'parentId' )
     Code = session.get('code')
-    #RunNumber = session.get('runNumber')
     RunId = session.get('runId')
 
     # this component
@@ -206,41 +218,39 @@ def show_component() :
     # fill chip and module information
     components = {}
     components.update({ "this" : ComponentId })
-    components.update({ "components" : [] })
-    components['components'].append({ "component" : ComponentId })
+    components.update({ "chips" : [] })
+    if Component == "chip" :
+        components['chips'].append({ "component" : ComponentId })
     chips = []
     for child in child_entries :
         if Component == "module" :
-            components['components'].append({ "component" : child['child'] })
+            components['chips'].append({ "component" : child['child'] })
+            session['chips'].append(child['child'])
 
         query = { "_id" : ObjectId(child['child']) }
         thisChip = mongo.db.component.find_one( query )
         component['componentType'] = thisChip['componentType']
         chips.append({ "_id"          : child['child'],
                        "serialNumber" : thisChip["serialNumber"] })
+
     module = { "_id"           : ParentId,
                "serialNumber"  : thisModule["serialNumber"] }
     
-    if component['componentType'] in FE.keys() :
-        asic = str(component['componentType'])
-    else :
-        asic = "default"
-
     # fill photo display
-    photoDisplay = FE[asic].fill_photoDisplay( thisComponent )
+    photoDisplay = fei4.fill_photoDisplay( thisComponent )
     # fill photo index
-    photoIndex = FE[asic].fill_photoIndex( thisComponent )
+    photoIndex = fei4.fill_photoIndex( thisComponent )
     # show photo
-    photos = FE[asic].fill_photos( thisComponent, Code )
+    photos = fei4.fill_photos( thisComponent, Code )
 
     # fill result index
-    resultIndex = FE[asic].fill_resultIndex( components ) 
+    resultIndex = fei4.fill_resultIndex( components ) 
     # fill results 
-    results = FE[asic].fill_results( components, RunId )
+    results = fei4.fill_results( components, RunId )
     # fill roots
-    roots = FE[asic].fill_roots( components, RunId )
+    roots = fei4.fill_roots( components, RunId )
     # fill summary ( module )
-    summary = FE[asic].fill_summary( thisComponent )
+    summary = fei4.fill_summary( thisComponent )
 
     component.update({ "_id"           : ComponentId,
                        "serialNumber"  : thisComponent['serialNumber'],
@@ -262,8 +272,18 @@ def show_component() :
 @app.route('/module', methods=['GET','POST'])
 def show_module() :
     if not session.get('runId') == request.args.get( 'runId' ) :
+        print("aaa")
         for key in poplist :
             session.pop(key,None)
+
+        files = glob.glob(DAT_DIR+"/"+str(session.get('uuid'))+"*")
+        for f in files : 
+            os.remove(f)
+
+        result_dir = PLOT_DIR+"/"+str(session.get('uuid'))
+        if os.path.isdir( result_dir ) :
+            shutil.rmtree( result_dir )
+
     session['component'] = "module"
 
     # get from args
@@ -273,12 +293,6 @@ def show_module() :
     session['code'] = request.args.get( 'code', "" )
     session['runId'] = request.args.get( 'runId' )
 
-    # get from form
-    session['reanalysis'] = request.form.get( 'reanalysis', False )
-    session['mapType'] = request.form.get( 'mapType' )
-    session['log'] = request.form.get('log',False)
-    session['max'] = request.form.get('max',0) 
-
     return redirect( url_for("show_component", id=componentId) )
 
 ###########
@@ -286,8 +300,18 @@ def show_module() :
 @app.route('/chip', methods=['GET', 'POST'])
 def show_chip() :
     if not session.get('runId') == request.args.get( 'runId' ) :
+        print("bbb")
         for key in poplist :
             session.pop(key,None)
+
+        files = glob.glob(DAT_DIR+"/"+str(session.get('uuid'))+"*")
+        for f in files : 
+            os.remove(f)
+
+        result_dir = PLOT_DIR+"/"+str(session.get('uuid'))
+        if os.path.isdir( result_dir ) :
+            shutil.rmtree( result_dir )
+
     session['component'] = "chip"
 
     # get from args
@@ -297,6 +321,20 @@ def show_chip() :
 
     query = { "child" : componentId }
     session['parentId'] = mongo.db.childParentRelation.find_one( query )['parent']
+
+    return redirect( url_for("show_component", id=componentId) )
+
+@app.route('/makehisto', methods=['GET','POST'])
+def makehisto() :
+
+    # get from args
+    componentId = request.args.get( 'id' )
+
+    # get from form
+    session['reanalysis'] = True
+    session['mapType'] = request.form.get( 'mapType' )
+    session['log'] = request.form.get('log',False)
+    session['max'] = request.form.get('max',0) 
 
     return redirect( url_for("show_component", id=componentId) )
 

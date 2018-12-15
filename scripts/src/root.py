@@ -3,122 +3,102 @@
 ### K. Yajima
 ###############
 
-import sys, os, pwd, json
+import sys, os, pwd, glob
 SRC_DIR = os.path.dirname(os.path.abspath(__file__))
 sys.path.append( SRC_DIR + "/PlotTools" )
-SCRIPT_DIR = os.path.dirname( SRC_DIR )
 
 from PlotHelpers import gHelper as PH
 import PlotFromHistos.SimplePlots as Plot
 
 import ROOT
+from flask import session  # use Flask scheme
 
 USER=pwd.getpwuid( os.geteuid() ).pw_name
 USER_DIR = '/tmp/{}'.format( USER ) 
 DAT_DIR = '{}/dat'.format( USER_DIR )
 PLOT_DIR = '{}/result'.format( USER_DIR )
-JSON_DIR = SCRIPT_DIR + "/json"
 
-##########
-# Variables
-NUM_COL = 80
-NUM_ROW = 336
-
-datDict = { "selftrigger"   : [("OccupancyMap-0", "#Hit"),],
-            "noisescan"     : [("NoiseOccupancy","NoiseOccupancy"), ("NoiseMask", "NoiseMask")],
-            "totscan"       : [("MeanTotMap", "Mean[ToT]"),         ("SigmaTotMap", "Sigma[ToT]")],
-            "thresholdscan" : [("ThresholdMap", "Threshold[e]"),    ("NoiseMap", "Noise[e]")],
-            "digitalscan"   : [("OccupancyMap", "Occupancy"),       ("EnMask", "EnMask")],
-            "analogscan"    : [("OccupancyMap", "Occupancy"),       ("EnMask", "EnMask")]}
-
-def drawScan(scan_type, num_scan, log, Max, map_list):
-    if int(num_scan) < 0 : raise ValueError("Invalid scan number")
+def drawScan(scan_type, num_scan, log, Max, map_list ):
 
     ROOT.gROOT.SetBatch()
 
-    #if os.path.isfile( "{}/parameter.json".format( JSON_DIR ) ) :
-    #    filePath = "{}/parameter.json".format( JSON_DIR )
-    #else :
-    #    filePath = "{}/parameter_default.json".format( JSON_DIR )
-    filePath = "{}/parameter_default.json".format( JSON_DIR )
-    with open( filePath, 'r' ) as f : 
-        dataJson = json.load( f )
-    with open( "{}/parameter_default.json".format( JSON_DIR ), 'r' ) as f : 
-        defaultJson = json.load( f )
-
-############
-# Main loop
-    for map_type in datDict[scan_type]:
-        if map_list[map_type[0]]: 
-
-            if Max == 0 : 
-                h1d_max=int(defaultJson[scan_type][map_type[0]][0])
-            else :
-                h1d_max=int(Max)
-            if len(defaultJson[scan_type][map_type[0]])==3 :
-                h1d_bin=int(defaultJson[scan_type][map_type[0]][2])
-            else :
-                h1d_bin=h1d_max
-
-            h1 = ROOT.TH1D(map_type[0]+"_Dist_"+num_scan,
-                           map_type[0]+"_Dist_"+num_scan+";"+map_type[1],
-                           h1d_bin, 0, h1d_max)
-        
-            h2 = ROOT.TH2D(map_type[0]+"_"+num_scan,
-                           map_type[0]+"_"+num_scan+";Column;Row",
-                           NUM_COL*2, 0.5, NUM_COL*2+0.5, NUM_ROW*2, 0.5, NUM_ROW*2+0.5)
-        
-            # Chip loop
-            for i in range(4) :
-        
-                # Open Files
-                filename = DAT_DIR+"/"+num_scan+"_chipId"+str(i+1)+"_"+map_type[0]+".dat"
-                try :
-                    f = open(filename)
-                except :
-                    continue
-        
-                # Readlines
+    value = ["histoType","mapType","xaxis","yaxis","zaxis","xrange","yrange","zrange"]
+    for map_type in map_list :
+        histo_value = {}
+        files = glob.glob(DAT_DIR+"/"+str(session.get('uuid'))+"_"+str(num_scan)+"*"+map_type+".dat")
+        if map_list[map_type] == 1 :
+            cnt = 1
+        else :
+            cnt = 2
+        zmax = 0
+        word_entry = []
+        for i,filename in enumerate(files) :
+            for a in filename.split("_") :
+                if "chipId" in a :
+                    chipId = int(a[6]) - 1
+            with open(filename) as f :      
                 readlines = f.readlines()
-        
-                # Pixel loop
-                if   i==0 or i==1 : row = NUM_ROW-1
-                elif i==2 or i==3 : row = NUM_ROW
-        
-                for readline in readlines :
-                    words = readline.split()
-                    if len(words) != 80 : continue
-        
-                    if   i==0 : col = NUM_COL-1
-                    elif i==1 : col = NUM_COL*2-1
-                    elif i==2 : col = 0
-                    elif i==3 : col = NUM_COL
-        
-                    for word in words :
-                        h1.Fill(float(word))
-                        h2.SetBinContent(col+1, row+1, float(word))
-        
-                        if   i==0 or i==1 : col = col - 1
-                        elif i==2 or i==3 : col = col + 1
-        
-                    if   i==0 or i==1 : row = row - 1
-                    elif i==2 or i==3 : row = row + 1
-        
-                f.close()
-                #os.remove(filename)
-        
-            path_dir = PLOT_DIR + "/" + scan_type
-            PH.outDir = path_dir
+                for j, readline in enumerate(readlines) :
+                    if j < len(value) :
+                        if i == 0 :
+                            histo_value.update({ value[j] : readline.split() }) 
+                    else :
+                        words = readline.split()
+                        if histo_value["histoType"][0] == "Histo2d" :
+                            if j == len(value) :
+                                if cnt == 1 :
+                                    row = 0 
+                                else :
+                                    if   chipId==0 or chipId==1 : row = int(histo_value["yrange"][0])-1
+                                    elif chipId==2 or chipId==3 : row = int(histo_value["yrange"][0])
 
-    
-            path_plot = num_scan + "_" +  map_type[0]
-            Plot.Plot1D_fromHistos(h1, log, path_plot+"_1", "#Ch.", "histo", h1d_max)
-            Plot.Plot2D_fromHistos(h2, log, path_plot+"_2", map_type[1], h1d_max)
+                                if i == 0 :
+                                    h2 = ROOT.TH2D(map_type+"_"+num_scan,
+                                                   map_type+"_"+num_scan+";"+histo_value["xaxis"][0]+";"+histo_value["yaxis"][0]+";"+histo_value["zaxis"][0],
+                                                   int(histo_value["xrange"][0])*cnt, float(histo_value["xrange"][1]), float(histo_value["xrange"][0])*cnt+0.5,
+                                                   int(histo_value["yrange"][0])*cnt, float(histo_value["yrange"][1]), float(histo_value["yrange"][0])*cnt+0.5)
 
-            #dataJson[scan_type][map_type[0]] = [int(h2.GetBinContent(h2.GetMaximumBin())),log]
-            #dataJson[scan_type][map_type[0]] = [int(h1d_max),log]
+                            if cnt == 1 :
+                                col = 0
+                            else :
+                                if   chipId==0 : col = int(histo_value["xrange"][0])-1
+                                elif chipId==1 : col = int(histo_value["xrange"][0])*2-1
+                                elif chipId==2 : col = 0
+                                elif chipId==3 : col = int(histo_value["xrange"][0])
 
-    #fileName = "{}/parameter.json".format( JSON_DIR )
-    #with open( fileName, 'w' ) as f :
-    #    json.dump( dataJson, f, indent=4 )
+                            for k in range(int(histo_value["xrange"][0])) :
+                                word_entry.append(words[k])
+                                h2.SetBinContent(col+1, row+1, float(words[k]))
+                                if zmax < float(words[k]) : zmax = float(words[k])
+                                if cnt == 1 :
+                                    col = col + 1
+                                else :
+                                    if   chipId==0 or chipId==1 : col = col - 1
+                                    elif chipId==2 or chipId==3 : col = col + 1
+       
+                            if cnt == 1 :
+                                row = row + 1
+                            else :
+                                if   chipId==0 or chipId==1 : row = row - 1
+                                elif chipId==2 or chipId==3 : row = row + 1
+
+        if histo_value["histoType"][0] == "Histo2d" :
+            if Max == 0 : 
+                h1d_max=2*zmax
+            else :
+                h1d_max=Max
+            h1d_bin=int(h1d_max)
+            h1 = ROOT.TH1D(map_type+"_Dist_"+num_scan,
+                            map_type+"_Dist_"+num_scan+";"+histo_value["zaxis"][0]+";#Ch",
+                            h1d_bin, 0, h1d_max )
+            for word in word_entry : 
+                h1.Fill(float(word))
  
+            path_dir = PLOT_DIR + "/" + str(session.get('uuid'))
+            PH.outDir = path_dir
+    
+            path_plot = num_scan + "_" +  map_type
+            Plot.Plot1D_fromHistos(h1, log, path_plot+"_1", "#Ch.", "histo", h1d_max)
+            Plot.Plot2D_fromHistos(h2, log, path_plot+"_2", histo_value["zaxis"][0], h1d_max)
+            session['plot_list'].update({ map_type : { "max" : h1d_bin, "log" : log } })
+
