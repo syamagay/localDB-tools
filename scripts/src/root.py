@@ -23,7 +23,12 @@ def drawScan( scan_type, num_scan, map_list ):
 
     ROOT.gROOT.SetBatch()
 
-    json_file = SCRIPT_DIR + "/json/parameter_default.json"
+    json_file = SCRIPT_DIR + "/json/parameter.json"
+    if not os.path.isfile( json_file ) :
+        json_file_default = SCRIPT_DIR + "/json/parameter_default.json"
+        with open(json_file_default,'r') as f : json_data_default = json.load(f)
+        with open(json_file,'w') as f :      
+            json.dump(json_data_default,f,indent=4)
     with open(json_file,'r') as f : json_data = json.load(f)
     scan_parameter = json_data.get(scan_type,{})
 
@@ -86,6 +91,7 @@ def drawScan( scan_type, num_scan, map_list ):
 
         if histo_value["histoType"][0] == "Histo2d" :
             parameter = scan_parameter.get(map_type,[])
+            if not len(parameter) == 4 : parameter = []
             if session['plot_list'].get(map_type) :
                 h1d_min = int(session['plot_list'][map_type]['min'])
                 h1d_max = int(session['plot_list'][map_type]['max'])
@@ -118,18 +124,23 @@ def drawScan( scan_type, num_scan, map_list ):
 
             session['plot_list'].update({ map_type : { "min" : h1d_min, "max" : h1d_max, "bin" : h1d_bin, "log" : h1d_log } })
 
-def setparameter(scan_type, map_type) :
-    testname = SCRIPT_DIR + "/json/test.json"
-    test = { "testscan" : {
-             "testtype1" : [ 2, False ],
-             "testtype2" : [ 100, True ] }}
-    with open(testname,'r') as f :      
+def setParameter(scan_type, map_type) :
+
+    input_data = {}
+    input_data.update({ map_type : [ session['plot_list'][map_type]['min'],
+                                     session['plot_list'][map_type]['max'],
+                                     session['plot_list'][map_type]['bin'],
+                                     session['plot_list'][map_type]['log'] ] })
+
+    filename = SCRIPT_DIR + "/json/parameter.json"
+
+    with open(filename,'r') as f :      
         json_data = json.load(f)
-        scan_key = test.keys()
-        for scan in scan_key :
-            if not scan in json_data :
-                json_data.update(test)
-    with open(testname,'w') as f :      
+        if not scan_type in json_data :
+            json_data.update({ scan_type : { "Summary" : False }})
+        elif not "Summary" in json_data :
+            json_data[scan_type].update({ "Summary" : False })
+        json_data[scan_type].update( input_data )
+
+    with open(filename,'w') as f :      
         json.dump(json_data,f,indent=4)
-
-

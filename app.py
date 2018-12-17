@@ -23,7 +23,6 @@ from werkzeug import secure_filename # for upload system
 from PIL import Image
 import io
 
-# other function
 # use PyROOT
 try    : 
     import root
@@ -62,7 +61,7 @@ for DIR in DIRS :
 ############
 # login list
 loginlist = [ "logged_in", "user_id", "user_name", "institute", "read", "write", "edit" ]
-poplist = [ "signup", "component", "parentId", "code", "runNumber", "runId", "mapType", "plot_list" ]
+poplist = [ "signup", "component", "parentId", "code", "runNumber", "runId", "mapType", "plot_list", "root" ]
 
 ########
 # Prefix
@@ -299,7 +298,6 @@ def show_module() :
 @app.route('/chip', methods=['GET', 'POST'])
 def show_chip() :
     if not session.get('runId') == request.args.get( 'runId' ) :
-        print("bbb")
         for key in poplist :
             session.pop(key,None)
 
@@ -325,17 +323,23 @@ def show_chip() :
 
 @app.route('/makehisto', methods=['GET','POST'])
 def makehisto() :
+    session['root'] = request.form.get('root')
 
-    # get from args
-    componentId = request.args.get( 'id' )
+    if session['root'] == 'make' :
+        # get from args
+        componentId = request.args.get( 'id' )
 
-    # get from form
-    session['mapType'] = request.form.get( 'mapType' )
-    session['plot_list'].update({ session['mapType'] : 
-                                    { "log" : request.form.get('log',False),
-                                      "min" : request.form.get('min'), 
-                                      "max" : request.form.get('max'), 
-                                      "bin" : request.form.get('bin') }})
+        # get from form
+        session['mapType'] = request.form.get( 'mapType' )
+        session['plot_list'].update({ session['mapType'] : { "log" : request.form.get('log',False),
+                                                             "min" : request.form.get('min'), 
+                                                             "max" : request.form.get('max'), 
+                                                             "bin" : request.form.get('bin') }})
+    if session['root'] == 'set' :
+        # get from args
+        componentId = request.args.get( 'id' )
+        # get from form
+        session['mapType'] = request.form.get( 'mapType' )
 
     return redirect( url_for("show_component", id=componentId) )
 

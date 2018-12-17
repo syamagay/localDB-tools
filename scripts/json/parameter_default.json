@@ -1,27 +1,29 @@
 {
     "analogscan": {
+        "Summary": false, 
         "EnMask": [
-            0,
+            0, 
             2, 
             2, 
             false
         ], 
         "OccupancyMap": [
-            0,
+            0, 
             200, 
             200, 
-            false 
+            false
         ]
     }, 
     "noisescan": {
+        "Summary": false, 
         "NoiseOccupancy": [
-            0,
+            0, 
             1, 
-            100,
+            100, 
             false
         ], 
         "NoiseMask": [
-            0,
+            0, 
             2, 
             2, 
             false
@@ -29,21 +31,23 @@
     }, 
     "selftrigger": {
         "OccupancyMap-0": [
-            0,
+            0, 
             200, 
             200, 
             false
-        ]
+        ], 
+        "Summary": false
     }, 
     "digitalscan": {
+        "Summary": false, 
         "EnMask": [
-            0,
+            0, 
             2, 
             2, 
             false
         ], 
         "OccupancyMap": [
-            0,
+            0, 
             200, 
             200, 
             false
@@ -51,30 +55,32 @@
     }, 
     "thresholdscan": {
         "NoiseMap": [
-            0,
+            0, 
             1000, 
             1000, 
             false
         ], 
         "ThresholdMap": [
-            0,
+            0, 
             4000, 
             4000, 
             false
-        ]
+        ], 
+        "Summary": false
     }, 
     "totscan": {
         "SigmaTotMap": [
-            0,
+            0, 
             14, 
             14, 
             false
         ], 
         "MeanTotMap": [
-            0,
+            0, 
             14, 
             14, 
             false
-        ]
+        ], 
+        "Summary": false
     }
 }

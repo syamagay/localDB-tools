@@ -1,6 +1,5 @@
 import os, pwd, glob, sys, json
 APP_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-print(APP_DIR)
 sys.path.append( APP_DIR )
 JSON_DIR = APP_DIR + "/scripts/json"
 
@@ -280,7 +279,7 @@ def fill_roots( item ) :
                                 f.write( fs.get(ObjectId(data['code']) ).read())
                                 f.close()
                                 mapList.update({ data['filename'].rsplit("_",1)[1] : len(chipIds) })
-            else :
+            elif session.get( 'mapType' ) :
                 chipIds = {}
                 components = sorted( item.get( 'chips' ), key=lambda x:x['component'] )
                 i=1
@@ -289,9 +288,13 @@ def fill_roots( item ) :
                         chipIds.update({ component['component'] : i })
                         i+=1
                 mapList.update({ session.get( 'mapType' ) : len(chipIds) })
-            root.drawScan( thisRun['testType'], str(thisRun['runNumber']), mapList )
+            if session.get('root') == "set" :
+                root.setParameter( thisRun['testType'], session.get( 'mapType' ) )
+            elif mapList :
+                root.drawScan( thisRun['testType'], str(thisRun['runNumber']), mapList )
 
             for mapType in session.get('plot_list') :
+                addfilename=["_Dist",""]
                 for i in [ "1", "2" ] :
                     filename = PLOT_DIR + "/" + str(session.get('uuid')) + "/" + str(thisRun['runNumber']) + "_" + str(mapType) + "_{}.png".format(i)
                     url = "" 
@@ -303,7 +306,7 @@ def fill_roots( item ) :
                         url = func.bin_to_image( 'png', code_base64 ) 
                     results.append({ "testType"    : thisRun['testType'], 
                                      "mapType"     : mapType, 
-                                     "filename"    : mapType, 
+                                     "filename"    : "{0}{1}".format( mapType, addfilename[int(i)-1] ), 
                                      "runNumber"   : thisRun['runNumber'], 
                                      "runId"       : session['runId'],
                                      "comments"    : list(thisRun['comments']),

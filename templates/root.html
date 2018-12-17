@@ -1,3 +1,33 @@
+<style>
+input[type="checkbox"] {
+display: none;
+}
+input[type="checkbox"]:checked + label {
+background: #ffffff;
+color: #000000;
+border: 2px solid #000000;
+}
+input[type="checkbox"]:checked + label:hover {
+background-color: #ff6347;
+color: #000000;
+border: 2px solid #000000;
+}
+.label {
+display: block; 
+text-align: center;
+cursor: pointer;
+background-color: #ffffff;
+color: #dddddd;
+border: 2px solid #dddddd;
+border-radius: 5px;
+}
+.label:hover {
+background-color: #ff6347;
+color: #efefef;
+border: 2px solid #efefef;
+}
+</style>
+
 {% if component['roots'] %} 
   <h4 style="font-size: 10pt;"><i class="fa fa-paint-brush"></i> ROOT </h4>
   {% if component['roots']['rootsw'] %}
@@ -25,66 +55,85 @@
         {% if loop.index %2 == 1 %}
         <div class="row align-items-top justify-content-space-evenly">
         {% endif %}
-          <div class="col-md-5">
+          <div class="col-md-4">
             <center>
-              <p> {{result['mapType']}} </p>
+              <p> {{result['filename']}} </p>
               <a href={{result['url']}} target="_brank" rel="noopener noreferrer">
-                <img src={{result['url']}} title={{result['mapType']}} width="300" height="300"></img>
+                <img src={{result['url']}} title={{result['filename']}} width="300" height="300"></img>
               </a>
             </center>
           </div>
         {% if loop.index %2  == 0 %}
-          <div class="col-md-2">
+          <div class="col-md-4">
             <center>
               <h5 style="font-size: 10pt"> Settings 
-              <p style="font-size: 7pt"> ( Dist:x-axis / Map:z-axis ) </p>
+              <p style="font-size: 8pt"> ( Dist:x-axis / Map:z-axis ) </p>
               </h5>
-              <form class="form-holizontal" action="{{ url_for('makehisto', id=component['_id'], runNumber=component['roots']['results'][0]['runNumber'], runId=component['roots']['results'][0]['runId']) }}" method=post class=entries style="font-size: 8pt">  
+              <form class="form-holizontal" action="{{ url_for('makehisto', id=component['_id'], runNumber=component['roots']['results'][0]['runNumber'], runId=component['roots']['results'][0]['runId']) }}" method=post class=entries style="font-size: 10pt">  
               <input type="hidden" name="mapType" value={{result['mapType']}}>
 
-              <div class="form-group row" style="font-size:6pt;">
-                <div class="col-form col-md-3">parameter</div>
-                <div class="col-form col-md-3">current</div>
-                <div class="col-form col-md-6">change</div>
+              <div class="form-group row" style="font-size:8pt;">
+                <div class="col-form col-md-4">parameter</div>
+                <div class="col-form col-md-4">current</div>
+                <div class="col-form col-md-4">change</div>
               </div>
 
               <div class="form-group row" style="align-items:center;">
-                <div class="col-form col-md-3">Min</div>
-                <div class="col-form col-md-3">{{result['minValue']}}</div>
-                <div class="col-form col-md-6">
-                  <input type = "number" class="form-control" name = "min" value = {{result['minValue']}} style="font-size:8pt;">
+                <div class="col-form col-md-4" style="margin:0px;">Min : </div>
+                <div class="col-form col-md-4" style="margin:0px;">{{result['minValue']}}</div>
+                <div class="col-form col-md-4" style="margin:0px;">
+                  <input type = "number" class="form-control" name = "min" value = {{result['minValue']}} style="font-size:10pt;margin:0px;" min="0">
                 </div>
               </div>
 
               <div class="form-group row" style="align-items:center;">
-                <div class="col-form col-md-3">Max</div>
-                <div class="col-form col-md-3">{{result['maxValue']}}</div>
-                <div class="col-form col-md-6"> 
-                  <input type = "number" class="form-control" name = "max" value = {{result['maxValue']}} style="font-size:8pt;">
+                <div class="col-form col-md-4" style="margin:0px;">Max : </div>
+                <div class="col-form col-md-4" style="margin:0px;">{{result['maxValue']}}</div>
+                <div class="col-form col-md-4" style="margin:0px;"> 
+                  <input type = "number" class="form-control" name = "max" value = {{result['maxValue']}} style="font-size:10pt;margin:0px;" min="0"> 
                 </div>
               </div>
 
               <div class="form-group row" style="align-items:center;">
-                <div class="col-form col-md-3">Bin</div>
-                <div class="col-form col-md-3">{{result['binValue']}}</div>
-                <div class="col-form col-md-6">
-                  <input type = "number" class="form-control" name = "bin" value = {{result['binValue']}} style="font-size:8pt;">
+                <div class="col-form col-md-4" style="margin:0px;">Bin : </div>
+                <div class="col-form col-md-4" style="margin:0px;">{{result['binValue']}}</div>
+                <div class="col-form col-md-4" style="margin:0px;">
+                  <input type = "number" class="form-control" name = "bin" value = {{result['binValue']}} style="font-size:10pt;margin:0px;" min="1" step="1">
                 </div>
               </div>
 
               <div class="form-group row" style="align-items:center;">
-                <div class="col-form col-md-3">Log</div>
-                <div class="col-form col-md-3">{{result['setLog']}}</div>
-                <div class="col-form col-md-6"> 
+                <div class="col-form col-md-4" style="margin:0px;">Scale : </div>
+                <div class="col-form col-md-4" style="margin:0px;">
+                {% if result['setLog'] %}
+                  Log
+                {% else %}
+                  Linear
+                {% endif %}
+                </div>
+                <div class="col-form col-md-4" style="margin:0px;"> 
                   {% if result['setLog'] %}
-                  <input type="checkbox" class="form-control" name="log" style="font-size:6pt;" checked>
+                  <input type="checkbox" class="form-control" id={{result['mapType']}} name="log" style="margin:0px;" checked>
+                  <label class="label" for={{result['mapType']}}>Log</label>
                   {% else %}
-                  <input type="checkbox" class="form-control" name="log" style="font-size:6pt;">
+                  <input type="checkbox" class="form-control" id={{result['mapType']}} name="log" style="margin:0px;">
+                  <label class="label" for={{result['mapType']}}>Log</label>
                   {% endif %}
                 </div>
               </div>
 
-              <p><input type = "submit" value = "Make histogram"></p>
+              <div class="form-group row" style="align-items:center;">
+                <div class="col-form col-md-4" style="margin:0px;"></div>
+                <div class="col-form col-md-4" style="margin:0px;">
+            	    <button type="submit" class="btn btn-outline-success btn-block" style="font-size:10pt;" name="root" value="set">
+                    Set<br>Default
+                  </button>
+                </div>
+                <div class="col-form col-md-4" style="margin:0px;"> 
+            	    <button type="submit" class="btn btn-outline-success btn-block" style="font-size:10pt;" name="root" value="make">
+                    Make<br>Histogram
+                  </button>
+                </div>
 
               </form>
             </center>
@@ -107,5 +156,3 @@
     </div>
   {% endif %}
 {% endif %}
-
-
