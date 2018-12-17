@@ -206,12 +206,12 @@ def fill_resultIndex( item ) :
                                       "run" : runInd }})
     return resultIndex
 
-def fill_results( item, runId ) :
+def fill_results( item ) :
     results = {}
-    if not runId == None :
-        query = { "component" : item.get( 'this' ), "testRun" : runId }
+    if session.get('runId') :
+        query = { "component" : item.get( 'this' ), "testRun" : session['runId'] }
         thisComponentTestRun = yarrdb.componentTestRun.find_one( query )
-        query = { "_id" : ObjectId(runId) }
+        query = { "_id" : ObjectId(session['runId']) }
         thisRun = yarrdb.testRun.find_one( query )
         plots = []
         config = []
@@ -230,13 +230,8 @@ def fill_results( item, runId ) :
                 #    with open( filename, 'bw' ) as f :
                 #        f.write( fs.get( ObjectId(data['code']) ).read() )
         else :
-            query = { "testRun" : runId }
+            query = { "testRun" : session['runId'] }
             thisComponentTestRun = yarrdb.componentTestRun.find_one( query )
-
-            data_entries = thisRun['attachments']
-            for data in data_entries :
-                if data['contentType'] == 'pdf' or data['contentType'] == 'png' :
-                    plots.append({ "filename"    : data['filename'].split("_",1)[1] })
 
         env_dict = fill_env( thisComponentTestRun ) 
 
@@ -253,19 +248,17 @@ def fill_results( item, runId ) :
 
     return results
 
-def fill_roots( item, runId ) :
+def fill_roots( item ) :
     roots = {}
-    if not runId == None :
-        roots.update({ "runId" : True })
-        query = { "_id" : ObjectId(runId) }
+    if session.get('runId') :
+        query = { "_id" : ObjectId(session['runId']) }
         thisRun = yarrdb.testRun.find_one( query )
         if DOROOT :
             results = []
             thisComponentTestRun = yarrdb.componentTestRun.find_one({ "testRun" : str(thisRun['_id']) })
             env_dict = fill_env( thisComponentTestRun ) 
-            reanalysis = session.get('reanalysis')
             mapList = {}
-            if not reanalysis :
+            if not session.get('plot_list') :
                 session['plot_list'] = {}
                 chipIds = {}
                 components = sorted( item.get( 'chips' ), key=lambda x:x['component'] )
@@ -296,7 +289,7 @@ def fill_roots( item, runId ) :
                         chipIds.update({ component['component'] : i })
                         i+=1
                 mapList.update({ session.get( 'mapType' ) : len(chipIds) })
-            root.drawScan( thisRun['testType'], str(thisRun['runNumber']), bool(session.get( 'log', False )), int( session.get( 'max', 0 )), mapList )
+            root.drawScan( thisRun['testType'], str(thisRun['runNumber']), mapList )
 
             for mapType in session.get('plot_list') :
                 for i in [ "1", "2" ] :
@@ -312,7 +305,7 @@ def fill_roots( item, runId ) :
                                      "mapType"     : mapType, 
                                      "filename"    : mapType, 
                                      "runNumber"   : thisRun['runNumber'], 
-                                     "runId"       : runId,
+                                     "runId"       : session['runId'],
                                      "comments"    : list(thisRun['comments']),
                                      "path"        : filename, 
                                      "stage"       : stage,
@@ -321,12 +314,12 @@ def fill_roots( item, runId ) :
                                      "url"         : url, 
                                      "environment" : env_dict,
                                      "setLog"      : session['plot_list'][mapType]["log"], 
-                                     "maxValue"    : session['plot_list'][mapType]["max"] })
+                                     "minValue"    : session['plot_list'][mapType]["min"],
+                                     "maxValue"    : session['plot_list'][mapType]["max"],
+                                     "binValue"    : session['plot_list'][mapType]["bin"] })
             roots.update({ "rootsw"  : True,
                            "results" : results })
         else :
             roots.update({ "rootsw" : False })
-    else :
-        roots.update({ "runId" : False })
 
     return roots

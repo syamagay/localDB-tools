@@ -62,7 +62,7 @@ for DIR in DIRS :
 ############
 # login list
 loginlist = [ "logged_in", "user_id", "user_name", "institute", "read", "write", "edit" ]
-poplist = [ "signup", "component", "parentId", "code", "runNumber", "runId", "reanalysis", "mapType", "log", "max" ]
+poplist = [ "signup", "component", "parentId", "code", "runNumber", "runId", "mapType", "plot_list" ]
 
 ########
 # Prefix
@@ -203,7 +203,6 @@ def show_component() :
     ComponentId = request.args.get( 'id' )
     ParentId = session.get( 'parentId' )
     Code = session.get('code')
-    RunId = session.get('runId')
 
     # this component
     query = { "_id" : ObjectId(ComponentId) }
@@ -246,10 +245,11 @@ def show_component() :
     # fill result index
     resultIndex = fei4.fill_resultIndex( components ) 
     # fill results 
-    results = fei4.fill_results( components, RunId )
+    results = fei4.fill_results( components )
     # fill roots
-    roots = fei4.fill_roots( components, RunId )
-    # fill summary ( module )
+    roots = fei4.fill_roots( components )
+
+    # fill summary 
     summary = fei4.fill_summary( thisComponent )
 
     component.update({ "_id"           : ComponentId,
@@ -272,7 +272,6 @@ def show_component() :
 @app.route('/module', methods=['GET','POST'])
 def show_module() :
     if not session.get('runId') == request.args.get( 'runId' ) :
-        print("aaa")
         for key in poplist :
             session.pop(key,None)
 
@@ -331,10 +330,12 @@ def makehisto() :
     componentId = request.args.get( 'id' )
 
     # get from form
-    session['reanalysis'] = True
     session['mapType'] = request.form.get( 'mapType' )
-    session['log'] = request.form.get('log',False)
-    session['max'] = request.form.get('max',0) 
+    session['plot_list'].update({ session['mapType'] : 
+                                    { "log" : request.form.get('log',False),
+                                      "min" : request.form.get('min'), 
+                                      "max" : request.form.get('max'), 
+                                      "bin" : request.form.get('bin') }})
 
     return redirect( url_for("show_component", id=componentId) )
 

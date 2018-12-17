@@ -12,7 +12,7 @@ from PlotHelpers import gHelper as PH
 
 
 ##### Functions #####
-def Plot1D_fromHistos(histo, logY=False, fileName="", yTitle="Events", drawOpts="EP", xMax="") :
+def Plot1D_fromHistos(histo, logY=False, fileName="", yTitle="Events", drawOpts="EP", xMin=None, xMax=None) :
     """
     === Arguments ===
         [Name]     (=[Default])          : [Description]
@@ -22,6 +22,8 @@ def Plot1D_fromHistos(histo, logY=False, fileName="", yTitle="Events", drawOpts=
                                          : File name for saved output file
         yTitle     (="Events")           : Title for Y axis of histograms
         drawOpts   (="EP")               : Draw options for drawing histograms
+        xMin                             : Minimum value of the x-axis
+        xMax                             : Maximum value of the x-axis
     """
 
     ####################
@@ -50,8 +52,8 @@ def Plot1D_fromHistos(histo, logY=False, fileName="", yTitle="Events", drawOpts=
     histo.GetXaxis().SetTitleOffset(0.75)
     histo.GetYaxis().SetTitleOffset(1.0)
     histo.GetYaxis().SetTitle(yTitle)
-    if xMax != "":
-        histo.GetXaxis().SetRangeUser(0,xMax)
+    if not xMax == None and not xMin == None:
+        histo.GetXaxis().SetRangeUser(xMin,xMax)
 
     ####################
     ## Drawing
@@ -70,8 +72,8 @@ def Plot1D_fromHistos(histo, logY=False, fileName="", yTitle="Events", drawOpts=
 
 
 
-def Plot2D_fromHistos(histo, logZ=False, fileName="", zTitle="Events", zMax="") :
-#def Plot2D_fromHistos(histo, logZ=False, fileName="", zTitle="Events") :
+def Plot2D_fromHistos(histo, logZ=False, fileName="", zTitle="Events", zMin=None, zMax=None) :
+
     """
     === Arguments ===
         [Name]     (=[Default])          : [Description]
@@ -80,6 +82,8 @@ def Plot2D_fromHistos(histo, logZ=False, fileName="", zTitle="Events", zMax="") 
         fileName   (=[histo.GetXaxis().GetTitle()])
                                          : File name for saved output file
         zTitle     (="Events")           : Title for Z axis of histograms
+        zMin                             : Minimum value of the z-axis
+        zMax                             : Maximum value of the z-axis
     """
 
     ####################
@@ -110,8 +114,9 @@ def Plot2D_fromHistos(histo, logZ=False, fileName="", zTitle="Events", zMax="") 
     histo.GetYaxis().SetTitleOffset(1.0)
     histo.GetZaxis().SetTitleOffset(0.9)
     histo.GetZaxis().SetTitle(zTitle)
-    if zMax != "":
-        histo.GetZaxis().SetRangeUser(0,zMax)
+
+    if not zMax == None and not zMin == None :
+        histo.GetZaxis().SetRangeUser(zMin,zMax)
 
     ####################
     ## Drawing

@@ -27,7 +27,7 @@
           <form class="form-holizontal" role="form" method="post" action="signup" accept-charset="UTF-8">
                 <div class="form-group row">
            		    <label class="col-form-label col-md-2" for="name">User Name<font color=#ff0000>*</font></label>
-                   <div class="col-md-10">
+                  <div class="col-md-10">
                     {% if stage == "input" %}
            		        <input type="text" class="form-control" value="{{ userInfo[0] }}" placeholder="Request a user name" name="userinfo" id="name" required="required">
                     {% elif stage == "confirm" %}

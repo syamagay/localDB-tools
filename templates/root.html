@@ -1,4 +1,4 @@
-{% if component['roots']['runId'] %} 
+{% if component['roots'] %} 
   <h4 style="font-size: 10pt;"><i class="fa fa-paint-brush"></i> ROOT </h4>
   {% if component['roots']['rootsw'] %}
     <hr color="#BBBBBB" width="80%" size="9">
@@ -18,47 +18,80 @@
   
     <div class="row align-items-top justify-content-center">
       <div class="col">
-        {% if component['roots']['results'][0]['url'] == _brank %}
-          <div style="font-size: 14pt;">{{component['roots']['results'][0]['comment']}}</div>
-         {% else %}
-          {% for result in component['roots']['results'] %}
-            {% if loop.index %2 == 1 %}
-            <div class="row align-items-top justify-content-space-evenly">
-            {% endif %}
-              <div class="col-md-5">
-                <center>
-                  <p>
-                    {{result['mapType']}}
-                  </p>
-                  <a href={{result['url']}} target="_brank" rel="noopener noreferrer">
-                    <img src={{result['url']}} title={{result['mapType']}} width="300" height="300">
-                    </img>
-                  </a>
-                </center>
+        {% if component['roots']['results'] == _brank %}
+        <div style="font-size: 14pt;">{{component['roots']['results'][0]['comment']}}</div>
+        {% else %}
+        {% for result in component['roots']['results'] %}
+        {% if loop.index %2 == 1 %}
+        <div class="row align-items-top justify-content-space-evenly">
+        {% endif %}
+          <div class="col-md-5">
+            <center>
+              <p> {{result['mapType']}} </p>
+              <a href={{result['url']}} target="_brank" rel="noopener noreferrer">
+                <img src={{result['url']}} title={{result['mapType']}} width="300" height="300"></img>
+              </a>
+            </center>
+          </div>
+        {% if loop.index %2  == 0 %}
+          <div class="col-md-2">
+            <center>
+              <h5 style="font-size: 10pt"> Settings 
+              <p style="font-size: 7pt"> ( Dist:x-axis / Map:z-axis ) </p>
+              </h5>
+              <form class="form-holizontal" action="{{ url_for('makehisto', id=component['_id'], runNumber=component['roots']['results'][0]['runNumber'], runId=component['roots']['results'][0]['runId']) }}" method=post class=entries style="font-size: 8pt">  
+              <input type="hidden" name="mapType" value={{result['mapType']}}>
+
+              <div class="form-group row" style="font-size:6pt;">
+                <div class="col-form col-md-3">parameter</div>
+                <div class="col-form col-md-3">current</div>
+                <div class="col-form col-md-6">change</div>
               </div>
-              {% if loop.index %2  == 0 %}
-              <div class="col-md-2">
-                <center>
-                  <h5 style="font-size: 10pt"> Setting parameters </h5>
-                  <form action="{{ url_for('makehisto', id=component['_id'], runNumber=component['roots']['results'][0]['runNumber'], runId=component['roots']['results'][0]['runId']) }}" method=post class=entries style="font-size: 8pt">  
-                    <input type="hidden" name="mapType" value={{result['mapType']}}>
-                    <input type="hidden" name="reanalysis" value="True">
-                    <p style="font-size: 8pt;">Range max <input type = "txt" name = "max" value = {{result['maxValue']}} size="4"></p>
-                    <p style="font-size: 8pt;"><input type = "checkbox" name = "log" value = "True"> Set log scale</p>
-                    <p><input type = "submit" value = "Make histogram"></p>
-                  </form>
-                  <br>
-                  <br>
-                  <h5 style="font-size: 8pt"> Current setting </h5>
-                  <ol style="list-style-type: none;font-size: 7pt; text-align: left;">
-                  <li> Range max     : {{result['maxValue']}}</li>
-                  <li> Set log scale : {{result['setLog']}}</li>
-                  </ol>
-                </center>
+
+              <div class="form-group row" style="align-items:center;">
+                <div class="col-form col-md-3">Min</div>
+                <div class="col-form col-md-3">{{result['minValue']}}</div>
+                <div class="col-form col-md-6">
+                  <input type = "number" class="form-control" name = "min" value = {{result['minValue']}} style="font-size:8pt;">
+                </div>
               </div>
-            </div>
-            {% endif %}
-          {% endfor %}
+
+              <div class="form-group row" style="align-items:center;">
+                <div class="col-form col-md-3">Max</div>
+                <div class="col-form col-md-3">{{result['maxValue']}}</div>
+                <div class="col-form col-md-6"> 
+                  <input type = "number" class="form-control" name = "max" value = {{result['maxValue']}} style="font-size:8pt;">
+                </div>
+              </div>
+
+              <div class="form-group row" style="align-items:center;">
+                <div class="col-form col-md-3">Bin</div>
+                <div class="col-form col-md-3">{{result['binValue']}}</div>
+                <div class="col-form col-md-6">
+                  <input type = "number" class="form-control" name = "bin" value = {{result['binValue']}} style="font-size:8pt;">
+                </div>
+              </div>
+
+              <div class="form-group row" style="align-items:center;">
+                <div class="col-form col-md-3">Log</div>
+                <div class="col-form col-md-3">{{result['setLog']}}</div>
+                <div class="col-form col-md-6"> 
+                  {% if result['setLog'] %}
+                  <input type="checkbox" class="form-control" name="log" style="font-size:6pt;" checked>
+                  {% else %}
+                  <input type="checkbox" class="form-control" name="log" style="font-size:6pt;">
+                  {% endif %}
+                </div>
+              </div>
+
+              <p><input type = "submit" value = "Make histogram"></p>
+
+              </form>
+            </center>
+          </div>
+        </div>
+        {% endif %}
+        {% endfor %}
         {% endif %}
       </div>
     </div>
@@ -74,3 +107,5 @@
     </div>
   {% endif %}
 {% endif %}
+
+
