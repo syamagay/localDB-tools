@@ -1,4 +1,4 @@
-import os, pwd, glob, sys, json
+import os, pwd, glob, sys, json, re
 APP_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 sys.path.append( APP_DIR )
 JSON_DIR = APP_DIR + "/scripts/json"
@@ -257,8 +257,8 @@ def fill_roots( item ) :
             thisComponentTestRun = yarrdb.componentTestRun.find_one({ "testRun" : str(thisRun['_id']) })
             env_dict = fill_env( thisComponentTestRun ) 
             mapList = {}
-            if not session.get('plot_list') :
-                session['plot_list'] = {}
+            if not session.get('plotList') :
+                session['plotList'] = {}
                 chipIds = {}
                 components = sorted( item.get( 'chips' ), key=lambda x:x['component'] )
                 i=1
@@ -293,33 +293,35 @@ def fill_roots( item ) :
             elif mapList :
                 root.drawScan( thisRun['testType'], str(thisRun['runNumber']), mapList )
 
-            for mapType in session.get('plot_list') :
-                addfilename=["_Dist",""]
+            for mapType in session.get('plotList') :
+                url = {} 
                 for i in [ "1", "2" ] :
                     filename = PLOT_DIR + "/" + str(session.get('uuid')) + "/" + str(thisRun['runNumber']) + "_" + str(mapType) + "_{}.png".format(i)
-                    url = "" 
                     stage = thisComponentTestRun['stage']
                     if os.path.isfile( filename ) :
                         binary_image = open( filename, 'rb' )
                         code_base64 = base64.b64encode(binary_image.read()).decode()
                         binary_image.close()
-                        url = func.bin_to_image( 'png', code_base64 ) 
-                    results.append({ "testType"    : thisRun['testType'], 
-                                     "mapType"     : mapType, 
-                                     "filename"    : "{0}{1}".format( mapType, addfilename[int(i)-1] ), 
-                                     "runNumber"   : thisRun['runNumber'], 
-                                     "runId"       : session['runId'],
-                                     "comments"    : list(thisRun['comments']),
-                                     "path"        : filename, 
-                                     "stage"       : stage,
-                                     "institution" : thisRun['institution'],
-                                     "userIdentity": thisRun['userIdentity'],
-                                     "url"         : url, 
-                                     "environment" : env_dict,
-                                     "setLog"      : session['plot_list'][mapType]["log"], 
-                                     "minValue"    : session['plot_list'][mapType]["min"],
-                                     "maxValue"    : session['plot_list'][mapType]["max"],
-                                     "binValue"    : session['plot_list'][mapType]["bin"] })
+                        url.update({ i : func.bin_to_image( 'png', code_base64 ) }) 
+                results.append({ "testType"    : thisRun['testType'], 
+                                 "mapType"     : mapType, 
+                                 "sortkey"     : "{}0".format(mapType), 
+                                 "runNumber"   : thisRun['runNumber'], 
+                                 "runId"       : session['runId'],
+                                 "comments"    : list(thisRun['comments']),
+                                 "path"        : filename, 
+                                 "stage"       : stage,
+                                 "institution" : thisRun['institution'],
+                                 "userIdentity": thisRun['userIdentity'],
+                                 "urlDist"     : url.get("1"), 
+                                 "urlMap"      : url.get("2"), 
+                                 "environment" : env_dict,
+                                 "setLog"      : session['plotList'][mapType]["log"], 
+                                 "minValue"    : session['plotList'][mapType]["min"],
+                                 "maxValue"    : session['plotList'][mapType]["max"],
+                                 "binValue"    : session['plotList'][mapType]["bin"] })
+            #results = sorted( results, key=lambda x:x['mapType'], reverse=True)
+            results = sorted( results, key=lambda x:int((re.search(r"[0-9]+",x['sortkey'])).group(0)), reverse=True)
             roots.update({ "rootsw"  : True,
                            "results" : results })
         else :

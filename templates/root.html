@@ -1,30 +1,63 @@
 <style>
+input[type="number"] {
+display: block; 
+margin: 0px;
+padding: 0px;
+border: none;
+height: 12pt;
+text-align: center;
+}
+input[type="number"]:hover {
+background-color: #eeeeee;
+border-radius: 0px;
+}
+.textarea {
+display: block; 
+margin: 0px;
+padding: 0px;
+border: none;
+height: 12pt;
+text-align: center;
+}
 input[type="checkbox"] {
 display: none;
+margin: 0px;
+padding: 0px;
 }
 input[type="checkbox"]:checked + label {
+display: block; 
+margin: 0px;
+padding: 0px;
+border: none;
 background: #ffffff;
 color: #000000;
-border: 2px solid #000000;
 }
 input[type="checkbox"]:checked + label:hover {
-background-color: #ff6347;
+background-color: #eeeeee;
 color: #000000;
-border: 2px solid #000000;
+border: none;
 }
 .label {
 display: block; 
+font-size: 10pt;
+margin: 0px;
+padding: 0px;
 text-align: center;
 cursor: pointer;
 background-color: #ffffff;
 color: #dddddd;
-border: 2px solid #dddddd;
-border-radius: 5px;
+border: none;
 }
 .label:hover {
-background-color: #ff6347;
-color: #efefef;
-border: 2px solid #efefef;
+margin: 0px;
+padding: 0px;
+background-color: #eeeeee;
+color: #bbbbbb;
+border: none;
+}
+td, th {
+padding: 0px 0px;
+vertical-align: middle;
 }
 </style>
 
@@ -34,7 +67,7 @@ border: 2px solid #efefef;
     <hr color="#BBBBBB" width="80%" size="9">
     {% if session['logged_in'] == True %}
       {% if session['edit'] == 1 %}
-        <div class="row align-items-top justify-content-center">
+        <div class="row align-items-center justify-content-center">
           <div class="col">
             <div class="row align-items-top justify-content-center">
               <form action="{{ url_for('add_summary', id=component['_id']) }}" method=post class=entries style="font-size: 8pt">  
@@ -46,104 +79,114 @@ border: 2px solid #efefef;
       {% endif %}
     {% endif %}
   
-    <div class="row align-items-top justify-content-center">
+    <div class="row align-items-center justify-content-center">
       <div class="col">
-        {% if component['roots']['results'] == _brank %}
-        <div style="font-size: 14pt;">{{component['roots']['results'][0]['comment']}}</div>
-        {% else %}
-        {% for result in component['roots']['results'] %}
-        {% if loop.index %2 == 1 %}
-        <div class="row align-items-top justify-content-space-evenly">
-        {% endif %}
+      {% for result in component['roots']['results'] %}
+        <a data-toggle="collapse" aria-expanded="true" data-target='#{{ result['sortkey'] }}' aria-controls={{ result['sortkey'] }} href='#{{ result['sortkey'] }}' style="color: green;"><h4 style="font-size: 10pt;"><i class="fa fa-caret-right"></i> {{ result['mapType'] }} </h4></a>
+        <div class="row align-items-center justify-content-space-evenly collapse show" id={{ result['sortkey'] }}>
           <div class="col-md-4">
+            {% if result['urlDist'] %}
             <center>
-              <p> {{result['filename']}} </p>
-              <a href={{result['url']}} target="_brank" rel="noopener noreferrer">
-                <img src={{result['url']}} title={{result['filename']}} width="300" height="300"></img>
+              <p> Dist </p>
+              <a href={{result['urlDist']}} target="_brank" rel="noopener noreferrer">
+                <img src={{result['urlDist']}} title="Dist" width="300" height="300"></img>
               </a>
             </center>
+            {% endif %}
           </div>
-        {% if loop.index %2  == 0 %}
           <div class="col-md-4">
+            {% if result['urlMap'] %}
             <center>
-              <h5 style="font-size: 10pt"> Settings 
-              <p style="font-size: 8pt"> ( Dist:x-axis / Map:z-axis ) </p>
-              </h5>
-              <form class="form-holizontal" action="{{ url_for('makehisto', id=component['_id'], runNumber=component['roots']['results'][0]['runNumber'], runId=component['roots']['results'][0]['runId']) }}" method=post class=entries style="font-size: 10pt">  
-              <input type="hidden" name="mapType" value={{result['mapType']}}>
-
-              <div class="form-group row" style="font-size:8pt;">
-                <div class="col-form col-md-4">parameter</div>
-                <div class="col-form col-md-4">current</div>
-                <div class="col-form col-md-4">change</div>
-              </div>
-
-              <div class="form-group row" style="align-items:center;">
-                <div class="col-form col-md-4" style="margin:0px;">Min : </div>
-                <div class="col-form col-md-4" style="margin:0px;">{{result['minValue']}}</div>
-                <div class="col-form col-md-4" style="margin:0px;">
-                  <input type = "number" class="form-control" name = "min" value = {{result['minValue']}} style="font-size:10pt;margin:0px;" min="0">
-                </div>
-              </div>
-
-              <div class="form-group row" style="align-items:center;">
-                <div class="col-form col-md-4" style="margin:0px;">Max : </div>
-                <div class="col-form col-md-4" style="margin:0px;">{{result['maxValue']}}</div>
-                <div class="col-form col-md-4" style="margin:0px;"> 
-                  <input type = "number" class="form-control" name = "max" value = {{result['maxValue']}} style="font-size:10pt;margin:0px;" min="0"> 
-                </div>
-              </div>
-
-              <div class="form-group row" style="align-items:center;">
-                <div class="col-form col-md-4" style="margin:0px;">Bin : </div>
-                <div class="col-form col-md-4" style="margin:0px;">{{result['binValue']}}</div>
-                <div class="col-form col-md-4" style="margin:0px;">
-                  <input type = "number" class="form-control" name = "bin" value = {{result['binValue']}} style="font-size:10pt;margin:0px;" min="1" step="1">
-                </div>
-              </div>
-
-              <div class="form-group row" style="align-items:center;">
-                <div class="col-form col-md-4" style="margin:0px;">Scale : </div>
-                <div class="col-form col-md-4" style="margin:0px;">
-                {% if result['setLog'] %}
-                  Log
-                {% else %}
-                  Linear
-                {% endif %}
-                </div>
-                <div class="col-form col-md-4" style="margin:0px;"> 
-                  {% if result['setLog'] %}
-                  <input type="checkbox" class="form-control" id={{result['mapType']}} name="log" style="margin:0px;" checked>
-                  <label class="label" for={{result['mapType']}}>Log</label>
-                  {% else %}
-                  <input type="checkbox" class="form-control" id={{result['mapType']}} name="log" style="margin:0px;">
-                  <label class="label" for={{result['mapType']}}>Log</label>
-                  {% endif %}
-                </div>
-              </div>
-
-              <div class="form-group row" style="align-items:center;">
-                <div class="col-form col-md-4" style="margin:0px;"></div>
-                <div class="col-form col-md-4" style="margin:0px;">
-            	    <button type="submit" class="btn btn-outline-success btn-block" style="font-size:10pt;" name="root" value="set">
-                    Set<br>Default
-                  </button>
-                </div>
-                <div class="col-form col-md-4" style="margin:0px;"> 
-            	    <button type="submit" class="btn btn-outline-success btn-block" style="font-size:10pt;" name="root" value="make">
-                    Make<br>Histogram
-                  </button>
-                </div>
-
-              </form>
+              <p> Map </p>
+              <a href={{result['urlMap']}} target="_brank" rel="noopener noreferrer">
+                <img src={{result['urlMap']}} title="Dist" width="300" height="300"></img>
+              </a>
             </center>
+            {% endif %}
           </div>
+
+          <div class="col-md-4">
+            {% if result['urlMap'] %}
+            <center>
+              <table class="table table-sm table-bordered" style="font-size: 8pt;">
+                <form class="form-holizontal" action="{{ url_for('makehisto', id=component['_id'], runNumber=result['runNumber'], runId=result['runId']) }}" method=post class=entries style="font-size:10pt; margin:0px;">  
+                <input type="hidden" name="mapType" value={{result['mapType']}}>
+                <thead class="table-dark" style="background: #222222;">
+                  <tr>
+                    <th scope="col" class="text-center" colspan="3">Settings<br>( Dist:x-axis / Map:z-axis )</th>
+                  </tr>
+                  <tr>
+                    <th scope="col" class="text-center">parameter</th>
+                    <th scope="col" class="text-center">current</th>
+                    <th scope="col" class="text-center">modify</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  <tr>
+                    <td scope="col" class="text-center">Min</td>
+                    <td scope="col" class="text-center">{{result['minValue']}}</td>
+                    <td scope="col" class="text-center">
+                      <input type = "number" class="form-control" name = "min" value = {{result['minValue']}} style="font-size:10pt;" min="0">
+                    </td>
+                  </tr>
+                  <tr>
+                    <td scope="col" class="text-center">Max</td>
+                    <td scope="col" class="text-center">{{result['maxValue']}}</td>
+                    <td scope="col" class="text-center">
+                      <input type = "number" class="form-control" name = "max" value = {{result['maxValue']}} style="font-size:10pt;" min="0">
+                    </td>
+                  </tr>
+                  <tr>
+                    <td scope="col" class="text-center">Bin</td>
+                    <td scope="col" class="text-center">{{result['binValue']}}</td>
+                    <td scope="col" class="text-center">
+                      <input type = "number" class="form-control" name = "bin" value = {{result['binValue']}} style="font-size:10pt;" min="0">
+                    </td>
+                  </tr>
+                  <tr>
+                    <td scope="col" class="text-center">Scale</td>
+                    <td scope="col" class="text-center">
+                    {% if result['setLog'] %} Log
+                    {% else %} Linear
+                    {% endif %}
+                    </td>
+                    <td scope="col" class="text-center">
+                    {% if result['setLog'] %}
+                    <input type="checkbox" class="form-control" id={{result['mapType']}} name="log" style="margin:0px;padding:0px;" checked>
+                    <label class="label" for={{result['mapType']}}>Log</label>
+                    {% else %}
+                    <input type="checkbox" class="form-control" id={{result['mapType']}} name="log" style="margin:0px;padding:0px;">
+                    <label class="label" for={{result['mapType']}}>Log</label>
+                    {% endif %}
+                    </td>
+                  </tr>
+                  <tr>
+                    <td></td>
+                    <td scope="col" class="text-center">
+            	      <button type="submit" class="btn btn-outline-success btn-block" style="font-size:10pt;" name="root" value="set">
+                      Set<br>Default 
+                    </button>
+                    </td>
+                    <td scope="col" class="text-center">
+            	      <button type="submit" class="btn btn-outline-success btn-block" style="font-size:10pt;" name="root" value="make">
+                      Make<br>Histogram
+                    </button>
+                  <tr>
+                </tbody>
+                </form> 
+              </table>
+            </center>
+            {% endif %}
+          </div>
+        <br>
+        <br>
         </div>
-        {% endif %}
-        {% endfor %}
-        {% endif %}
+      {% endfor %}
       </div>
     </div>
+    <br>
+    <br>
+
   {% else %}
     <hr color="#BBBBBB" width="80%" size="9">
   

@@ -50,7 +50,8 @@ DAT_DIR = '{}/dat'.format( USER_DIR )
 PLOT_DIR = '{}/result'.format( USER_DIR )
 THUM_DIR = '{}/result/thum'.format( USER_DIR )
 STAT_DIR = '{}/static'.format( USER_DIR )
-DIRS = [ PIC_DIR, DAT_DIR, PLOT_DIR, STAT_DIR, THUM_DIR ] 
+JSON_DIR = '{}/json'.format( USER_DIR )
+DIRS = [ PIC_DIR, DAT_DIR, PLOT_DIR, STAT_DIR, THUM_DIR, JSON_DIR ] 
 if os.path.isdir( USER_DIR ) :
     shutil.rmtree( USER_DIR )
 os.mkdir( USER_DIR )
@@ -61,7 +62,7 @@ for DIR in DIRS :
 ############
 # login list
 loginlist = [ "logged_in", "user_id", "user_name", "institute", "read", "write", "edit" ]
-poplist = [ "signup", "component", "parentId", "code", "runNumber", "runId", "mapType", "plot_list", "root" ]
+poplist = [ "signup", "component", "parentId", "code", "runNumber", "runId", "mapType", "plotList", "root" ]
 
 ########
 # Prefix
@@ -151,7 +152,8 @@ def show_modules_and_chips() :
         if os.path.isdir( result_dir ) :
             shutil.rmtree( result_dir )
 
-    session['uuid'] = str(uuid.uuid4()) 
+    else :
+        session['uuid'] = str(uuid.uuid4()) 
 
     make_dir()
 
@@ -331,7 +333,7 @@ def makehisto() :
 
         # get from form
         session['mapType'] = request.form.get( 'mapType' )
-        session['plot_list'].update({ session['mapType'] : { "log" : request.form.get('log',False),
+        session['plotList'].update({ session['mapType'] : { "log" : request.form.get('log',False),
                                                              "min" : request.form.get('min'), 
                                                              "max" : request.form.get('max'), 
                                                              "bin" : request.form.get('bin') }})

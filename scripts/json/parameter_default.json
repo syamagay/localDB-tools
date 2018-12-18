@@ -1,12 +1,36 @@
 {
     "analogscan": {
-        "Summary": false, 
+        "OccupancyMap": [
+            0, 
+            200, 
+            200, 
+            false
+        ], 
         "EnMask": [
             0, 
             2, 
             2, 
             false
         ], 
+        "Summary": false
+    }, 
+    "noisescan": {
+        "NoiseMask": [
+            0, 
+            2, 
+            2, 
+            false
+        ], 
+        "NoiseOccupancy": [
+            0, 
+            1, 
+            100, 
+            false
+        ], 
+        "Summary": false
+    }, 
+    "selftrigger": {
+        "Summary": false, 
         "OccupancyMap": [
             0, 
             200, 
@@ -14,23 +38,71 @@
             false
         ]
     }, 
-    "noisescan": {
-        "Summary": false, 
-        "NoiseOccupancy": [
+    "tune_globalpreamp": {
+        "SigmaTotMap": [
             0, 
             1, 
-            100, 
+            10, 
             false
         ], 
-        "NoiseMask": [
+        "MeanTotMap": [
             0, 
-            2, 
-            2, 
+            14, 
+            14, 
+            false
+        ], 
+        "Summary": false
+    }, 
+    "tune_pixelpreamp": {
+        "SigmaTotMap": [
+            0, 
+            1, 
+            10, 
+            false
+        ], 
+        "MeanTotMap": [
+            0, 
+            14, 
+            14, 
+            false
+        ], 
+        "Summary": false
+    }, 
+    "std_analogscan": {
+        "OccupancyMap": [
+            0, 
+            200, 
+            200, 
+            false
+        ], 
+        "Summary": false
+    }, 
+    "tune_globalthreshold": {
+        "Summary": false, 
+        "OccupancyMap": [
+            0, 
+            200, 
+            200, 
             false
         ]
     }, 
-    "selftrigger": {
-        "OccupancyMap-0": [
+    "globalpreamp": {
+        "SigmaTotMap": [
+            0, 
+            1, 
+            10, 
+            false
+        ], 
+        "MeanTotMap": [
+            0, 
+            14, 
+            14, 
+            false
+        ], 
+        "Summary": false
+    }, 
+    "pixelthreshold": {
+        "OccupancyMap": [
             0, 
             200, 
             200, 
@@ -39,19 +111,28 @@
         "Summary": false
     }, 
     "digitalscan": {
-        "Summary": false, 
+        "OccupancyMap": [
+            0, 
+            200, 
+            200, 
+            false
+        ], 
         "EnMask": [
             0, 
             2, 
             2, 
             false
         ], 
+        "Summary": false
+    }, 
+    "globalthreshold": {
         "OccupancyMap": [
             0, 
             200, 
             200, 
             false
-        ]
+        ], 
+        "Summary": false
     }, 
     "thresholdscan": {
         "NoiseMap": [
@@ -64,6 +145,21 @@
             0, 
             4000, 
             4000, 
+            false
+        ], 
+        "Summary": false
+    }, 
+    "pixelpreamp": {
+        "SigmaTotMap": [
+            0, 
+            1, 
+            10, 
+            false
+        ], 
+        "MeanTotMap": [
+            0, 
+            14, 
+            14, 
             false
         ], 
         "Summary": false
@@ -82,5 +178,14 @@
             false
         ], 
         "Summary": false
+    }, 
+    "tune_pixelthreshold": {
+        "Summary": false, 
+        "OccupancyMap": [
+            0, 
+            200, 
+            200, 
+            false
+        ]
     }
 }
