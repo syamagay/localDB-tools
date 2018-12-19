@@ -52,6 +52,7 @@
   ```
   Change somethings if user's needs.
   - mongodb host/port ... change if user use mongodb in other server. 
+  - mongodb db/userdb ... change if user set dbname (yarrdb/userdb) in mongodb.
   - mongodb username/password ... change if user set authorization into mongodb.
   - flask host/port ... change if user want to check viewer from external server.
   - python ... change if user use python3
