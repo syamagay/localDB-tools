@@ -49,12 +49,12 @@
             <tbody>
               {% for module in modules[FE]["modules"] %}
                 <tr>
-                  <td><a href="{{ url_for('show_module', id=module["_id"]) }}">{{ module["serialNumber"] }}</a></td>
+                  <td><a href="{{ url_for('show_component', id=module["_id"]) }}">{{ module["serialNumber"] }}</a></td>
                   <td>
                   <div class="wrapper" style="display: flex;justify-content: space-around;">
                   {% for chip in module["chips"] %}
                     <div class="element">
-                      <a href="{{ url_for('show_chip', id=chip["_id"]) }}">{{ chip["serialNumber"] }}
+                      <a href="{{ url_for('show_component', id=chip["_id"]) }}">{{ chip["serialNumber"] }}
                       </a>&ensp;
                     </div>
                   {% endfor %}

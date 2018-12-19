@@ -18,7 +18,7 @@
          {% for photo in component['photoIndex'] %}
            <tr>
              <td align="center">
-               <a href="{{ url_for(component['url'], id=component['_id'], code=photo['code']) }}">{{ photo['photoNumber'] }}</a>
+               <a href="{{ url_for('show_component', id=component['_id'], code=photo['code']) }}">{{ photo['photoNumber'] }}</a>
              </td>
              <td align="center">{{ photo['datetime'] }}</td>
              <td align="center">{{ photo['stage'] }}</td>

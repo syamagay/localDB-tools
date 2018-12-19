@@ -20,11 +20,11 @@ import PlotFromHistos.SimplePlots as Plot
 import ROOT
 from flask import session  # use Flask scheme
 
-def drawScan( testType, runNumber, mapList ):
+def drawScan( testType, mapList ):
 
     ROOT.gROOT.SetBatch()
 
-    jsonFile = JSON_DIR + "/{}_parameter.json".format(session['uuid'])
+    jsonFile = JSON_DIR + "/{}_parameter.json".format(session.get('uuid'))
     if not os.path.isfile( jsonFile ) :
         jsonFile_default = SCRIPT_DIR + "/json/parameter_default.json"
         with open( jsonFile_default, 'r' ) as f : jsonData_default = json.load( f )
@@ -36,7 +36,7 @@ def drawScan( testType, runNumber, mapList ):
 
     for mapType in mapList :
         histoPar = {}
-        files = glob.glob( DAT_DIR+"/"+str(session.get('uuid'))+"_"+str(runNumber)+"*"+mapType+".dat" )
+        files = glob.glob( DAT_DIR+"/"+str(session.get('uuid'))+"*"+mapType+".dat" )
         if mapList[mapType]==1 : cnt = 1
         else :                   cnt = 2
 
@@ -52,8 +52,8 @@ def drawScan( testType, runNumber, mapList ):
                         if j<len(par) and i==0 : histoPar.update({ par[j] : readline.split() }) 
                         if j==len(par) :
                             if i==0 :
-                                h2 = ROOT.TH2D( mapType+"_"+runNumber,
-                                                mapType+"_"+runNumber+";"+" ".join(histoPar["xaxis"])+";"+" ".join(histoPar["yaxis"])+";"+" ".join(histoPar["zaxis"]),
+                                h2 = ROOT.TH2D( mapType,
+                                                mapType+";"+" ".join(histoPar["xaxis"])+";"+" ".join(histoPar["yaxis"])+";"+" ".join(histoPar["zaxis"]),
                                                 int(histoPar["xrange"][0])*cnt, float(histoPar["xrange"][1]), float(histoPar["xrange"][0])*cnt+0.5,
                                                 int(histoPar["yrange"][0])*cnt, float(histoPar["yrange"][1]), float(histoPar["yrange"][0])*cnt+0.5 )
                             if cnt==1 : row = 0 
@@ -104,8 +104,8 @@ def drawScan( testType, runNumber, mapList ):
                 h1d_bin = int(h1d_max)
                 h1d_log = False 
 
-            h1 = ROOT.TH1D( mapType+"_Dist_"+runNumber,
-                            mapType+"_Dist_"+runNumber+";"+" ".join(histoPar["zaxis"])+";#Ch",
+            h1 = ROOT.TH1D( mapType+"_Dist",
+                            mapType+"_Dist"+";"+" ".join(histoPar["zaxis"])+";#Ch",
                             h1d_bin, h1d_min, h1d_max )
 
             for word in entries : 
@@ -114,7 +114,7 @@ def drawScan( testType, runNumber, mapList ):
             path_dir = PLOT_DIR + "/" + str(session.get('uuid'))
             PH.outDir = path_dir
     
-            path_plot = runNumber + "_" +  mapType
+            path_plot = mapType
             Plot.Plot1D_fromHistos(h1, h1d_log, path_plot+"_1", "#Ch.", "histo", h1d_min, h1d_max)
             Plot.Plot2D_fromHistos(h2, h1d_log, path_plot+"_2", " ".join(histoPar["zaxis"]), h1d_min, h1d_max)
 
@@ -128,7 +128,7 @@ def setParameter(testType, mapType) :
                                                  session['plotList'][mapType]['bin'],
                                                  session['plotList'][mapType]['log'] ] })
 
-    filename = JSON_DIR + "/{}_parameter.json".format(session['uuid'])
+    filename = JSON_DIR + "/{}_parameter.json".format(session.get('uuid'))
 
     with open(filename,'r') as f :      
         jsonData = json.load(f)

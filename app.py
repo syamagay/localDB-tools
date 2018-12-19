@@ -58,11 +58,10 @@ os.mkdir( USER_DIR )
 for DIR in DIRS :
     os.mkdir( DIR )
 
-
 ############
 # login list
 loginlist = [ "logged_in", "user_id", "user_name", "institute", "read", "write", "edit" ]
-poplist = [ "signup", "component", "parentId", "code", "runNumber", "runId", "mapType", "plotList", "root" ]
+poplist = [ "signup", "component", "parentId", "chips", "code", "runId", "mapType", "plotList", "root" ]
 
 ########
 # Prefix
@@ -90,13 +89,10 @@ if args.username is None:
     url = "mongodb://" + args.host + ":" + str(args.port) 
 else:
     url = "mongodb://" + args.username + ":" + args.password + "@" + args.host + ":" + str(args.port) 
-print("Connecto to mongoDB server: " + url + "/yarrdb")
-app.config["MONGO_URI"] = url + "/yarrdb"
-mongo = PyMongo( app )
+print("Connecto to mongoDB server: " + url + "/" + args.db)
+mongo = PyMongo( app, uri = url + "/" + args.db )
+usermongo = PyMongo( app, uri = url + "/" + args.userdb )
 fs = gridfs.GridFS( mongo.db )
-
-client = MongoClient( url )
-localdb = client['yarrlocal']
 
 ############
 # secret_key
@@ -126,13 +122,13 @@ def update_mod( collection, query ) :
     mongo.db[collection].update( query, 
                                  { '$set' : { 'sys.rev' : int( mongo.db[collection].find_one( query )['sys']['rev'] + 1 ), 
                                               'sys.mts' : datetime.datetime.utcnow() }}, 
-                                 multi=True )
+                                   multi=True )
 def count_photoNum() :
-    if localdb.counter.find({ "type" : "photoNumber" }).count() == 0 :
-        localdb.counter.insert({ "type" : "photoNumber", "num" : 1 })
+    if usermongo.db.counter.find({ "type" : "photoNumber" }).count() == 0 :
+        usermongo.db.counter.insert({ "type" : "photoNumber", "num" : 1 })
     else :
-        localdb.counter.update({ "type" : "photoNumber" }, { '$set' : { "num" : int( localdb.counter.find_one({ "type" : "photoNumber" })['num'] + 1 ) }})
-    return int(localdb.counter.find_one({ "type" : "photoNumber" })['num'])
+        usermongo.db.counter.update({ "type" : "photoNumber" }, { '$set' : { "num" : int( usermongo.db.counter.find_one({ "type" : "photoNumber" })['num'] + 1 ) }})
+    return int(usermongo.db.counter.find_one({ "type" : "photoNumber" })['num'])
 
 #################
 ### page function
@@ -143,25 +139,22 @@ def count_photoNum() :
 @app.route('/', methods=['GET'])
 def show_modules_and_chips() :
 
-    if session.get('uuid') :
-        files = glob.glob(DAT_DIR+"/"+str(session.get('uuid'))+"*")
+    if session.get( 'uuid' ) :
+        files = glob.glob( DAT_DIR+"/"+str(session.get( 'uuid' ))+"*" )
         for f in files : 
             os.remove(f)
-
-        result_dir = PLOT_DIR+"/"+str(session.get('uuid'))
+        result_dir = PLOT_DIR+"/"+str(session.get( 'uuid' ))
         if os.path.isdir( result_dir ) :
             shutil.rmtree( result_dir )
-
     else :
         session['uuid'] = str(uuid.uuid4()) 
 
     make_dir()
+    clean_dir( STAT_DIR )
 
     # pop session
     for key in poplist :
         session.pop(key,None)
-
-    clean_dir( STAT_DIR )
 
     query = { "componentType" : "Module" }
     component_entries = mongo.db.component.find( query )
@@ -197,13 +190,38 @@ def show_component() :
     make_dir()
 
     component = {}
-    session['chips']=[]
+
+    if not session.get('this') == request.args.get('id') or not session.get('runId') == request.args.get('runId') :
+        for key in poplist : session.pop(key,None)
+
+        files = glob.glob(DAT_DIR+"/"+str(session.get('uuid'))+"*")
+        for f in files : os.remove(f)
+
+        result_dir = PLOT_DIR+"/"+str(session.get('uuid'))
+        if os.path.isdir( result_dir ) : shutil.rmtree( result_dir )
+
+        query = { "_id" : ObjectId(request.args.get( 'id' ))}
+        thisComponent = mongo.db.component.find_one( query )
+        if thisComponent['componentType'] == "Module" : session['component'] = "module"
+        else :                                          session['component'] = "chip"
+
+        # get from args
+        session['this']  = request.args.get( 'id' ) 
+        session['code']  = request.args.get( 'code',"" )
+        session['runId'] = request.args.get( 'runId' )
+
+        session['chips']=[]
+        query = [{ "parent" : session['this'] },{ "child" : session['this'] }]
+        child_entries = mongo.db.childParentRelation.find({ '$or' : query })
+        for child in child_entries :
+            session['chips'].append({ "component" : child['child'] })
+            session['parentId'] = child['parent']
 
     # get from session
-    Component = session.get( 'component' )
-    ComponentId = request.args.get( 'id' )
-    ParentId = session.get( 'parentId' )
-    Code = session.get('code')
+    ComponentId = session.get( 'this' )
+    Component   = session.get( 'component' )
+    ParentId    = session.get( 'parentId' )
+    Code        = session.get( 'code' )
 
     # this component
     query = { "_id" : ObjectId(ComponentId) }
@@ -216,17 +234,8 @@ def show_component() :
     child_entries = mongo.db.childParentRelation.find( query )
 
     # fill chip and module information
-    components = {}
-    components.update({ "this" : ComponentId })
-    components.update({ "chips" : [] })
-    if Component == "chip" :
-        components['chips'].append({ "component" : ComponentId })
     chips = []
     for child in child_entries :
-        if Component == "module" :
-            components['chips'].append({ "component" : child['child'] })
-            session['chips'].append(child['child'])
-
         query = { "_id" : ObjectId(child['child']) }
         thisChip = mongo.db.component.find_one( query )
         component['componentType'] = thisChip['componentType']
@@ -244,11 +253,11 @@ def show_component() :
     photos = fei4.fill_photos( thisComponent, Code )
 
     # fill result index
-    resultIndex = fei4.fill_resultIndex( components ) 
+    resultIndex = fei4.fill_resultIndex() 
     # fill results 
-    results = fei4.fill_results( components )
+    results = fei4.fill_results()
     # fill roots
-    roots = fei4.fill_roots( components )
+    roots = fei4.fill_roots()
 
     # fill summary 
     summary = fei4.fill_summary( thisComponent )
@@ -257,7 +266,6 @@ def show_component() :
                        "serialNumber"  : thisComponent['serialNumber'],
                        "module"        : module,
                        "chips"         : chips,
-                       "url"           : "show_{}".format(Component),
                        "photoDisplay"  : photoDisplay,
                        "photoIndex"    : photoIndex,
                        "photos"        : photos,
@@ -268,82 +276,24 @@ def show_component() :
 
     return render_template( "component.html", component=component )
 
-#############
-# module page
-@app.route('/module', methods=['GET','POST'])
-def show_module() :
-    if not session.get('runId') == request.args.get( 'runId' ) :
-        for key in poplist :
-            session.pop(key,None)
-
-        files = glob.glob(DAT_DIR+"/"+str(session.get('uuid'))+"*")
-        for f in files : 
-            os.remove(f)
-
-        result_dir = PLOT_DIR+"/"+str(session.get('uuid'))
-        if os.path.isdir( result_dir ) :
-            shutil.rmtree( result_dir )
-
-    session['component'] = "module"
-
-    # get from args
-    componentId = request.args.get( 'id' )
-    session['parentId'] = request.args.get( 'id' )
-
-    session['code'] = request.args.get( 'code', "" )
-    session['runId'] = request.args.get( 'runId' )
-
-    return redirect( url_for("show_component", id=componentId) )
-
-###########
-# chip page
-@app.route('/chip', methods=['GET', 'POST'])
-def show_chip() :
-    if not session.get('runId') == request.args.get( 'runId' ) :
-        for key in poplist :
-            session.pop(key,None)
-
-        files = glob.glob(DAT_DIR+"/"+str(session.get('uuid'))+"*")
-        for f in files : 
-            os.remove(f)
-
-        result_dir = PLOT_DIR+"/"+str(session.get('uuid'))
-        if os.path.isdir( result_dir ) :
-            shutil.rmtree( result_dir )
-
-    session['component'] = "chip"
-
-    # get from args
-    componentId = request.args.get( 'id' )
-    session['code'] = request.args.get( 'code', "" )
-    session['runId'] = request.args.get( 'runId' )
-
-    query = { "child" : componentId }
-    session['parentId'] = mongo.db.childParentRelation.find_one( query )['parent']
-
-    return redirect( url_for("show_component", id=componentId) )
-
 @app.route('/makehisto', methods=['GET','POST'])
 def makehisto() :
+
+    # get from form
     session['root'] = request.form.get('root')
+    session['mapType'] = request.form.get( 'mapType' )
+    # get from args
+    componentId = request.args.get( 'id' )
+    runId = request.args.get( 'runId' )
 
     if session['root'] == 'make' :
-        # get from args
-        componentId = request.args.get( 'id' )
-
         # get from form
-        session['mapType'] = request.form.get( 'mapType' )
         session['plotList'].update({ session['mapType'] : { "log" : request.form.get('log',False),
-                                                             "min" : request.form.get('min'), 
-                                                             "max" : request.form.get('max'), 
-                                                             "bin" : request.form.get('bin') }})
-    if session['root'] == 'set' :
-        # get from args
-        componentId = request.args.get( 'id' )
-        # get from form
-        session['mapType'] = request.form.get( 'mapType' )
+                                                            "min" : request.form.get('min'), 
+                                                            "max" : request.form.get('max'), 
+                                                            "bin" : request.form.get('bin') }})
 
-    return redirect( url_for("show_component", id=componentId) )
+    return redirect( url_for("show_component", id=componentId, runId=runId) )
 
 ############
 # tag method
@@ -365,7 +315,7 @@ def tag() :
             else :
                  print("can't get tag session")
 
-    forUrl = "show_{}".format( session['component'] )
+    forUrl = "show_component"
 
     session.pop('collection')
     session.pop('tagid')
@@ -431,7 +381,7 @@ def add_attachment_result() :
                                                                       "environment" : env_dict }}})
     update_mod( "component", query )
 
-    forUrl = "show_{}".format( session['component'] )
+    forUrl = "show_component"
 
     return redirect( url_for(forUrl, id=request.form.get( 'id' )) )
 
@@ -441,7 +391,7 @@ def add_summary() :
     RunId = session.get( 'runId' )
 
     if not DOROOT :
-        forUrl = "show_{}".format( session['component'] )
+        forUrl = "show_component"
         return redirect( url_for(forUrl, id=componentId) )
     
     # serialNumber
@@ -515,7 +465,7 @@ def add_summary() :
     update_mod( "testRun", query ) 
     mongo.db.testRun.update( query, { '$set' : { "display" : True }}, multi=True )
 
-    forUrl = "show_{}".format( session['component'] )
+    forUrl = "show_component"
 
     return redirect( url_for(forUrl, id=componentId) )
 
@@ -559,7 +509,7 @@ def edit_description() :
 
                 update_mod( str(col), query )
 
-    forUrl = "show_{}".format( session['component'] )
+    forUrl = "show_component"
 
     return redirect( url_for(forUrl, id=request.form.get( 'id' )) )
 
@@ -600,9 +550,9 @@ def edit_comment() :
                                                                          "institute" : session['institute'] } }} )
         update_mod( "testRun", query )
         #userquery = { "userName" : session['user_name'] }
-        #localdb.user.update( userquery , { '$push' : { 'commentTestRun' : query }})
+        #usermongo.db.user.update( userquery , { '$push' : { 'commentTestRun' : query }})
  
-    forUrl = "show_{}".format( session['component'] )
+    forUrl = "show_component"
 
     return redirect( url_for(forUrl, id=request.form.get( 'id' ), runNumber=request.form.get( 'runNumber' )) )
 
@@ -629,9 +579,9 @@ def remove_comment() :
         mongo.db.testRun.update( query, { '$pull' : { 'comments' : { "user" : request.form.get( 'user' ) }}} )
         update_mod( "testRun", query )
         #userquery = { "userName" : request.form.get('user') }
-        #localdb.user.update( userquery , { '$pull' : { 'commentTestRun' : query }})
+        #usermongo.db.user.update( userquery , { '$pull' : { 'commentTestRun' : query }})
 
-    forUrl = "show_{}".format( session['component'] )
+    forUrl = "show_component"
 
     return redirect( url_for(forUrl, id=request.form.get( 'id' ), runNumber=request.form.get( 'runNumber' )) )
 
@@ -666,7 +616,7 @@ def add_attachment() :
                                                                           "filename"    : filename }}})
         update_mod( "component", query )
 
-    forUrl = "show_{}".format( session['component'] )
+    forUrl = "show_component"
 
     return redirect( url_for(forUrl, id=request.form.get( 'id' )) )
 
@@ -679,7 +629,7 @@ def remove_attachment() :
     mongo.db.component.update( query, { '$pull' : { "attachments" : { "code" : code }}}) 
     update_mod( "component", query )
 
-    forUrl = "show_{}".format( session['component'] )
+    forUrl = "show_component"
 
     return redirect( url_for(forUrl, id=request.form.get('id')) )
 
@@ -687,7 +637,7 @@ def remove_attachment() :
 def login() :
 
     query = { "userName" : request.form['username'] }
-    userName = localdb.user.find_one( query )
+    userName = usermongo.db.user.find_one( query )
     try :
         if hashlib.md5( request.form['password'].encode("utf-8") ).hexdigest() == userName['passWord'] :
             session['logged_in'] = True
@@ -726,7 +676,7 @@ def signup() :
             text = "Please make sure your passwords match"
             stage = "input"
             return render_template( "signup.html", userInfo=userinfo, passtext=text, stage=stage )
-        if localdb.user.find({ "userName" : userinfo[0] }).count() == 1 or localdb.request.find({ "userName" : userinfo[0] }).count() == 1 :
+        if usermongo.db.user.find({ "userName" : userinfo[0] }).count() == 1 or usermongo.db.request.find({ "userName" : userinfo[0] }).count() == 1 :
             text = "The username you entered is already in use, please select an alternative."
             stage = "input"
             return render_template( "signup.html", userInfo=userinfo, nametext=text, stage=stage )
@@ -746,9 +696,9 @@ def signup() :
 
 @app.route('/admin',methods=['GET','POST'])
 def admin_page() :
-    request_entries = localdb.request.find({}, { "userName" : 0, "password" : 0 })
-    user_entries = localdb.user.find({ "type" : "user" }, { "userName" : 0, "password" : 0 })
-    admin_entries = localdb.user.find({ "type" : "administrator" }, { "userName" : 0, "password" : 0 })
+    request_entries = usermongo.db.request.find({}, { "userName" : 0, "password" : 0 })
+    user_entries = usermongo.db.user.find({ "type" : "user" }, { "userName" : 0, "password" : 0 })
+    admin_entries = usermongo.db.user.find({ "type" : "administrator" }, { "userName" : 0, "password" : 0 })
     request = []
     for req in request_entries :
         req.update({ "authority" : 3,
@@ -771,7 +721,7 @@ def add_user() :
     for user in user_entries :
         if approval[user_entries.index( user )] == "approve" :
             query = { "_id" : ObjectId( user ) }
-            userinfo = localdb.request.find_one( query )
+            userinfo = usermongo.db.request.find_one( query )
             userinfo.update({ "authority" : authority[user_entries.index( user )] })
             func.add_user( userinfo ) 
             func.remove_request( user )

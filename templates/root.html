@@ -99,7 +99,7 @@ vertical-align: middle;
             <center>
               <p> Map </p>
               <a href={{result['urlMap']}} target="_brank" rel="noopener noreferrer">
-                <img src={{result['urlMap']}} title="Dist" width="300" height="300"></img>
+                <img src={{result['urlMap']}} title="Map" width="300" height="300"></img>
               </a>
             </center>
             {% endif %}
@@ -109,7 +109,7 @@ vertical-align: middle;
             {% if result['urlMap'] %}
             <center>
               <table class="table table-sm table-bordered" style="font-size: 8pt;">
-                <form class="form-holizontal" action="{{ url_for('makehisto', id=component['_id'], runNumber=result['runNumber'], runId=result['runId']) }}" method=post class=entries style="font-size:10pt; margin:0px;">  
+                <form class="form-holizontal" action="{{ url_for('makehisto', id=component['_id'], runId=result['runId']) }}" method=post class=entries style="font-size:10pt; margin:0px;">  
                 <input type="hidden" name="mapType" value={{result['mapType']}}>
                 <thead class="table-dark" style="background: #222222;">
                   <tr>
@@ -152,11 +152,11 @@ vertical-align: middle;
                     </td>
                     <td scope="col" class="text-center">
                     {% if result['setLog'] %}
-                    <input type="checkbox" class="form-control" id={{result['mapType']}} name="log" style="margin:0px;padding:0px;" checked>
-                    <label class="label" for={{result['mapType']}}>Log</label>
+                    <input type="checkbox" class="form-control" id='L{{result['mapType']}}' name="log" style="margin:0px;padding:0px;" checked>
+                    <label class="label" for='L{{result['mapType']}}'>Log</label>
                     {% else %}
-                    <input type="checkbox" class="form-control" id={{result['mapType']}} name="log" style="margin:0px;padding:0px;">
-                    <label class="label" for={{result['mapType']}}>Log</label>
+                    <input type="checkbox" class="form-control" id='L{{result['mapType']}}' name="log" style="margin:0px;padding:0px;">
+                    <label class="label" for='L{{result['mapType']}}'>Log</label>
                     {% endif %}
                     </td>
                   </tr>

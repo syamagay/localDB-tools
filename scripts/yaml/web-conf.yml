@@ -3,6 +3,8 @@
 mongoDB:
     host: 127.0.0.1
     port: 27017
+    db: yarrdb
+    userdb: userdb
 
     # For user authentication
     #username: viewer

@@ -15,6 +15,8 @@ def getArgs():
     parser.add_argument("--config", "-f", help="Config file path", type=str)
     parser.add_argument("--host", help="Host", type=str, default="localhost")
     parser.add_argument("--port", help="Port", type=int, default=27017)
+    parser.add_argument("--db", help="Db", type=str, default="yarrdb")
+    parser.add_argument("--userdb", help="Db", type=str, default="userdb")
     parser.add_argument("--username", "-u", help="User name", type=str)
     parser.add_argument("--password", "-p", help="User password", type=str)
     parser.add_argument("--fhost", help="Flask Host", type=str, default="localhost")
@@ -27,6 +29,8 @@ def getArgs():
         conf = readConfig(args.config)    # Read from config file
         if "host" in conf["mongoDB"]:     args.host = conf["mongoDB"]["host"]
         if "port" in conf["mongoDB"]:     args.port = conf["mongoDB"]["port"]
+        if "db" in conf["mongoDB"]:       args.db = conf["mongoDB"]["db"]
+        if "userdb" in conf["mongoDB"]:   args.userdb = conf["mongoDB"]["userdb"]
         if "username" in conf["mongoDB"]: args.username = conf["mongoDB"]["username"]
         if "password" in conf["mongoDB"]: args.password = conf["mongoDB"]["password"]
         if "host" in conf["flask"]:       args.fhost = conf["flask"]["host"]

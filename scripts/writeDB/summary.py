@@ -30,7 +30,7 @@ import listset, func
 # set dbs
 args = getArgs()            # Get command line arguments
 client = MongoClient( host=args.host, port=args.port )
-yarrdb = client['yarrdb']
+yarrdb = client[args.db]
 fs = gridfs.GridFS( yarrdb )
 
 ##################

@@ -40,8 +40,8 @@ if args.username is None:
 else:
     url = "mongodb://" + args.username + ":" + args.password + "@" + args.host + ":" + str(args.port) 
 client = MongoClient( url )
-yarrdb = client['yarrdb']
-localdb = client['yarrlocal']
+yarrdb = client[args.db]
+localdb = client[args.userdb]
 fs = gridfs.GridFS( yarrdb )
 
 def clean_dir( path ) :
@@ -168,12 +168,12 @@ def fill_summary( thisComponent ) :
                                           "scan"     : scandict })
     return summaryIndex
 
-def fill_resultIndex( item ) :
+def fill_resultIndex() :
     resultIndex = {}
     keys = [ "runNumber", "institution", "userIdentity" ]
     runs = []
 
-    query = { '$or' : item.get( 'chips' ) + [{"component" : item.get( 'this' )}] }
+    query = { '$or' : session.get( 'chips' ) + [{"component" : session.get( 'this' )}] }
     run_entries = yarrdb.componentTestRun.find( query ).sort( "component", DESCENDING )
     for run in run_entries :
         query = { "_id" : ObjectId(run['testRun']) }
@@ -186,7 +186,7 @@ def fill_resultIndex( item ) :
         stage = run['stage']
         thisRun_entries = yarrdb.testRun.find( query_id )
         for thisRun_entry in thisRun_entries :        
-            query = { "component" : item.get( 'this' ), "testRun" : str(thisRun_entry['_id']) }
+            query = { "component" : session.get( 'this' ), "testRun" : str(thisRun_entry['_id']) }
             if yarrdb.componentTestRun.find_one( query ) :
                 thisRun = thisRun_entry
             if not result :
@@ -205,10 +205,10 @@ def fill_resultIndex( item ) :
                                       "run" : runInd }})
     return resultIndex
 
-def fill_results( item ) :
+def fill_results() :
     results = {}
     if session.get('runId') :
-        query = { "component" : item.get( 'this' ), "testRun" : session['runId'] }
+        query = { "component" : session.get( 'this' ), "testRun" : session['runId'] }
         thisComponentTestRun = yarrdb.componentTestRun.find_one( query )
         query = { "_id" : ObjectId(session['runId']) }
         thisRun = yarrdb.testRun.find_one( query )
@@ -247,7 +247,7 @@ def fill_results( item ) :
 
     return results
 
-def fill_roots( item ) :
+def fill_roots() :
     roots = {}
     if session.get('runId') :
         query = { "_id" : ObjectId(session['runId']) }
@@ -260,7 +260,7 @@ def fill_roots( item ) :
             if not session.get('plotList') :
                 session['plotList'] = {}
                 chipIds = {}
-                components = sorted( item.get( 'chips' ), key=lambda x:x['component'] )
+                components = sorted( session.get( 'chips' ), key=lambda x:x['component'] )
                 i=1
                 for component in components :
                     if not component['component'] in chipIds :
@@ -275,13 +275,13 @@ def fill_roots( item ) :
                         data_entries = chiprun['attachments']
                         for data in data_entries :
                             if data['contentType'] == "dat" :
-                                f = open( '{0}/{1}_{2}_{3}_{4}.dat'.format( DAT_DIR, session.get('uuid'), thisRun['runNumber'], 'chipId{}'.format(chipIds[run['component']]), data['filename'].rsplit("_",1)[1] ), 'wb' )
+                                f = open( '{0}/{1}_{2}_{3}.dat'.format( DAT_DIR, session.get('uuid'), 'chipId{}'.format(chipIds[run['component']]), data['filename'].rsplit("_",1)[1] ), 'wb' )
                                 f.write( fs.get(ObjectId(data['code']) ).read())
                                 f.close()
                                 mapList.update({ data['filename'].rsplit("_",1)[1] : len(chipIds) })
             elif session.get( 'mapType' ) :
                 chipIds = {}
-                components = sorted( item.get( 'chips' ), key=lambda x:x['component'] )
+                components = sorted( session.get( 'chips' ), key=lambda x:x['component'] )
                 i=1
                 for component in components :
                     if not component['component'] in chipIds :
@@ -291,12 +291,12 @@ def fill_roots( item ) :
             if session.get('root') == "set" :
                 root.setParameter( thisRun['testType'], session.get( 'mapType' ) )
             elif mapList :
-                root.drawScan( thisRun['testType'], str(thisRun['runNumber']), mapList )
+                root.drawScan( thisRun['testType'], mapList )
 
             for mapType in session.get('plotList') :
                 url = {} 
                 for i in [ "1", "2" ] :
-                    filename = PLOT_DIR + "/" + str(session.get('uuid')) + "/" + str(thisRun['runNumber']) + "_" + str(mapType) + "_{}.png".format(i)
+                    filename = PLOT_DIR + "/" + str(session.get('uuid')) + "/" + str(mapType) + "_{}.png".format(i)
                     stage = thisComponentTestRun['stage']
                     if os.path.isfile( filename ) :
                         binary_image = open( filename, 'rb' )
@@ -320,7 +320,6 @@ def fill_roots( item ) :
                                  "minValue"    : session['plotList'][mapType]["min"],
                                  "maxValue"    : session['plotList'][mapType]["max"],
                                  "binValue"    : session['plotList'][mapType]["bin"] })
-            #results = sorted( results, key=lambda x:x['mapType'], reverse=True)
             results = sorted( results, key=lambda x:int((re.search(r"[0-9]+",x['sortkey'])).group(0)), reverse=True)
             roots.update({ "rootsw"  : True,
                            "results" : results })
