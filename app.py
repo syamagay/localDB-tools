@@ -1,7 +1,7 @@
 ##################################
 ###   Import Module 
 ##################################
-import os, pwd, glob, hashlib, datetime, shutil, sys, uuid
+import os, pwd, glob, hashlib, datetime, shutil, sys, uuid, json
 sys.path.append( os.path.dirname(os.path.abspath(__file__)) + "/scripts/src" )
 
 # use Flask scheme
@@ -49,9 +49,11 @@ PIC_DIR = '{}/upload'.format( USER_DIR )
 DAT_DIR = '{}/dat'.format( USER_DIR )
 PLOT_DIR = '{}/result'.format( USER_DIR )
 THUM_DIR = '{}/result/thum'.format( USER_DIR )
+THUMT_DIR = '{}/result/thum_test'.format( USER_DIR )
 STAT_DIR = '{}/static'.format( USER_DIR )
 JSON_DIR = '{}/json'.format( USER_DIR )
-DIRS = [ PIC_DIR, DAT_DIR, PLOT_DIR, STAT_DIR, THUM_DIR, JSON_DIR ] 
+SCRIPT_DIR = os.path.dirname(os.path.abspath(__file__)) + "/scripts"
+DIRS = [ PIC_DIR, DAT_DIR, PLOT_DIR, STAT_DIR, THUM_DIR, THUMT_DIR, JSON_DIR ] 
 if os.path.isdir( USER_DIR ) :
     shutil.rmtree( USER_DIR )
 os.mkdir( USER_DIR )
@@ -61,7 +63,7 @@ for DIR in DIRS :
 ############
 # login list
 loginlist = [ "logged_in", "user_id", "user_name", "institute", "read", "write", "edit" ]
-poplist = [ "signup", "component", "parentId", "chips", "code", "runId", "mapType", "plotList", "root" ]
+poplist = [ "signup", "component", "parentId", "chips", "code", "runId", "mapType", "plotList", "root", "stage", "this" ]
 
 ########
 # Prefix
@@ -140,12 +142,12 @@ def count_photoNum() :
 def show_modules_and_chips() :
 
     if session.get( 'uuid' ) :
-        files = glob.glob( DAT_DIR+"/"+str(session.get( 'uuid' ))+"*" )
-        for f in files : 
-            os.remove(f)
-        result_dir = PLOT_DIR+"/"+str(session.get( 'uuid' ))
-        if os.path.isdir( result_dir ) :
-            shutil.rmtree( result_dir )
+        dat_dir = DAT_DIR + "/" + str(session.get('uuid'))
+        if os.path.isdir( dat_dir ) :
+            shutil.rmtree( dat_dir )
+        plot_dir = PLOT_DIR+"/"+str(session.get( 'uuid' ))
+        if os.path.isdir( plot_dir ) :
+            shutil.rmtree( plot_dir )
     else :
         session['uuid'] = str(uuid.uuid4()) 
 
@@ -181,6 +183,9 @@ def show_modules_and_chips() :
     for componentType in modules :
         modules[componentType].update({ "num" : len(modules[componentType]["modules"]) })
 
+    module = sorted( modules[componentType]["modules"], key=lambda x:x["serialNumber"], reverse=True)
+    modules[componentType]["modules"] = module
+
     return render_template( "toppage.html", modules=modules )
 
 ################
@@ -191,14 +196,10 @@ def show_component() :
 
     component = {}
 
+    session.pop("summaryList",None)
+
     if not session.get('this') == request.args.get('id') or not session.get('runId') == request.args.get('runId') :
         for key in poplist : session.pop(key,None)
-
-        files = glob.glob(DAT_DIR+"/"+str(session.get('uuid'))+"*")
-        for f in files : os.remove(f)
-
-        result_dir = PLOT_DIR+"/"+str(session.get('uuid'))
-        if os.path.isdir( result_dir ) : shutil.rmtree( result_dir )
 
         query = { "_id" : ObjectId(request.args.get( 'id' ))}
         thisComponent = mongo.db.component.find_one( query )
@@ -259,8 +260,15 @@ def show_component() :
     # fill roots
     roots = fei4.fill_roots()
 
+    query = { '$or' : session.get('chips') }
+    run_entries = mongo.db.componentTestRun.find( query )
+    stages = []
+    for run in run_entries :
+        stages.append( run.get('stage') )
+    stages = list(set(stages))
+
     # fill summary 
-    summary = fei4.fill_summary( thisComponent )
+    summary = fei4.fill_summary( thisComponent, stages )
 
     component.update({ "_id"           : ComponentId,
                        "serialNumber"  : thisComponent['serialNumber'],
@@ -275,6 +283,34 @@ def show_component() :
                        "summary"       : summary })
 
     return render_template( "component.html", component=component )
+
+@app.route('/show_result', methods=['GET','POST'])
+def show_result() :
+
+    # get from args
+    componentId = request.args.get('id')
+    runId =       request.args.get('runId')
+
+    session.pop("plotList",None)
+    session.pop("root",None)
+
+    plot_dir = PLOT_DIR + "/" + str(session.get('uuid'))
+    if os.path.isdir( plot_dir ) :
+        shutil.rmtree( plot_dir )
+    os.mkdir( plot_dir )
+
+    dat_dir = DAT_DIR + "/" + str(session.get('uuid'))
+    if os.path.isdir( dat_dir ) :
+        shutil.rmtree( dat_dir )
+    os.mkdir( dat_dir )
+
+    jsonFile = JSON_DIR + "/{}_parameter.json".format(session.get('uuid'))
+    if not os.path.isfile( jsonFile ) :
+        jsonFile_default = SCRIPT_DIR + "/json/parameter_default.json"
+        with open( jsonFile_default, 'r' ) as f : jsonData_default = json.load( f )
+        with open( jsonFile, 'w' ) as f :         json.dump( jsonData_default, f, indent=4 )
+
+    return redirect( url_for("show_component", id=componentId, runId=runId) )
 
 @app.route('/makehisto', methods=['GET','POST'])
 def makehisto() :
@@ -385,6 +421,82 @@ def add_attachment_result() :
 
     return redirect( url_for(forUrl, id=request.form.get( 'id' )) )
 
+@app.route('/add_summary_test', methods=['GET','POST'])
+def add_summary_test() :
+    poplist = [ "signup", "component", "parentId", "chips", "code", "runId", "mapType", "plotList", "root", "this" ]
+    for key in poplist : session.pop(key,None)
+
+    # get from args
+    session['this']  = request.args.get( 'id' ) 
+    # get from form
+    if not request.form.get( 'stage' ) == session.get( 'stage' ) :
+        session['summaryList'] = { "after"  : {},
+                                   "before" : {} }
+    session['stage'] = request.form.get( 'stage' )
+
+    if request.form.get('testType') :
+        session['summaryList']['after'].update({ request.form.get('testType') : request.form.get('runId') })
+
+    session['chips']=[]
+    query = [{ "parent" : session['this'] },{ "child" : session['this'] }]
+    child_entries = mongo.db.childParentRelation.find({ '$or' : query })
+    for child in child_entries :
+        session['chips'].append({ "component" : child['child'] })
+        session['parentId'] = child['parent']
+    query = { "_id" : ObjectId(session.get( 'this' ))}
+    thisComponent = mongo.db.component.find_one( query )
+    if thisComponent['componentType'] == "Module" : session['component'] = "module"
+    else :                                          session['component'] = "chip"
+
+    # get from session
+    ComponentId = session.get( 'this' )
+    Component   = session.get( 'component' )
+    ParentId    = session.get( 'parentId' )
+    Code        = session.get( 'code' )
+
+    # this module
+    query = { "_id" : ObjectId(ParentId) }
+    thisModule = mongo.db.component.find_one( query )
+    # chips of module
+    query = { "parent" : ParentId }
+    child_entries = mongo.db.childParentRelation.find( query )
+
+    component = {}
+    chips = []
+    for child in child_entries :
+        query = { "_id" : ObjectId(child['child']) }
+        thisChip = mongo.db.component.find_one( query )
+        component['componentType'] = thisChip['componentType']
+        chips.append({ "_id"          : child['child'],
+                       "serialNumber" : thisChip["serialNumber"] })
+
+    module = { "_id"           : ParentId,
+               "serialNumber"  : thisModule["serialNumber"] }
+    
+    query = { '$or' : session.get('chips') }
+    run_entries = mongo.db.componentTestRun.find( query )
+    stages = []
+    for run in run_entries :
+        stages.append( run.get('stage') )
+    stages = list(set(stages))
+
+    # fill summary 
+    summary = fei4.fill_summary_test( thisComponent )
+
+    # fill result index 
+    resultIndex = fei4.fill_resultIndex()
+
+    component.update({ "_id"           : ComponentId,
+                       "serialNumber"  : thisComponent['serialNumber'],
+                       "module"        : module,
+                       "chips"         : chips,
+                       "summary"       : summary,
+                       "stages"        : stages,
+                       "resultIndex"   : resultIndex,
+                       "stage"         : session.get('stage') })
+
+    return render_template( "add_summary.html", component=component )
+
 @app.route('/add_summary', methods=['GET', 'POST'])
 def add_summary() :
     componentId = request.args.get( 'id' )
@@ -471,9 +583,11 @@ def add_summary() :
 
 @app.route('/show_summary', methods=['GET'])
 def show_summary() :
+    # get from args
     code = request.args.get('code')
     scan = request.args.get('scan')
     stage = request.args.get('stage')
+
     query = { "_id" : ObjectId(code) }
     data = mongo.db.fs.files.find_one( query )
     if not "png" in data['filename'] : 

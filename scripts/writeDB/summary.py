@@ -260,7 +260,7 @@ for scan in listset.scan :
         mapList = {}
         for mapType in listset.scan[thisRun['testType']] :
             mapList.update({ mapType[0] : True })
-        root.drawScan( thisRun['testType'], str(thisRun['runNumber']), False, 0, mapList )
+        root.drawScan( thisRun['testType'], mapList )
         print( "done. " )
     else :
         print( "failure. " )
@@ -322,7 +322,7 @@ for scan in listset.scan :
                     if filename == attachment.get('filename') :
                         fs.delete( ObjectId(attachment.get('code')) )
                         yarrdb.testRun.update( query, { '$pull' : { "attachments" : { "code" : attachment.get('code') }}}) 
-                filepath = PLOT_DIR + "/" + thisRun['testType'] + "/" + str(thisRun['runNumber']) + "_" + mapType[0] + "_{}.png".format(i)
+                filepath = PLOT_DIR + "/" + str(session.get('uuid')) + "/" + str(thisRun['testType']) + "_" + str(mapType) + "_{}.png".format(i)
                 binary_image = open( filepath, 'rb' )
                 image = fs.put( binary_image.read(), filename=filename )
                 binary_image.close()

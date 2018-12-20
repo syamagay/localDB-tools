@@ -36,15 +36,15 @@ def drawScan( testType, mapList ):
 
     for mapType in mapList :
         histoPar = {}
-        files = glob.glob( DAT_DIR+"/"+str(session.get('uuid'))+"*"+mapType+".dat" )
+        files = glob.glob( DAT_DIR+"/"+str(session.get('uuid'))+"/*"+mapType+".dat" )
         if mapList[mapType]==1 : cnt = 1
         else :                   cnt = 2
 
         zmax = 0
         entries = []
         for i,filename in enumerate( files ) :
-            for txt in filename.split( "_" ) :
-                if "chipId" in txt : chipId = int( txt[6] ) - 1
+            for txt in filename.split( "/" ) :
+                if "chipId" in txt : chipId = int( txt.split("_")[0][6] ) - 1
             with open( filename ) as f :      
                 readlines = f.readlines()
                 if readlines[0].split()[0] == "Histo2d" :
@@ -114,7 +114,7 @@ def drawScan( testType, mapList ):
             path_dir = PLOT_DIR + "/" + str(session.get('uuid'))
             PH.outDir = path_dir
     
-            path_plot = mapType
+            path_plot = testType + "_" + mapType
             Plot.Plot1D_fromHistos(h1, h1d_log, path_plot+"_1", "#Ch.", "histo", h1d_min, h1d_max)
             Plot.Plot2D_fromHistos(h2, h1d_log, path_plot+"_2", " ".join(histoPar["zaxis"]), h1d_min, h1d_max)
 

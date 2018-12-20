@@ -1,4 +1,4 @@
-import os, pwd, glob, sys, json, re
+import os, pwd, glob, sys, json, re, shutil
 APP_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 sys.path.append( APP_DIR )
 JSON_DIR = APP_DIR + "/scripts/json"
@@ -105,67 +105,159 @@ def fill_photos( thisComponent, code ) :
                            "filename"    : data['filename'] }
     return photos
 
-def fill_summary( thisComponent ) :
+def fill_summary( thisComponent, thisStages ) :
     summaryIndex = []
-    for stage in listset.stage :
-        query = { "component" : str(thisComponent['_id']), "stage" : stage }
-        componentTestRun_entries = yarrdb.componentTestRun.find( query )
-        runIds = []
-        for componentTestRun in componentTestRun_entries :
-            runIds.append({ "_id" : ObjectId(componentTestRun['testRun']) })
-        if not runIds == [] :
-            query = { '$or' : runIds, "display" : True }
-            run_entries = yarrdb.testRun.find( query )
-            if not run_entries.count() == 0 :
-                scandict = {}
-                for scan in listset.scan :
-                    query = { '$or' : runIds, "testType" : scan, "display" : True }
-                    thisRun = yarrdb.testRun.find_one( query )
-                    mapList = []
-                    if thisRun :
-                        for mapType in listset.scan[scan] :
-                            values = {}
-                            thisComponentTestRun = yarrdb.componentTestRun.find_one({ "testRun" : str(thisRun['_id']) })
-                            env_dict = fill_env( thisComponentTestRun )
-                            values.update({ "env" : env_dict })
-                            data_entries = thisRun['attachments']
-                            for data in data_entries :
-                                if data['filename'] == "{0}_{1}".format( thisComponent['serialNumber'], mapType[0] ) :
-                                    if data['contentType'] == "png" :
-                                        filePath = "{0}/thum/{1}_{2}_{3}.png".format( PLOT_DIR, stage, scan, data['filename'] )
-                                        values.update({ "2Dcode" : data['code'] })
-                                        if not os.path.isfile(filePath) :
-                                            binary = fs.get(ObjectId(data['code'])).read()
-                                            image_bin = io.BytesIO( binary )
-                                            image = Image.open( image_bin )
-                                            image.thumbnail((int(image.width/4),int(image.height/4)))
-                                            image.save( filePath )
-                                        url = url_for( 'result.static', filename='thum/{0}_{1}_{2}.png'.format( stage, scan, data['filename'] ))
-                                        values.update({ "2Dthum" : url })
-                                elif data['filename'] == "{0}_{1}_Dist".format( thisComponent['serialNumber'], mapType[0] ) :
-                                    if data['contentType'] == "png" :
-                                        filePath = "{0}/thum/{1}_{2}_{3}.png".format( PLOT_DIR, stage, scan, data['filename'] )
-                                        values.update({ "1Dcode" : data['code'] })
-                                        if not os.path.isfile(filePath) :
-                                            binary = fs.get(ObjectId(data['code'])).read()
-                                            image_bin = io.BytesIO( binary )
-                                            image = Image.open( image_bin )
-                                            image.thumbnail((int(image.width/4),int(image.height/4)))
-                                            image.save( filePath )
-                                        url = url_for( 'result.static', filename='thum/{0}_{1}_{2}.png'.format( stage, scan, data['filename'] ))
-                                        values.update({ "1Dthum" : url })
-                            mapList.append({ "url1Dthum" : values.get('1Dthum'),
-                                             "url2Dthum" : values.get('2Dthum'),
-                                             "code1D" : values.get('1Dcode'),
-                                             "code2D" : values.get('2Dcode'),
-                                             "mapType" : mapType[0],
-                                             "environment" : values.get('env') })
-                    scandict.update({ scan : { "map" : mapList,
-                                               "num" : len(mapList) }})
 
-                if not scandict == {} :
-                    summaryIndex.append({ "stage"    : stage,
-                                          "scan"     : scandict })
+    stages = thisStages
+    dir_name = "thum"
+
+    summary_entries = {}
+    for stage in stages :
+        summary_entries.update({ stage : {} })
+        for scan in listset.scan :
+            summary_entries[stage].update({ scan : None })
+            query = { "component" : str(thisComponent['_id']), "stage" : stage, "testType" : scan }
+            componentTestRun_entries = yarrdb.componentTestRun.find( query )
+            for componentTestRun in componentTestRun_entries :
+                query = { "_id" : ObjectId(componentTestRun['testRun']) }
+                thisRun = yarrdb.testRun.find_one( query )
+                if thisRun.get( 'display' ) : 
+                    summary_entries[stage].update({ scan : thisRun['_id'] })
+
+    for stage in summary_entries :
+        scandict = {}
+        for scan in summary_entries[stage] :
+            mapList = []
+            total = False
+            scandict.update({ scan : {} })
+            if summary_entries[stage][scan] :
+                query = { "_id" : summary_entries[stage][scan] }
+                thisRun = yarrdb.testRun.find_one( query )
+                query = { "testRun" : str(summary_entries[stage][scan]) }
+                thisComponentTestRun = yarrdb.componentTestRun.find_one( query )
+                env_dict = fill_env( thisComponentTestRun )
+                for mapType in listset.scan[scan] :
+                    mapDict = {}
+                    mapDict.update({ "environment" : env_dict,
+                                     "mapType" : mapType[0] })
+                    data_entries = thisRun['attachments']
+                    for data in data_entries :
+                        datadict = { "1" : "_Dist", "2" : "" }
+                        for i in datadict :
+                            if data['filename'] == "{0}_{1}{2}".format( thisComponent['serialNumber'], mapType[0], datadict[i] ) :
+                                if data['contentType'] == "png" :
+                                    filePath = "{0}/{1}/{2}_{3}_{4}.png".format( PLOT_DIR, "thum", stage, scan, data['filename'] )
+                                    mapDict.update({ "code{}D".format(i) : data['code'] })
+                                    if not os.path.isfile(filePath) :
+                                        binary = fs.get(ObjectId(data['code'])).read()
+                                        image_bin = io.BytesIO( binary )
+                                        image = Image.open( image_bin )
+                                        image.thumbnail((int(image.width/4),int(image.height/4)))
+                                        image.save( filePath )
+                                    url = url_for( 'result.static', filename='{0}/{1}_{2}_{3}.png'.format( "thum", stage, scan, data['filename'] ))
+                                    mapDict.update({ "url{}Dthum".format(i) : url })
+                    mapList.append( mapDict )
+                scandict[scan].update({ "runNumber"    : thisRun['runNumber'],
+                                        "institution"  : thisRun['institution'],
+                                        "userIdentity" : thisRun['userIdentity'] })
+            scandict[scan].update({ "map" : mapList,
+                                    "num" : len(mapList) })
+            if mapList : total = True
+
+        if not scandict == {} :
+            summaryIndex.append({ "stage" : stage,
+                                  "scan"  : scandict,
+                                  "total" : total })
+    return summaryIndex
+
+def fill_summary_test( thisComponent ) :
+    summaryIndex = []
+    scanList = [ "digitalscan", "analogscan", "thresholdscan", "totscan", "noisescan", "selftrigger" ] 
+    
+    if not session.get( 'stage' ) : return summaryIndex 
+
+    stage = session.get( 'stage' )
+
+    if not session['summaryList']['before'] :
+        result_dir = PLOT_DIR+"/"+str(session.get( 'uuid' ))
+        if os.path.isdir( result_dir ) :
+            shutil.rmtree( result_dir )
+        for scan in scanList :
+            session['summaryList']['before'].update({ scan : None })
+            session['summaryList']['after'].update({ scan : None })
+            query = { "component" : str(thisComponent['_id']), "stage" : stage, "testType" : scan }
+            componentTestRun_entries = yarrdb.componentTestRun.find( query )
+            for componentTestRun in componentTestRun_entries :
+                query = { "_id" : ObjectId(componentTestRun['testRun']) }
+                thisRun = yarrdb.testRun.find_one( query )
+                if thisRun.get( 'display' ) : 
+                    session['summaryList']['before'].update({ scan : str(thisRun['_id']) })
+                    session['summaryList']['after'].update({ scan : str(thisRun['_id']) })
+
+                    session['runId'] = str(thisRun['_id'])
+                    plots = fill_roots()
+                    for result in plots['results'] :
+                        datadict = { "1" : "_Dist", "2" : "" }
+                        for i in datadict :
+                            filepath = result['path{}'.format(datadict[i])]
+                            print(filepath)
+                            mapType = result['mapType']
+                            if os.path.isfile(filepath) :
+                                f = open(filepath, 'r')
+                                binary = f.read()
+                                image_bin = io.BytesIO( binary )
+                                image = Image.open( image_bin )
+                                image.thumbnail((int(image.width/4),int(image.height/4)))
+                                filename = "{0}/{1}/{2}_{3}_{4}_{5}{6}.png".format( PLOT_DIR, "thum_test", stage, scan, thisComponent['serialNumber'], mapType, datadict[i] )
+                                image.save( filename )
+                                f.close()
+                    session.pop('runId',None)
+                    session.pop('plotList',None)
+    #r = glob.glob( path + "/*" )
+
+    scandict = {}
+    for scan in session['summaryList']['after'] :
+        mapList = []
+        total = False
+        scandict.update({ scan : {} })
+        if session['summaryList']['after'][scan] :
+            query = { "_id" : ObjectId(session['summaryList']['after'][scan]) }
+            thisRun = yarrdb.testRun.find_one( query )
+            query = { "testRun" : session['summaryList']['after'][scan] }
+            thisComponentTestRun = yarrdb.componentTestRun.find_one( query )
+            env_dict = fill_env( thisComponentTestRun )
+            for mapType in listset.scan[scan] :
+                mapDict = {}
+                mapDict.update({ "environment" : env_dict,
+                                 "mapType" : mapType[0] })
+                data_entries = thisRun['attachments']
+                for data in data_entries :
+                    datadict = { "1" : "_Dist", "2" : "" }
+                    for i in datadict :
+                        if data['filename'] == "{0}_{1}{2}".format( thisComponent['serialNumber'], mapType[0], datadict[i] ) :
+                            if data['contentType'] == "png" :
+                                filePath = "{0}/{1}/{2}_{3}_{4}.png".format( PLOT_DIR, "thum_test", stage, scan, data['filename'] )
+                                mapDict.update({ "code{}D".format(i) : data['code'] })
+                                #if not os.path.isfile(filePath) :
+                                #    binary = fs.get(ObjectId(data['code'])).read()
+                                #    image_bin = io.BytesIO( binary )
+                                #    image = Image.open( image_bin )
+                                #    image.thumbnail((int(image.width/4),int(image.height/4)))
+                                #    image.save( filePath )
+                                url = url_for( 'result.static', filename='{0}/{1}_{2}_{3}.png'.format( "thum_test", stage, scan, data['filename'] ))
+                                mapDict.update({ "url{}Dthum".format(i) : url })
+                mapList.append( mapDict )
+            scandict[scan].update({ "runNumber"    : thisRun['runNumber'],
+                                    "institution"  : thisRun['institution'],
+                                    "userIdentity" : thisRun['userIdentity'] })
+        scandict[scan].update({ "map" : mapList,
+                                "num" : len(mapList) })
+        if mapList : total = True
+
+    if not scandict == {} :
+        summaryIndex.append({ "stage" : stage,
+                              "scan"  : scandict,
+                              "total" : total })
     return summaryIndex
 
 def fill_resultIndex() :
@@ -173,7 +265,8 @@ def fill_resultIndex() :
     keys = [ "runNumber", "institution", "userIdentity" ]
     runs = []
 
-    query = { '$or' : session.get( 'chips' ) + [{"component" : session.get( 'this' )}] }
+    if session.get( 'stage' ) : query = { '$or' : session.get('chips') + [{"component" : session.get( 'this' )}], "stage" : session.get( 'stage' ) }
+    else : query = { '$or' : session.get( 'chips' ) + [{"component" : session.get( 'this' )}] }
     run_entries = yarrdb.componentTestRun.find( query ).sort( "component", DESCENDING )
     for run in run_entries :
         query = { "_id" : ObjectId(run['testRun']) }
@@ -257,6 +350,28 @@ def fill_roots() :
             thisComponentTestRun = yarrdb.componentTestRun.find_one({ "testRun" : str(thisRun['_id']) })
             env_dict = fill_env( thisComponentTestRun ) 
             mapList = {}
+
+            #chipIds = {}
+            #components = sorted( session.get( 'chips' ), key=lambda x:x['component'] )
+            #i=1
+            #for component in components :
+            #    if not component['component'] in chipIds :
+            #        chipIds.update({ component['component'] : i })
+            #        i+=1
+            #query = { '$or' : components, "runNumber" : thisRun['runNumber'], "testType" : thisRun['testType'], "stage" : thisComponentTestRun['stage'] }
+            #run_entries = yarrdb.componentTestRun.find( query )
+            #for run in run_entries :
+            #    query = { "_id" : ObjectId(run['testRun']), "institution" : thisRun['institution'], "userIdentity" : thisRun['userIdentity'] }
+            #    chiprun = yarrdb.testRun.find_one( query )
+            #    if chiprun :
+            #        data_entries = chiprun['attachments']
+            #        for data in data_entries :
+            #            if data['contentType'] == "dat" :
+            #                f = open( '{0}/{1}_{2}_{3}.dat'.format( DAT_DIR, session.get('uuid'), 'chipId{}'.format(chipIds[run['component']]), data['filename'].rsplit("_",1)[1] ), 'wb' )
+            #                f.write( fs.get(ObjectId(data['code']) ).read())
+            #                f.close()
+            #                mapList.update({ data['filename'].rsplit("_",1)[1] : len(chipIds) })
+
             if not session.get('plotList') :
                 session['plotList'] = {}
                 chipIds = {}
@@ -275,7 +390,7 @@ def fill_roots() :
                         data_entries = chiprun['attachments']
                         for data in data_entries :
                             if data['contentType'] == "dat" :
-                                f = open( '{0}/{1}_{2}_{3}.dat'.format( DAT_DIR, session.get('uuid'), 'chipId{}'.format(chipIds[run['component']]), data['filename'].rsplit("_",1)[1] ), 'wb' )
+                                f = open( '{0}/{1}/{2}_{3}.dat'.format( DAT_DIR, session.get('uuid'), 'chipId{}'.format(chipIds[run['component']]), data['filename'].rsplit("_",1)[1] ), 'wb' )
                                 f.write( fs.get(ObjectId(data['code']) ).read())
                                 f.close()
                                 mapList.update({ data['filename'].rsplit("_",1)[1] : len(chipIds) })
@@ -290,26 +405,31 @@ def fill_roots() :
                 mapList.update({ session.get( 'mapType' ) : len(chipIds) })
             if session.get('root') == "set" :
                 root.setParameter( thisRun['testType'], session.get( 'mapType' ) )
-            elif mapList :
+#            elif mapList :
+#                root.drawScan( thisRun['testType'], mapList )
+            if mapList :
                 root.drawScan( thisRun['testType'], mapList )
 
             for mapType in session.get('plotList') :
                 url = {} 
+                path = {}
                 for i in [ "1", "2" ] :
-                    filename = PLOT_DIR + "/" + str(session.get('uuid')) + "/" + str(mapType) + "_{}.png".format(i)
+                    filename = PLOT_DIR + "/" + str(session.get('uuid')) + "/" + str(thisRun['testType']) + "_" + str(mapType) + "_{}.png".format(i)
                     stage = thisComponentTestRun['stage']
                     if os.path.isfile( filename ) :
                         binary_image = open( filename, 'rb' )
                         code_base64 = base64.b64encode(binary_image.read()).decode()
                         binary_image.close()
                         url.update({ i : func.bin_to_image( 'png', code_base64 ) }) 
+                        path.update({ i : filename }) 
                 results.append({ "testType"    : thisRun['testType'], 
                                  "mapType"     : mapType, 
                                  "sortkey"     : "{}0".format(mapType), 
                                  "runNumber"   : thisRun['runNumber'], 
                                  "runId"       : session['runId'],
                                  "comments"    : list(thisRun['comments']),
-                                 "path"        : filename, 
+                                 "path_Dist"    : path.get("1"), 
+                                 "path"        : path.get("2"), 
                                  "stage"       : stage,
                                  "institution" : thisRun['institution'],
                                  "userIdentity": thisRun['userIdentity'],

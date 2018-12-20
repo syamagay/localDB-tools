@@ -1,4 +1,13 @@
 <h4 style="font-size: 13pt;"><i class="fa fa-cog"></i> Test summary </h4>
+
+{% if session['logged_in'] == True %}
+  <div class="row align-items-top">
+    <div class="col">
+      <a href="{{ url_for('add_summary_test', id=component['_id']) }}">Add summary</a>
+    </div>
+  </div>
+{% endif %}
+
 <div class="row align-items-top">
 {% set index = [] %}
 {% set _=index.append("digitalscan") %}
@@ -8,26 +17,27 @@
 {% set _=index.append("noisescan") %}
 {% set _=index.append("selftrigger") %}
 {% for stage_results in component['summary'] %}
-    <div class="col">
-      <table class="table table-sm table-bordered" style="font-size: 7pt;">
-        <h4 style="font-size: 10pt;"><i class="fa fa-chevron-right"></i> {{ stage_results['stage'] }}</h4>
-        <thead class="table-dark" style="background: #222222;">
-          <tr>
-            {% for scan in index %}
-              <th scope="col" class="text-center" colspan={{ stage_results['scan'][scan]['num'] }}>{{ scan }}</th>
+  <div class="col">
+    <table class="table table-sm table-bordered" style="font-size: 7pt;">
+      <h4 style="font-size: 10pt;"><i class="fa fa-chevron-right"></i> {{ stage_results['stage'] }}</h4>
+      <thead class="table-dark" style="background: #222222;">
+        <tr>
+          {% for scan in index %}
+            <th scope="col" class="text-center" colspan={{ stage_results['scan'][scan]['num'] }}>{{ scan }}</th>
+          {% endfor %}
+        </tr>
+      </thead>
+      <tbody>
+        <tr>
+          {% for scan in index %}
+            {% for summary in stage_results['scan'][scan]['map'] %}
+              <td scope="col" class="text-center">{{ summary['mapType'] }}</td>
+            {% else %}
+              <td scope="col" class="text-center">None.</td>
             {% endfor %}
-          </tr>
-        </thead>
-        <tbody>
-          <tr>
-            {% for scan in index %}
-              {% for summary in stage_results['scan'][scan]['map'] %}
-                <td scope="col" class="text-center">{{ summary['mapType'] }}</td>
-              {% else %}
-                <td scope="col" class="text-center">None.</td>
-              {% endfor %}
-            {% endfor %}
-          </tr>
+          {% endfor %}
+        </tr>
+        {% if stage_results['total'] %}
           <tr>
             {% for scan in index %}
               {% for summary in stage_results['scan'][scan]['map'] %}
@@ -68,10 +78,11 @@
                 {% endfor %}
               {% endfor %}
             </tr>
+          {% endif %}
         {% endif %}
-        </tbody>
-      </table>
-    </div>
+      </tbody>
+    </table>
+  </div>
 {% endfor %}
 </div>
  
