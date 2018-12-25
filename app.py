@@ -63,7 +63,7 @@ for DIR in DIRS :
 ############
 # login list
 loginlist = [ "logged_in", "user_id", "user_name", "institute", "read", "write", "edit" ]
-poplist = [ "signup", "component", "parentId", "chips", "code", "runId", "mapType", "plotList", "root", "stage", "this" ]
+poplist = [ "signup", "code", "runId", "stage", "this" ]
 
 ########
 # Prefix
@@ -109,10 +109,9 @@ def make_dir() :
         if not os.path.isdir( DIR ) :
             os.mkdir( DIR )
 
-def clean_dir( path ) :
-    r = glob.glob( path + "/*" )
-    for i in r:
-        os.remove(i)
+def clean_dir( dir_name ) :
+    if os.path.isdir( dir_name ) : shutil.rmtree( dir_name )
+    os.mkdir( dir_name )
 
 def fill_env( thisComponentTestRun ) :
     env_list = thisComponentTestRun['environments']
@@ -131,6 +130,7 @@ def count_photoNum() :
     else :
         usermongo.db.counter.update({ "type" : "photoNumber" }, { '$set' : { "num" : int( usermongo.db.counter.find_one({ "type" : "photoNumber" })['num'] + 1 ) }})
     return int(usermongo.db.counter.find_one({ "type" : "photoNumber" })['num'])
+
 
 #################
 ### page function
@@ -192,88 +192,76 @@ def show_modules_and_chips() :
 # component page
 @app.route('/component', methods=['GET', 'POST'])
 def show_component() :
+
     make_dir()
-
-    component = {}
-
     session.pop("summaryList",None)
 
-    if not session.get('this') == request.args.get('id') or not session.get('runId') == request.args.get('runId') :
-        for key in poplist : session.pop(key,None)
+    if not session.get( 'this' ) == request.args.get( 'id' ) : session.pop( 'stage', None )
 
-        query = { "_id" : ObjectId(request.args.get( 'id' ))}
-        thisComponent = mongo.db.component.find_one( query )
-        if thisComponent['componentType'] == "Module" : session['component'] = "module"
-        else :                                          session['component'] = "chip"
-
-        # get from args
-        session['this']  = request.args.get( 'id' ) 
-        session['code']  = request.args.get( 'code',"" )
-        session['runId'] = request.args.get( 'runId' )
-
-        session['chips']=[]
-        query = [{ "parent" : session['this'] },{ "child" : session['this'] }]
-        child_entries = mongo.db.childParentRelation.find({ '$or' : query })
-        for child in child_entries :
-            session['chips'].append({ "component" : child['child'] })
-            session['parentId'] = child['parent']
-
-    # get from session
-    ComponentId = session.get( 'this' )
-    Component   = session.get( 'component' )
-    ParentId    = session.get( 'parentId' )
-    Code        = session.get( 'code' )
+    session['this'] = request.args.get( 'id' )
+    session['code']  = request.args.get( 'code', "" )
+    session['runId'] = request.args.get( 'runId' )
 
     # this component
-    query = { "_id" : ObjectId(ComponentId) }
+    query = { "_id" : ObjectId(session['this']) }
     thisComponent = mongo.db.component.find_one( query )
+
+    if thisComponent['componentType'] == "Module" : unit = "module"
+    else :                                          unit = "chip"
+
+    # chips and parent
+    chips = []
+    query = [{ "parent" : session['this'] },{ "child" : session['this'] }]
+    child_entries = mongo.db.childParentRelation.find({ '$or' : query })
+    for child in child_entries :
+        chips.append({ "component" : child['child'] })
+        ParentId = child['parent']
+
     # this module
     query = { "_id" : ObjectId(ParentId) }
     thisModule = mongo.db.component.find_one( query )
+
     # chips of module
     query = { "parent" : ParentId }
     child_entries = mongo.db.childParentRelation.find( query )
 
     # fill chip and module information
-    chips = []
+    component = {}
+    component_chips = []
     for child in child_entries :
         query = { "_id" : ObjectId(child['child']) }
         thisChip = mongo.db.component.find_one( query )
         component['componentType'] = thisChip['componentType']
-        chips.append({ "_id"          : child['child'],
-                       "serialNumber" : thisChip["serialNumber"] })
+        component_chips.append({ "_id"          : child['child'],
+                                 "serialNumber" : thisChip["serialNumber"] })
 
     module = { "_id"           : ParentId,
                "serialNumber"  : thisModule["serialNumber"] }
     
-    # fill photo display
+    # fill photos
     photoDisplay = fei4.fill_photoDisplay( thisComponent )
-    # fill photo index
-    photoIndex = fei4.fill_photoIndex( thisComponent )
-    # show photo
-    photos = fei4.fill_photos( thisComponent, Code )
+    photoIndex   = fei4.fill_photoIndex( thisComponent )
+    photos       = fei4.fill_photos( thisComponent, session['code'] )
 
-    # fill result index
-    resultIndex = fei4.fill_resultIndex() 
-    # fill results 
-    results = fei4.fill_results()
-    # fill roots
-    roots = fei4.fill_roots()
+    # fill results
+    resultIndex  = fei4.fill_resultIndex() 
+    results      = fei4.fill_results()
+    roots        = fei4.fill_roots()
 
-    query = { '$or' : session.get('chips') }
+    # fill summary 
+    query = { '$or' : chips }
     run_entries = mongo.db.componentTestRun.find( query )
     stages = []
     for run in run_entries :
         stages.append( run.get('stage') )
     stages = list(set(stages))
-
-    # fill summary 
     summary = fei4.fill_summary( thisComponent, stages )
 
-    component.update({ "_id"           : ComponentId,
+    component.update({ "_id"           : session['this'],
                        "serialNumber"  : thisComponent['serialNumber'],
                        "module"        : module,
-                       "chips"         : chips,
+                       "chips"         : component_chips,
+                       "unit"          : unit, 
                        "photoDisplay"  : photoDisplay,
                        "photoIndex"    : photoIndex,
                        "photos"        : photos,
@@ -284,50 +272,19 @@ def show_component() :
 
     return render_template( "component.html", component=component )
 
-@app.route('/show_result', methods=['GET','POST'])
-def show_result() :
-
-    # get from args
-    componentId = request.args.get('id')
-    runId =       request.args.get('runId')
-
-    session.pop("plotList",None)
-    session.pop("root",None)
-
-    plot_dir = PLOT_DIR + "/" + str(session.get('uuid'))
-    if os.path.isdir( plot_dir ) :
-        shutil.rmtree( plot_dir )
-    os.mkdir( plot_dir )
-
-    dat_dir = DAT_DIR + "/" + str(session.get('uuid'))
-    if os.path.isdir( dat_dir ) :
-        shutil.rmtree( dat_dir )
-    os.mkdir( dat_dir )
-
-    jsonFile = JSON_DIR + "/{}_parameter.json".format(session.get('uuid'))
-    if not os.path.isfile( jsonFile ) :
-        jsonFile_default = SCRIPT_DIR + "/json/parameter_default.json"
-        with open( jsonFile_default, 'r' ) as f : jsonData_default = json.load( f )
-        with open( jsonFile, 'w' ) as f :         json.dump( jsonData_default, f, indent=4 )
-
-    return redirect( url_for("show_component", id=componentId, runId=runId) )
-
 @app.route('/makehisto', methods=['GET','POST'])
 def makehisto() :
-
     # get from form
-    session['root'] = request.form.get('root')
-    session['mapType'] = request.form.get( 'mapType' )
+    session['rootType']  = request.form.get( 'root' )
+    session['mapType']   = request.form.get( 'mapType' )
+    session['parameter'] = { "min" : request.form.get('min'), 
+                             "max" : request.form.get('max'), 
+                             "bin" : request.form.get('bin'), 
+                             "log" : request.form.get('log',False) }
+
     # get from args
     componentId = request.args.get( 'id' )
-    runId = request.args.get( 'runId' )
-
-    if session['root'] == 'make' :
-        # get from form
-        session['plotList'].update({ session['mapType'] : { "log" : request.form.get('log',False),
-                                                            "min" : request.form.get('min'), 
-                                                            "max" : request.form.get('max'), 
-                                                            "bin" : request.form.get('bin') }})
+    runId       = request.args.get( 'runId' )
 
     return redirect( url_for("show_component", id=componentId, runId=runId) )
 
@@ -369,12 +326,12 @@ def tag_image() :
 
 @app.route('/tag_result', methods=['GET','POST'])
 def tag_result() :
-    if session['component'] == "module" :
-        session['tagid'] = request.form.get('id')
-        session['collection'] = "component"
-    if session['component'] == "chip" :
-        session['tagid'] = request.form.get('runId')
-        session['collection'] = "testRun"
+    #if session['component'] == "module" :
+    #    session['tagid'] = request.form.get('id')
+    #    session['collection'] = "component"
+    #if session['component'] == "chip" :
+    #    session['tagid'] = request.form.get('runId')
+    #    session['collection'] = "testRun"
     session['tag'] = str(request.form.get('tag'))
 
     return redirect( url_for("tag", id=request.form.get( 'id' ), code=request.form.get('code')) )
@@ -423,7 +380,7 @@ def add_attachment_result() :
 
 @app.route('/add_summary_test', methods=['GET','POST'])
 def add_summary_test() :
-    poplist = [ "signup", "component", "parentId", "chips", "code", "runId", "mapType", "plotList", "root", "this" ]
+    poplist = [ "signup", "component", "code", "runId", "mapType", "plotList", "root", "this" ]
     for key in poplist : session.pop(key,None)
 
     # get from args
@@ -437,21 +394,20 @@ def add_summary_test() :
     if request.form.get('testType') :
         session['summaryList']['after'].update({ request.form.get('testType') : request.form.get('runId') })
 
-    session['chips']=[]
+    chips=[]
     query = [{ "parent" : session['this'] },{ "child" : session['this'] }]
     child_entries = mongo.db.childParentRelation.find({ '$or' : query })
     for child in child_entries :
-        session['chips'].append({ "component" : child['child'] })
-        session['parentId'] = child['parent']
+        chips.append({ "component" : child['child'] })
+        ParentId = child['parent']
     query = { "_id" : ObjectId(session.get( 'this' ))}
     thisComponent = mongo.db.component.find_one( query )
-    if thisComponent['componentType'] == "Module" : session['component'] = "module"
-    else :                                          session['component'] = "chip"
+
+    if thisComponent['componentType'] == "Module" : unit = "module"
+    else :                                          unit = "chip"
 
     # get from session
     ComponentId = session.get( 'this' )
-    Component   = session.get( 'component' )
-    ParentId    = session.get( 'parentId' )
     Code        = session.get( 'code' )
 
     # this module
@@ -462,18 +418,18 @@ def add_summary_test() :
     child_entries = mongo.db.childParentRelation.find( query )
 
     component = {}
-    chips = []
+    component_chips = []
     for child in child_entries :
         query = { "_id" : ObjectId(child['child']) }
         thisChip = mongo.db.component.find_one( query )
         component['componentType'] = thisChip['componentType']
-        chips.append({ "_id"          : child['child'],
-                       "serialNumber" : thisChip["serialNumber"] })
+        component_chips.append({ "_id"          : child['child'],
+                              "serialNumber" : thisChip["serialNumber"] })
 
     module = { "_id"           : ParentId,
                "serialNumber"  : thisModule["serialNumber"] }
     
-    query = { '$or' : session.get('chips') }
+    query = { '$or' : chips }
     run_entries = mongo.db.componentTestRun.find( query )
     stages = []
     for run in run_entries :
@@ -489,7 +445,8 @@ def add_summary_test() :
     component.update({ "_id"           : ComponentId,
                        "serialNumber"  : thisComponent['serialNumber'],
                        "module"        : module,
-                       "chips"         : chips,
+                       "chips"         : component_chips,
+                       "unit"          : unit,
                        "summary"       : summary,
                        "stages"        : stages,
                        "resultIndex"   : resultIndex,
@@ -630,9 +587,12 @@ def edit_description() :
 @app.route('/edit_comment', methods=['GET','POST'])
 def edit_comment() :
 
-    if session['component'] == "module" :
+    query = { "_id" : ObjectId(request.form.get( 'id' ))}
+    thisComponent = mongo.db.component.find_one( query )
+
+    if thisComponent['componentType'] == "Module" :
         query = { "parent" : request.form.get('id') }
-    elif session['component'] == "chip" :
+    else :
         query = { "child" : request.form.get('id') }
         parentId = mongo.db.childParentRelation.find_one( query )['parent']
         query = { "parent" : parentId }
@@ -673,9 +633,12 @@ def edit_comment() :
 @app.route('/remove_comment', methods=['GET','POST'])
 def remove_comment() :
 
-    if session['component'] == "module" :
+    query = { "_id" : ObjectId(request.form.get( 'id' ))}
+    thisComponent = mongo.db.component.find_one( query )
+
+    if thisComponent['componentType'] == "Module" :
         query = { "parent" : request.form.get('id') }
-    elif session['component'] == "chip" :
+    else :
         query = { "child" : request.form.get('id') }
         parentId = mongo.db.childParentRelation.find_one( query )['parent']
         query = { "parent" : parentId }

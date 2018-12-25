@@ -1,7 +1,7 @@
 import os, pwd, glob, sys, json, re, shutil
 APP_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 sys.path.append( APP_DIR )
-JSON_DIR = APP_DIR + "/scripts/json"
+SCRIPT_DIR = APP_DIR + "/scripts"
 
 try    : 
     import root
@@ -31,6 +31,7 @@ PIC_DIR = '{}/upload'.format( USER_DIR )
 DAT_DIR = '{}/dat'.format( USER_DIR )
 PLOT_DIR = '{}/result'.format( USER_DIR )
 STAT_DIR = '{}/static'.format( USER_DIR )
+JSON_DIR = '{}/json'.format( USER_DIR )
 
 #############
 # set dbs
@@ -44,10 +45,9 @@ yarrdb = client[args.db]
 localdb = client[args.userdb]
 fs = gridfs.GridFS( yarrdb )
 
-def clean_dir( path ) :
-    r = glob.glob( path + "/*" )
-    for i in r:
-        os.remove(i)
+def clean_dir( dir_name ) :
+    if os.path.isdir( dir_name ) : shutil.rmtree( dir_name )
+    os.mkdir( dir_name )
 
 def fill_env( thisComponentTestRun ) :
     env_list = thisComponentTestRun.get('environments',[])
@@ -200,7 +200,7 @@ def fill_summary_test( thisComponent ) :
                         datadict = { "1" : "_Dist", "2" : "" }
                         for i in datadict :
                             filepath = result['path{}'.format(datadict[i])]
-                            print(filepath)
+                            #print(filepath)
                             mapType = result['mapType']
                             if os.path.isfile(filepath) :
                                 f = open(filepath, 'r')
@@ -265,8 +265,15 @@ def fill_resultIndex() :
     keys = [ "runNumber", "institution", "userIdentity" ]
     runs = []
 
-    if session.get( 'stage' ) : query = { '$or' : session.get('chips') + [{"component" : session.get( 'this' )}], "stage" : session.get( 'stage' ) }
-    else : query = { '$or' : session.get( 'chips' ) + [{"component" : session.get( 'this' )}] }
+    chips = []
+    query = [{ "parent" : session['this'] },{ "child" : session['this'] }]
+    child_entries = yarrdb.childParentRelation.find({ '$or' : query })
+    for child in child_entries :
+        chips.append({ "component" : child['child'] })
+
+    if session.get( 'stage' ) : query = { '$or' : chips + [{"component" : session.get( 'this' )}], "stage" : session.get( 'stage' ) }
+    else :                      query = { '$or' : chips + [{"component" : session.get( 'this' )}] }
+
     run_entries = yarrdb.componentTestRun.find( query ).sort( "component", DESCENDING )
     for run in run_entries :
         query = { "_id" : ObjectId(run['testRun']) }
@@ -340,110 +347,136 @@ def fill_results() :
 
     return results
 
-def fill_roots() :
-    roots = {}
-    if session.get('runId') :
+def write_dat() :
+
+    query = { "_id" : ObjectId(session['runId']) }
+    thisRun = yarrdb.testRun.find_one( query )
+    thisComponentTestRun = yarrdb.componentTestRun.find_one({ "testRun" : str(thisRun['_id']) })
+
+    chipIds = {}
+
+    chips = []
+    query = [{ "parent" : session['this'] },{ "child" : session['this'] }]
+    child_entries = yarrdb.childParentRelation.find({ '$or' : query })
+    for child in child_entries :
+        chips.append({ "component" : child['child'] })
+
+    components = sorted( chips, key=lambda x:x['component'] )
+    i=1
+    for component in components :
+        if not component['component'] in chipIds :
+            chipIds.update({ component['component'] : i })
+            i+=1
+    query = { '$or' : components, "runNumber" : thisRun['runNumber'], "testType" : thisRun['testType'], "stage" : thisComponentTestRun['stage'] }
+    run_entries = yarrdb.componentTestRun.find( query )
+    for run in run_entries :
+        query = { "_id" : ObjectId(run['testRun']), "institution" : thisRun['institution'], "userIdentity" : thisRun['userIdentity'] }
+        chiprun = yarrdb.testRun.find_one( query )
+        if chiprun :
+            data_entries = chiprun['attachments']
+            for data in data_entries :
+                if data['contentType'] == "dat" :
+                    f = open( '{0}/{1}/{2}_{3}.dat'.format( DAT_DIR, session.get('uuid'), 'chipId{}'.format(chipIds[run['component']]), data['filename'].rsplit("_",1)[1] ), 'wb' )
+                    f.write( fs.get(ObjectId(data['code']) ).read())
+                    f.close()
+                    mapType = data['filename'].rsplit("_",1)[1]
+                    session['plotList'].update({ mapType : { "draw" : True, "chips" : len(chipIds) } })
+
+
+def make_plots() :
+
+    if session.get('rootType') :
+
         query = { "_id" : ObjectId(session['runId']) }
         thisRun = yarrdb.testRun.find_one( query )
-        if DOROOT :
-            results = []
-            thisComponentTestRun = yarrdb.componentTestRun.find_one({ "testRun" : str(thisRun['_id']) })
-            env_dict = fill_env( thisComponentTestRun ) 
-            mapList = {}
+        mapType = session['mapType']
 
-            #chipIds = {}
-            #components = sorted( session.get( 'chips' ), key=lambda x:x['component'] )
-            #i=1
-            #for component in components :
-            #    if not component['component'] in chipIds :
-            #        chipIds.update({ component['component'] : i })
-            #        i+=1
-            #query = { '$or' : components, "runNumber" : thisRun['runNumber'], "testType" : thisRun['testType'], "stage" : thisComponentTestRun['stage'] }
-            #run_entries = yarrdb.componentTestRun.find( query )
-            #for run in run_entries :
-            #    query = { "_id" : ObjectId(run['testRun']), "institution" : thisRun['institution'], "userIdentity" : thisRun['userIdentity'] }
-            #    chiprun = yarrdb.testRun.find_one( query )
-            #    if chiprun :
-            #        data_entries = chiprun['attachments']
-            #        for data in data_entries :
-            #            if data['contentType'] == "dat" :
-            #                f = open( '{0}/{1}_{2}_{3}.dat'.format( DAT_DIR, session.get('uuid'), 'chipId{}'.format(chipIds[run['component']]), data['filename'].rsplit("_",1)[1] ), 'wb' )
-            #                f.write( fs.get(ObjectId(data['code']) ).read())
-            #                f.close()
-            #                mapList.update({ data['filename'].rsplit("_",1)[1] : len(chipIds) })
+        if session['rootType'] == 'set' : 
+            root.setParameter( thisRun['testType'], mapType )
+            for mapType in session['plotList'] : session['plotList'][mapType].update({ "draw" : True, "parameter" : {} })
 
-            if not session.get('plotList') :
-                session['plotList'] = {}
-                chipIds = {}
-                components = sorted( session.get( 'chips' ), key=lambda x:x['component'] )
-                i=1
-                for component in components :
-                    if not component['component'] in chipIds :
-                        chipIds.update({ component['component'] : i })
-                        i+=1
-                query = { '$or' : components, "runNumber" : thisRun['runNumber'], "testType" : thisRun['testType'], "stage" : thisComponentTestRun['stage'] }
-                run_entries = yarrdb.componentTestRun.find( query )
-                for run in run_entries :
-                    query = { "_id" : ObjectId(run['testRun']), "institution" : thisRun['institution'], "userIdentity" : thisRun['userIdentity'] }
-                    chiprun = yarrdb.testRun.find_one( query )
-                    if chiprun :
-                        data_entries = chiprun['attachments']
-                        for data in data_entries :
-                            if data['contentType'] == "dat" :
-                                f = open( '{0}/{1}/{2}_{3}.dat'.format( DAT_DIR, session.get('uuid'), 'chipId{}'.format(chipIds[run['component']]), data['filename'].rsplit("_",1)[1] ), 'wb' )
-                                f.write( fs.get(ObjectId(data['code']) ).read())
-                                f.close()
-                                mapList.update({ data['filename'].rsplit("_",1)[1] : len(chipIds) })
-            elif session.get( 'mapType' ) :
-                chipIds = {}
-                components = sorted( session.get( 'chips' ), key=lambda x:x['component'] )
-                i=1
-                for component in components :
-                    if not component['component'] in chipIds :
-                        chipIds.update({ component['component'] : i })
-                        i+=1
-                mapList.update({ session.get( 'mapType' ) : len(chipIds) })
-            if session.get('root') == "set" :
-                root.setParameter( thisRun['testType'], session.get( 'mapType' ) )
-#            elif mapList :
-#                root.drawScan( thisRun['testType'], mapList )
-            if mapList :
-                root.drawScan( thisRun['testType'], mapList )
+        elif session['rootType'] == 'make' :
+            session['plotList'][mapType].update({ "draw" : True, "parameter" : session['parameter'] })
 
-            for mapType in session.get('plotList') :
-                url = {} 
-                path = {}
-                for i in [ "1", "2" ] :
-                    filename = PLOT_DIR + "/" + str(session.get('uuid')) + "/" + str(thisRun['testType']) + "_" + str(mapType) + "_{}.png".format(i)
-                    stage = thisComponentTestRun['stage']
-                    if os.path.isfile( filename ) :
-                        binary_image = open( filename, 'rb' )
-                        code_base64 = base64.b64encode(binary_image.read()).decode()
-                        binary_image.close()
-                        url.update({ i : func.bin_to_image( 'png', code_base64 ) }) 
-                        path.update({ i : filename }) 
-                results.append({ "testType"    : thisRun['testType'], 
-                                 "mapType"     : mapType, 
-                                 "sortkey"     : "{}0".format(mapType), 
-                                 "runNumber"   : thisRun['runNumber'], 
-                                 "runId"       : session['runId'],
-                                 "comments"    : list(thisRun['comments']),
-                                 "path_Dist"    : path.get("1"), 
-                                 "path"        : path.get("2"), 
-                                 "stage"       : stage,
-                                 "institution" : thisRun['institution'],
-                                 "userIdentity": thisRun['userIdentity'],
-                                 "urlDist"     : url.get("1"), 
-                                 "urlMap"      : url.get("2"), 
-                                 "environment" : env_dict,
-                                 "setLog"      : session['plotList'][mapType]["log"], 
-                                 "minValue"    : session['plotList'][mapType]["min"],
-                                 "maxValue"    : session['plotList'][mapType]["max"],
-                                 "binValue"    : session['plotList'][mapType]["bin"] })
-            results = sorted( results, key=lambda x:int((re.search(r"[0-9]+",x['sortkey'])).group(0)), reverse=True)
-            roots.update({ "rootsw"  : True,
-                           "results" : results })
-        else :
-            roots.update({ "rootsw" : False })
+        root.drawScan( thisRun['testType'] )
+
+        session.pop( 'rootType', None )
+        session.pop( 'mapType', None )
+        session.pop( 'parameter', None )
+
+    else :
+
+        session.pop("plotList",None)
+        session['plotList'] = {}
+    
+        plot_dir = PLOT_DIR + "/" + str(session.get('uuid'))
+        dat_dir  = DAT_DIR + "/" + str(session.get('uuid'))
+        clean_dir( plot_dir )
+        clean_dir( dat_dir )
+    
+        jsonFile = JSON_DIR + "/{}_parameter.json".format(session.get('uuid'))
+        if not os.path.isfile( jsonFile ) :
+            jsonFile_default = SCRIPT_DIR + "/json/parameter_default.json"
+            with open( jsonFile_default, 'r' ) as f : jsonData_default = json.load( f )
+            with open( jsonFile, 'w' ) as f :         json.dump( jsonData_default, f, indent=4 )
+    
+        query = { "_id" : ObjectId(session['runId']) }
+        thisRun = yarrdb.testRun.find_one( query )
+    
+        write_dat()
+        root.drawScan( thisRun['testType'] )
+ 
+def fill_roots() :
+    roots = {}
+
+    if not session.get( 'runId' ) : return roots
+
+    if not DOROOT :
+        roots.update({ "rootsw" : False })
+        return roots
+
+    make_plots()
+
+    query = { "_id" : ObjectId(session['runId']) }
+    thisRun = yarrdb.testRun.find_one( query )
+
+    results = []
+    thisComponentTestRun = yarrdb.componentTestRun.find_one({ "testRun" : str(thisRun['_id']) })
+    env_dict = fill_env( thisComponentTestRun ) 
+
+    for mapType in session.get('plotList') :
+        if session['plotList'][mapType]['HistoType'] == 1 : continue
+        url = {} 
+        path = {}
+        for i in [ "1", "2" ] :
+            filename = PLOT_DIR + "/" + str(session.get('uuid')) + "/" + str(thisRun['testType']) + "_" + str(mapType) + "_{}.png".format(i)
+            stage = thisComponentTestRun['stage']
+            if os.path.isfile( filename ) :
+                binary_image = open( filename, 'rb' )
+                code_base64 = base64.b64encode(binary_image.read()).decode()
+                binary_image.close()
+                url.update({ i : func.bin_to_image( 'png', code_base64 ) }) 
+                path.update({ i : filename }) 
+        results.append({ "testType"    : thisRun['testType'], 
+                         "mapType"     : mapType, 
+                         "sortkey"     : "{}0".format(mapType), 
+                         "runNumber"   : thisRun['runNumber'], 
+                         "runId"       : session['runId'],
+                         "comments"    : list(thisRun['comments']),
+                         "path_Dist"    : path.get("1"), 
+                         "path"        : path.get("2"), 
+                         "stage"       : stage,
+                         "institution" : thisRun['institution'],
+                         "userIdentity": thisRun['userIdentity'],
+                         "urlDist"     : url.get("1"), 
+                         "urlMap"      : url.get("2"), 
+                         "environment" : env_dict,
+                         "setLog"      : session['plotList'][mapType]['parameter']["log"], 
+                         "minValue"    : session['plotList'][mapType]['parameter']["min"],
+                         "maxValue"    : session['plotList'][mapType]['parameter']["max"],
+                         "binValue"    : session['plotList'][mapType]['parameter']["bin"] })
+    results = sorted( results, key=lambda x:int((re.search(r"[0-9]+",x['sortkey'])).group(0)), reverse=True)
+    roots.update({ "rootsw"  : True,
+                   "results" : results })
 
     return roots

@@ -40,8 +40,7 @@
               <tr style="background: #AABBCC;">
             {% endif %}
                 <td align="center">
-                  {# <a href="{{ url_for('show_component', id=component['_id'], runId=run['_id']) }}">{{ run['runNumber'] }}</a> #}
-                  <a href="{{ url_for('show_result', id=component['_id'], runId=run['_id']) }}">{{ run['runNumber'] }}</a>
+                  <a href="{{ url_for('show_component', id=component['_id'], runId=run['_id']) }}">{{ run['runNumber'] }}</a>
                 </td>
                 <td align="center">{{ run['datetime'] }}</td>
                 <td align="center">{{ run['stage'] }}</td>

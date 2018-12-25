@@ -20,25 +20,25 @@ import PlotFromHistos.SimplePlots as Plot
 import ROOT
 from flask import session  # use Flask scheme
 
-def drawScan( testType, mapList ):
+def drawScan( testType ):
 
     ROOT.gROOT.SetBatch()
 
     jsonFile = JSON_DIR + "/{}_parameter.json".format(session.get('uuid'))
-    if not os.path.isfile( jsonFile ) :
-        jsonFile_default = SCRIPT_DIR + "/json/parameter_default.json"
-        with open( jsonFile_default, 'r' ) as f : jsonData_default = json.load( f )
-        with open( jsonFile, 'w' ) as f :         json.dump( jsonData_default, f, indent=4 )
     with open( jsonFile, 'r' ) as f : jsonData = json.load( f )
     jsonPar = jsonData.get( testType, {} )
 
     par = ["histoType","mapType","xaxis","yaxis","zaxis","xrange","yrange","zrange"]
 
-    for mapType in mapList :
+    for mapType in session.get( 'plotList' ) :
+
+        if not session['plotList'][mapType]['draw'] : continue
+
         histoPar = {}
-        files = glob.glob( DAT_DIR+"/"+str(session.get('uuid'))+"/*"+mapType+".dat" )
-        if mapList[mapType]==1 : cnt = 1
-        else :                   cnt = 2
+        files = glob.glob( '{0}/{1}/*{2}.dat'.format( DAT_DIR, str(session.get('uuid')), mapType ))
+
+        if session['plotList'][mapType]['chips']==1 : cnt = 1
+        else :                                        cnt = 2
 
         zmax = 0
         entries = []
@@ -47,7 +47,9 @@ def drawScan( testType, mapList ):
                 if "chipId" in txt : chipId = int( txt.split("_")[0][6] ) - 1
             with open( filename ) as f :      
                 readlines = f.readlines()
-                if readlines[0].split()[0] == "Histo2d" :
+                if not readlines[0].split()[0] == "Histo2d" :
+                    session['plotList'][mapType].update({ "HistoType" : 1, "draw" : False })
+                else :
                     for j, readline in enumerate(readlines) :
                         if j<len(par) and i==0 : histoPar.update({ par[j] : readline.split() }) 
                         if j==len(par) :
@@ -86,13 +88,13 @@ def drawScan( testType, mapList ):
 
 
         if histoPar :
-            #parameter = jsonPar.get( mapType, [] )
             parameter = jsonPar.get( mapType.split("-")[0], [] )
-            if session['plotList'].get(mapType) :
-                h1d_min =  int(session['plotList'][mapType]['min'])
-                h1d_max =  int(session['plotList'][mapType]['max'])
-                h1d_bin =  int(session['plotList'][mapType]['bin'])
-                h1d_log = bool(session['plotList'][mapType]['log'])
+
+            if session['plotList'][mapType].get('parameter') :
+                h1d_min =  int(session['plotList'][mapType]['parameter']['min'])
+                h1d_max =  int(session['plotList'][mapType]['parameter']['max'])
+                h1d_bin =  int(session['plotList'][mapType]['parameter']['bin'])
+                h1d_log = bool(session['plotList'][mapType]['parameter']['log'])
             elif len(parameter)==4 :
                 h1d_min =  int(parameter[0])
                 h1d_max =  int(parameter[1])
@@ -115,18 +117,31 @@ def drawScan( testType, mapList ):
             PH.outDir = path_dir
     
             path_plot = testType + "_" + mapType
-            Plot.Plot1D_fromHistos(h1, h1d_log, path_plot+"_1", "#Ch.", "histo", h1d_min, h1d_max)
-            Plot.Plot2D_fromHistos(h2, h1d_log, path_plot+"_2", " ".join(histoPar["zaxis"]), h1d_min, h1d_max)
+            Plot.Plot1D_fromHistos( h1, 
+                                    h1d_log, 
+                                    path_plot+"_1", 
+                                    "#Ch.", 
+                                    "histo", 
+                                    h1d_min, 
+                                    h1d_max 
+                                  )
+            Plot.Plot2D_fromHistos( h2, 
+                                    h1d_log, 
+                                    path_plot+"_2", 
+                                    " ".join(histoPar["zaxis"]), 
+                                    h1d_min, 
+                                    h1d_max 
+                                  )
 
-            session['plotList'].update({ mapType : { "min" : h1d_min, "max" : h1d_max, "bin" : h1d_bin, "log" : h1d_log } })
+            session['plotList'][mapType].update({ "parameter" : { "min" : h1d_min, "max" : h1d_max, "bin" : h1d_bin, "log" : h1d_log }, "draw" : False, "HistoType" : 2 })
 
 def setParameter(testType, mapType) :
 
     inputData = {}
-    inputData.update({ mapType.split("-")[0] : [ session['plotList'][mapType]['min'],
-                                                 session['plotList'][mapType]['max'],
-                                                 session['plotList'][mapType]['bin'],
-                                                 session['plotList'][mapType]['log'] ] })
+    inputData.update({ mapType.split("-")[0] : [ session['plotList'][mapType]['parameter']['min'],
+                                                 session['plotList'][mapType]['parameter']['max'],
+                                                 session['plotList'][mapType]['parameter']['bin'],
+                                                 session['plotList'][mapType]['parameter']['log'] ] })
 
     filename = JSON_DIR + "/{}_parameter.json".format(session.get('uuid'))
 
