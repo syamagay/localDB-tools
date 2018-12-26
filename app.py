@@ -50,10 +50,13 @@ DAT_DIR = '{}/dat'.format( USER_DIR )
 PLOT_DIR = '{}/result'.format( USER_DIR )
 THUM_DIR = '{}/result/thum'.format( USER_DIR )
 THUMT_DIR = '{}/result/thum_test'.format( USER_DIR )
+THUMA_DIR = '{}/thum_after'.format(  PLOT_DIR )
+THUMB_DIR = '{}/thum_before'.format( PLOT_DIR )
 STAT_DIR = '{}/static'.format( USER_DIR )
 JSON_DIR = '{}/json'.format( USER_DIR )
 SCRIPT_DIR = os.path.dirname(os.path.abspath(__file__)) + "/scripts"
-DIRS = [ PIC_DIR, DAT_DIR, PLOT_DIR, STAT_DIR, THUM_DIR, THUMT_DIR, JSON_DIR ] 
+
+DIRS = [ PIC_DIR, DAT_DIR, PLOT_DIR, STAT_DIR, THUM_DIR, THUMT_DIR, JSON_DIR, THUMB_DIR, THUMA_DIR ] 
 if os.path.isdir( USER_DIR ) :
     shutil.rmtree( USER_DIR )
 os.mkdir( USER_DIR )
@@ -198,7 +201,7 @@ def show_component() :
 
     if not session.get( 'this' ) == request.args.get( 'id' ) : session.pop( 'stage', None )
 
-    session['this'] = request.args.get( 'id' )
+    session['this']  = request.args.get( 'id' )
     session['code']  = request.args.get( 'code', "" )
     session['runId'] = request.args.get( 'runId' )
 
@@ -380,43 +383,48 @@ def add_attachment_result() :
 
 @app.route('/add_summary_test', methods=['GET','POST'])
 def add_summary_test() :
-    poplist = [ "signup", "component", "code", "runId", "mapType", "plotList", "root", "this" ]
-    for key in poplist : session.pop(key,None)
 
+    session.pop( "runId", None )
+    session.pop( "code", None )
+    session.pop( "stage", None )
+    session.pop( "plotList", None )
+   
     # get from args
     session['this']  = request.args.get( 'id' ) 
+
     # get from form
     if not request.form.get( 'stage' ) == session.get( 'stage' ) :
         session['summaryList'] = { "after"  : {},
                                    "before" : {} }
     session['stage'] = request.form.get( 'stage' )
 
-    if request.form.get('testType') :
-        session['summaryList']['after'].update({ request.form.get('testType') : request.form.get('runId') })
+    #if request.form.get('testType') :
+        #session['summaryList']['after'].update({ request.form.get('testType') : request.form.get('runId') })
 
-    chips=[]
+    # chips and parent
+    chips = []
     query = [{ "parent" : session['this'] },{ "child" : session['this'] }]
     child_entries = mongo.db.childParentRelation.find({ '$or' : query })
     for child in child_entries :
         chips.append({ "component" : child['child'] })
         ParentId = child['parent']
-    query = { "_id" : ObjectId(session.get( 'this' ))}
+
+    # this component
+    query = { "_id" : ObjectId(session['this']) }
     thisComponent = mongo.db.component.find_one( query )
 
     if thisComponent['componentType'] == "Module" : unit = "module"
     else :                                          unit = "chip"
 
-    # get from session
-    ComponentId = session.get( 'this' )
-    Code        = session.get( 'code' )
-
     # this module
     query = { "_id" : ObjectId(ParentId) }
     thisModule = mongo.db.component.find_one( query )
+
     # chips of module
     query = { "parent" : ParentId }
     child_entries = mongo.db.childParentRelation.find( query )
 
+    # fill chip and module information
     component = {}
     component_chips = []
     for child in child_entries :
@@ -424,11 +432,10 @@ def add_summary_test() :
         thisChip = mongo.db.component.find_one( query )
         component['componentType'] = thisChip['componentType']
         component_chips.append({ "_id"          : child['child'],
-                              "serialNumber" : thisChip["serialNumber"] })
-
+                                 "serialNumber" : thisChip["serialNumber"] })
     module = { "_id"           : ParentId,
                "serialNumber"  : thisModule["serialNumber"] }
-    
+
     query = { '$or' : chips }
     run_entries = mongo.db.componentTestRun.find( query )
     stages = []
@@ -437,12 +444,12 @@ def add_summary_test() :
     stages = list(set(stages))
 
     # fill summary 
-    summary = fei4.fill_summary_test( thisComponent )
+    summary = fei4.fill_summary_test( )
 
     # fill result index 
     resultIndex = fei4.fill_resultIndex()
 
-    component.update({ "_id"           : ComponentId,
+    component.update({ "_id"           : session['this'],
                        "serialNumber"  : thisComponent['serialNumber'],
                        "module"        : module,
                        "chips"         : component_chips,
@@ -450,7 +457,7 @@ def add_summary_test() :
                        "summary"       : summary,
                        "stages"        : stages,
                        "resultIndex"   : resultIndex,
-                       "stage"         : session.get('stage') })
+                       "stage"         : session['stage'] })
 
     return render_template( "add_summary.html", component=component )
 
@@ -559,6 +566,22 @@ def show_summary() :
         url = url_for( 'result.static', filename='{0}_{1}_{2}.png'.format( stage, scan, data['filename'] ))
     else :
         url = url_for( 'result.static', filename='{0}_{1}_{2}'.format( stage, scan, data['filename'] ))
+ 
+    return redirect( url )
+
+@app.route('/show_summary_test', methods=['GET'])
+def show_summary_test() :
+    # get from args
+    runId = request.args.get( 'runId' )
+    histo = request.args.get( 'histo' )
+    mapType = request.args.get( 'mapType' )
+
+    query = { "_id" : ObjectId(runId) }
+    thisRun = mongo.db.testRun.find_one( query )
+
+    fei4.make_plot( runId )
+
+    url = url_for( 'result.static', filename='{0}/{1}_{2}_{3}.png'.format( session.get('uuid'), str(thisRun['testType']), mapType, histo ))
  
     return redirect( url )
 
