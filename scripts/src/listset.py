@@ -10,3 +10,5 @@ scan = { "selftrigger"   : [( "OccupancyMap-0", "#Hit" ),],
          "analogscan"    : [( "OccupancyMap", "Occupancy" ),       ( "EnMask", "EnMask" )]}
 
 stage = [ "wirebond", "encapsulation" ]
+
+summary_comment = [ "re-test", "plan_to_re-test", "failure", "other" ]

@@ -1,4 +1,4 @@
-</style>
+<!-- add summary plots function page for FE-I4B -->
 {% set index = [] %}
 {% set _=index.append("digitalscan") %}
 {% set _=index.append("analogscan") %}
@@ -7,52 +7,42 @@
 {% set _=index.append("noisescan") %}
 {% set _=index.append("selftrigger") %}
 
-{% extends "layout.html" %}    <!-- これで元になるHTML(laytout.html)を指定 -->
-{% block body %}    <!-- layout.htmlのbodyというブロックを以下で置き換える -->
+{% extends "layout.html" %}   
+{% block body %} 
 
     <div class="container">
         <div class="row align-items-top justify-content-center">
             <div class="col">
 
-                <h1>Add Summary Plot : {{ component['serialNumber'] }}</h1>
-      
-                <table class="table table-sm table-bordered" style="font-size: 8pt;">
-                  <h4 style="font-size: 13pt;"><i class="fa fa-cog"></i> Index</h4>
+                <h1>Add Summary Plot : {{ component['serialNumber'] }}</h1>            <!-- page title -->
+
+                <!-- (top) table about the information of this module/chip -->
+                <table class="table table-sm table-bordered" style="font-size: 8pt;">  
+
+                  <h4 style="font-size: 13pt;"> <i class="fa fa-cog"></i> Index </h4>
+
                   <thead class="table-dark" style="background: #222222;">
                     <tr>
-                      <th scope="col" width="100">Item</th>
-                      <th scope="col"></th>
+                      <th scope="col" class="text-center" width="100">Item</th>
+                      <th scope="col" class="text-center"></th>
                     </tr>
                   </thead>
+
                   <tbody>
                     <tr>
-                      <td>
-                        Serial Number 
-                      </td>
-                      <td>
-                        {{ component['serialNumber'] }} 
-                      </td>
+                      <td class="text-center">Serial Number</td>
+                      <td>{{ component['serialNumber'] }}</td>
                     </tr>
                     <tr>
-                      <td>
-                        FE type
-                      </td>
-                      <td>
-                        {{ component['componentType'] }}
-                      </td>
+                      <td class="text-center">FE type</td>
+                      <td>{{ component['componentType'] }}</td>
                     </tr>
                     <tr>
-                      <td>
-                        Module
-                      </td>
-                      <td>
-                          <a href="{{ url_for('show_component', id=component['module']['_id']) }}">{{component['module']['serialNumber']}}</a>&ensp;
-                      </td>
+                      <td class="text-center">Module</td>
+                      <td><a href="{{ url_for('show_component', id=component['module']['_id']) }}">{{component['module']['serialNumber']}}</a>&ensp;</td>
                     </tr>
                     <tr>
-                      <td>
-                        Chips
-                      </td>
+                      <td class="text-center">Chips</td>
                       <td>
                         {% for chip in component['chips'] %}
                           <a href="{{ url_for('show_component', id=chip['_id']) }}">{{chip['serialNumber']}}</a>&ensp;
@@ -62,188 +52,349 @@
                       </td>
                     </tr>
                   </tbody>
+
                 </table>
+                <!-- (end) table about the information of this module/chip -->
+
+            </div>
+        </div> 
+ 
+
+        <!-- (top) add summary function -->
+        <div class="row align-items-top justify-content-center">
+            <div class="col">
+
+                <h4 style="font-size: 13pt;"> <i class="fa fa-cog"></i> Steps 
+                <font color=#ff0000 style="font-size: 10pt;">* Required</font>
+                </h4>
+
+                <!-- (top) select stage to add summary plots -->
+                <ol style="font-size: 13pt;">
+                  <li value="1"> Choose the stage name to add summary plot from select box.
+                </ol>
 
                 <form class="form-holizontal" action="{{ url_for('add_summary_test', id=component['_id']) }}" method=post class=entries style="font-size:10pt; margin:0px;">  
                   <div class="form-group row">
-           		      <label class="col-form-label col-md-2" for="stage">Stage</label>
+           		      <label class="col-form-label col-md-2 text-center" for="stage">Stage<font color=#ff0000 style="font-size: 10pt;">*</font></label>
                     <div class="col-md-10">
     		              <select class="form-control" name="stage" id="stage" required="required" onchange="submit(this.form)">
-                          <option value="">*** chose stage ***</option>
+                          {% if component['stage'] %}
+                            <option value={{ component['stage'] }}>{{ component['stage'] }}</option>
+                          {% else %}
+                            <option value="">*** choose stage ***</option>
+                          {% endif %}
+
                           {% for stage in component['stages'] %}
-                          <option value={{ stage }}>{{ stage }}</option>
+                            {% if component['stage'] == stage %}
+                            <option value={{ stage }}>{{ stage }} (selected)</option>
+                            {% else %}
+                            <option value={{ stage }}>{{ stage }}</option>
+                            {% endif %}
                           {% endfor %}
                       </select>
                     </div>
                   </div>
                 </form>
+                <!-- (end) select stage to add summary plots -->
+
             </div>
-        </div>
+        </div> 
  
+        <!-- (top) show summary plots (before/after select run#) after selecting stage -->
         {% if component['stage'] %}
-          <h4 style="font-size: 13pt;"><i class="fa fa-cog"></i> Test Summary ( {{ component['stage'] }} )</h4>
-          
-          {% if component['summary'] %}
+        <div class="row align-items-top justify-content-center">
+            <div class="col">
 
-          <div class="row align-items-top">
-            {% for scan in index %}
-              <div class="col-md-4" style="margin-bottom: 20px;">
-                <h4 style="font-size: 12pt;"><i class="fa fa-asterisk"></i> {{ scan }} </h4>
+              <ol style="font-size: 13pt;">
+                <li value="2"> Choose/Modify the run number to add summary plot from select box for each test type.<br>
+                               If you want to remove current summary plot and not add other plot, choose "None".<br>
+                               Click "Confirm" button after you confirm the results in all the test types.<br>
+                <font style="font-size: 10pt;">You can check the plots with clicking the letter "current/modify" or check detail of the plot with clicking the plot.</font>
+              </ol>
 
-                <div class="row align-items-top">
-                <div class="col">
-                  {% if scan in component['resultIndex'] %}
-                    <a data-toggle="collapse" href='#{{ scan }}test' aria-controls="testindex" style="color: black;"><h4 style="font-size: 10pt;">
-                      <i class="fa fa-chevron-right"></i> test index ( {{ component['resultIndex'][scan]['num'] }} )
-                    </h4></a>
-                    <table class="table table-sm table-hover table-bordered collapse" id='{{ scan }}test' style="font-size: 7pt;">
-                      <thead class="table-dark" style="background: #222222;">
-                        <tr>
-                          <th scope="col" width="40" class="text-center">Run<br>number</th>
-                          <th scope="col" width="150" class="text-center">Date</th>
-                          <th scope="col" width="150" class="text-center">Stage</th>
-                        </tr>
-                      </thead>
-                      <tbody>
-                          {% for run in component['resultIndex'][scan]['run'] %}
-                          {% if run['summary'] %}
-                            <tr style="background: #FFEEAA;">
-                          {% elif run['result'] %}
-                            <tr>
-                          {% else %}
-                            <tr style="background: #AABBCC;">
-                          {% endif %}
-                              <td align="center">
-                                <a href="{{ url_for('show_component', id=component['_id'], runId=run['_id']) }}">{{ run['runNumber'] }}</a>
-                              </td>
-                              <td align="center">{{ run['datetime'] }}</td>
-                              <td align="center">{{ run['stage'] }}</td>
-                            </tr>
-                          {% endfor %}
-                      </tbody>
-                    </table>
-                  {% else %}
-                    <h4 style="font-size: 10pt;">
-                      <i class="fa fa-chevron-right"></i> test index ( 0 )
-                    </h4>
-                  {% endif %}
-
-                  <a data-toggle="collapse" href='#{{ scan }}after' aria-controls="testindex" style="color: black;"><h4 style="font-size: 10pt;">
-                    <i class="fa fa-chevron-right"></i> modify 
-                  </h4></a>
-                  <table class="table table-sm table-bordered collapse show" id='{{ scan }}after' style="font-size: 7pt;">
-                    <thead class="table-dark" style="background: #222222;">
-                      <tr>
-                        {% for summary in component['summary']['scan']['after'][scan]['map'] %}
-                          <th scope="col" class="text-center">{{ summary['mapType'] }}</th>
-                        {% else %}
-                          <th scope="col" class="text-center">None.</th>
-                        {% endfor %}
-                      </tr>
-                    </thead> 
-                    <tbody>
-                      <tr>
-                        {% for summary in component['summary']['scan']['after'][scan]['map'] %}
-                          {% if summary['url2Dthum'] %}
-                          <td width="80" align="center">
-                            <a href="{{ url_for('show_summary_test', runId=component['summary']['scan']['after'][scan]['runId'], histo="2", mapType=summary['mapType']) }}" target="_brank" rel="noopener noreferrer">
-                              <img src={{ summary['url2Dthum'] }} 
-                              title='[runNumber] {{ component['summary']['scan']['after'][scan]['runNumber'] }}&#x0A;[userIdentity] {{ component['summary']['scan']['after'][scan]['userIdentity'] }}&#x0A;[institution] {{ component['summary']['scan']['after'][scan]['institution'] }}' 
-                              width="80" height="80">
-                              </img>
-                            </a>
-                          </td>
-                          {% else %}
-                            {% if component['unit'] == "module" %}
-                            <td width="80" align="center" rowspan="2">
-                            {% else %}
-                            <td width="80" align="center">
-                            {% endif %}
-                              <p style="font-size: 15pt;">None.</p> 
-                            </td>
-                          {% endif %}
-                        {% endfor %}
-                      </tr>
-                      {% if component['unit'] == "module" %}
-                        <tr>
-                          {% for summary in component['summary']['scan']['after'][scan]['map'] %}
-                            {% if summary['url1Dthum'] %}
-                            <td width="80" align="center">
-                              <a href="{{ url_for('show_summary_test', runId=component['summary']['scan']['after'][scan]['runId'], histo="1", mapType=summary['mapType']) }}" target="_brank" rel="noopener noreferrer">
-                                <img src={{ summary['url1Dthum'] }}
-                                title='[runNumber] {{ component['summary']['scan']['after'][scan]['runNumber'] }}&#x0A;[userIdentity] {{ component['summary']['scan']['after'][scan]['userIdentity'] }}&#x0A;[institution] {{ component['summary']['scan']['after'][scan]['institution'] }}' 
-                                width="80" height="60">
-                                </img>
-                              </a>
-                            </td>
-                            {% endif %}
-                          {% endfor %}
-                        </tr>
-                      {% endif %}
-                    </tbody>
-                  </table>
-
-                  <a data-toggle="collapse" href='#{{ scan }}before' aria-controls="testindex" style="color: black;"><h4 style="font-size: 10pt;">
-                    <i class="fa fa-chevron-right"></i> current 
-                  </h4></a>
-                  <table class="table table-sm table-bordered collapse" id='{{ scan }}before' style="font-size: 7pt;">
-                    <thead class="table-dark" style="background: #222222;">
-                      <tr>
-                        {% for summary in component['summary']['scan']['before'][scan]['map'] %}
-                          <th scope="col" class="text-center">{{ summary['mapType'] }}</th>
-                        {% else %}
-                          <th scope="col" class="text-center">None.</th>
-                        {% endfor %}
-                      </tr>
-                    </thead> 
-                    </tbody> 
-                      <tr>
-                        {% for summary in component['summary']['scan']['before'][scan]['map'] %}
-                          {% if summary['url2Dthum'] %}
-                            <td width="80" align="center">
-                              <a href="{{ url_for('show_summary_test', runId=component['summary']['scan']['before'][scan]['runId'], histo="2", mapType=summary['mapType']) }}" target="_brank" rel="noopener noreferrer">
-                                <img src={{ summary['url2Dthum'] }}
-                                title='[runNumber] {{ component['summary']['scan']['before'][scan]['runNumber'] }}&#x0A;[userIdentity] {{ component['summary']['scan']['before'][scan]['userIdentity'] }}&#x0A;[institution] {{ component['summary']['scan']['before'][scan]['institution'] }}' 
-                                width="80" height="80">
-                                </img>
-                              </a>
-                            </td>
-                          {% else %}
-                            {% if component['unit'] == "module" %}
-                            <td width="80" align="center" rowspan="2">
-                            {% else %}
-                            <td width="80" align="center">
-                            {% endif %}
-                              <p style="font-size: 15pt;">None.</p> 
-                            </td>
-                          {% endif %}
-                        {% endfor %}
-                      </tr>
-                      {% if component['unit'] == "module" %}
-                        <tr>
-                          {% for summary in component['summary']['scan']['before'][scan]['map'] %}
-                            {% if summary['url1Dthum'] %}
-                            <td width="80" align="center">
-                              <a href="{{ url_for('show_summary_test', runId=component['summary']['scan']['before'][scan]['runId'], histo="1", mapType=summary['mapType']) }}" target="_brank" rel="noopener noreferrer">
-                                <img src={{ summary['url1Dthum'] }}
-                                title='[runNumber] {{ component['summary']['scan']['before'][scan]['runNumber'] }}&#x0A;[userIdentity] {{ component['summary']['scan']['before'][scan]['userIdentity'] }}&#x0A;[institution] {{ component['summary']['scan']['before'][scan]['institution'] }}' 
-                                width="80" height="60">
-                                </img>
-                              </a>
-                            </td>
-                            {% endif %}
-                          {% endfor %}
-                        </tr>
-                      {% endif %}
-                    </tbody>
-                  </table>
+              <form class="form-holizontal" action="{{ url_for('add_summary_test', id=component['_id']) }}" method=post class=entries style="font-size:10pt; margin:0px;">  
+                <input type="hidden" name="stage" value={{ component['stage'] }}>
+                <div class="form-group row">
+                  <div class="col-md-3">
+            	      <button type="submit" class="btn btn-outline-primary btn-block" style="font-size:10pt;" name="step" value=2>Confirm</button>
+                  </div>
                 </div>
-                </div class="row align-items-top">
-              </div>
-            {% endfor %}
-          </div class="row align-items-top">
-          {% endif %}
+              </form>
+
+
+              {% if component['step'] == 2 or component['step'] == 3 %}
+              <ol style="font-size: 13pt;">
+                <li value="3"> Choose comment from select box if you replace/remove the run number from current summary for each test type.<br>
+                               Click "Pre Submit" button after you confirm the comments in all the test types.
+              </ol>
+
+              <form class="form-holizontal" action="{{ url_for('add_summary_test', id=component['_id']) }}" method=post class=entries style="font-size:10pt; margin:0px;">  
+                <input type="hidden" name="stage" value={{ component['stage'] }}>
+                <div class="form-group row">
+                  <div class="col-md-3">
+                    {% if component['summary']['submit'] %}
+            	      <button type="submit" class="btn btn-outline-success btn-block" style="font-size:10pt;" name="step" value=3>Pre Submit</button>
+                    {% else %}
+            	      <button type="submit" class="btn btn-outline-success btn-block" style="font-size:10pt;" name="step" value=3 disabled>Pre Submit</button>
+                    {% endif %}
+                  </div>
+                  <div class="col-md-3">
+            	      <button type="submit" class="btn btn-outline-primary btn-block" style="font-size:10pt;" name="step" value=1>Back to Step2</button>
+                  </div>
+                </div>
+              </form>
+              {% endif %}
+
+              {% if component['step'] == 3 %}
+              <ol style="font-size: 13pt;">
+                <li value="4"> Click "Submit" button after you confirm about all items.
+              </ol>
+
+              <form class="form-holizontal" action="{{ url_for('add_summary_test', id=component['_id']) }}" method=post class=entries style="font-size:10pt; margin:0px;">  
+                <input type="hidden" name="stage" value={{ component['stage'] }}>
+                <div class="form-group row">
+                  <div class="col-md-3">
+            	      <button type="submit" class="btn btn-outline-success btn-block" style="font-size:10pt;" name="step" value=4>Submit</button>
+                  </div>
+                  <div class="col-md-3">
+            	      <button type="submit" class="btn btn-outline-primary btn-block" style="font-size:10pt;" name="step" value=1>Back to Step2</button>
+                  </div>
+                  <div class="col-md-3">
+            	      <button type="submit" class="btn btn-outline-primary btn-block" style="font-size:10pt;" name="step" value=2>Back to Step3</button>
+                  </div>
+                </div>
+              </form>
+              {% endif %}
+
+              <div class="row align-items-top"> 
+
+                {% for scan in index %}
+
+                  <!-- (top) table of the summary plots for each test type -->
+                  <div class="col-md-4" style="margin-bottom: 20px;">
+
+                      <h4 style="font-size: 12pt;"> <i class="fa fa-asterisk"></i> {{ scan }} </h4>
+
+                      {% if component['step'] == 2 or component['step'] == 3 %}
+                      <form class="form-holizontal" action="{{ url_for('add_summary_test', id=component['_id']) }}" method=post class=entries style="font-size:10pt; margin:0px 0px 0px 0px; padding: 0px 0px 0px 0px;">  
+                      <table class="table table-sm table-bordered" style="font-size: 10pt;">
+
+                        <input type="hidden" name="stage"    value={{ component['stage'] }}>
+                        <input type="hidden" name="testType" value={{ scan }}>
+
+                        <thead class="table-dark" style="background: #222222;">
+                          <tr>
+                            <th><center>comment</center></th>
+                          </tr>
+                        </thead> 
+                        </tbody> 
+                          <tr>
+                            <td><center>
+                              {% if not component['summary']['scan']['after'][scan]['comment'] %}
+                                No change b/a modify.
+                              {% elif component['summary']['scan']['after'][scan]['comment'] == "add" %}
+                                Add.
+                              {% elif component['step'] == 2 %}
+    		                        <select class="form-control" center="text-center" name="comment" required="required" onchange="submit(this.form)" style="font-size:10pt;margin:0px 0px 0px 0px;padding:0px 0px 0px 0px;height:13pt;display:block;">
+                                  {% if component['summary']['scan']['after'][scan]['comment'] == "..." %}
+                                    <option value="">*** choose comment ***</option>
+                                  {% else %}
+                                    <option value={{ component['summary']['scan']['after'][scan]['comment'] }}>{{ component['summary']['scan']['after'][scan]['comment'] }}</option>
+                                  {% endif %}
+                                  {% for comment in component['comments'] %}
+                                    {% if component['summary']['scan']['after'][scan]['comment'] == comment %}
+                                    <option value={{ comment }}>{{ comment }} ( selected )</option>
+                                    {% else %}
+                                    <option value={{ comment }}>{{ comment }}</option>
+                                    {% endif %}
+                                  {% endfor %}
+                                </select>
+                              {% else %}
+                                {{ component['summary']['scan']['after'][scan]['comment'] }}
+                              {% endif %}
+                            </center></td>
+                          </tr>
+                        </tbody>
+                      </table>
+                      </form>  
+                      {% endif %}
+
+
+                      <form class="form-holizontal" action="{{ url_for('add_summary_test', id=component['_id']) }}" method=post class=entries style="font-size:10pt; margin:0px 0px 0px 0px; padding: 0px 0px 0px 0px;">  
+                      <table class="table table-sm table-bordered" style="font-size: 10pt;">
+
+                        <input type="hidden" name="stage"    value={{ component['stage'] }}>
+                        <input type="hidden" name="testType" value={{ scan }}>
+
+                        <thead class="table-dark" style="background: #222222;">
+                          <tr>
+                            {% for summary in component['summary']['scan']['before'][scan]['map'] %}
+                              <th scope="col"  class="text-center" style='width: 50%;'>{{ summary['mapType'] }}</th>
+                            {% endfor %}
+                          </tr>
+                        </thead> 
+
+                        </tbody> 
+                          <!-- show plots for each map type before selecting (current) -->
+                          <tr>
+                            <td style="background: #CCFFEE;" colspan={{ component['summary']['scan']['before'][scan]['num'] }}>
+                              <div class="row">
+                                <div class="col-md-4" valign="middle"><center>
+                                  <a data-toggle="collapse" href='#{{ scan }}before' aria-controls="testindex" style="color:black;font-size:10pt;">
+                                  <i class="fa fa-caret-down"></i> current
+                                  </a></center>
+                                </div>
+                                <div class="col-md-4" style="font-size:8pt;" valign="middle"><center>
+                                  Run number</center>
+                                </div>
+                                <div class="col-md-4" style="font-size:8pt;" valign="middle"><center>
+                                  {% if component['summary']['scan']['before'][scan]['runNumber'] %}
+                                    {{ component['summary']['scan']['before'][scan]['runNumber'] }}
+                                  {% else %}
+                                    None
+                                  {% endif %}
+                                </center>
+                                </div>
+                              </div>
+                            </td>
+                          </tr>
+                          <tr class="collapse" id='{{ scan }}before'>
+                            {% for summary in component['summary']['scan']['before'][scan]['map'] %}
+                              {% if summary['url2Dthum'] %}
+                                <td align="center">
+                                  <a href="{{ url_for('show_summary_test', runId=component['summary']['scan']['before'][scan]['runId'], histo="2", mapType=summary['mapType']) }}" target="_brank" rel="noopener noreferrer">
+                                    <img src={{ summary['url2Dthum'] }}
+                                         title='[userIdentity] {{ component['summary']['scan']['before'][scan]['userIdentity'] }}&#x0A;[institution] {{ component['summary']['scan']['before'][scan]['institution'] }}' 
+                                         width="80" height="80">
+                                    </img>
+                                  </a>
+                                </td>
+                              {% else %}
+                                <td align="center"><p style="font-size: 15pt;">None.</p> </td>
+                              {% endif %}
+                            {% endfor %}
+                          </tr>
+                          <tr class="collapse" id='{{ scan }}before'>
+                            {% for summary in component['summary']['scan']['before'][scan]['map'] %}
+                              {% if summary['url1Dthum'] %}
+                                <td align="center">
+                                  <a href="{{ url_for('show_summary_test', runId=component['summary']['scan']['before'][scan]['runId'], histo="1", mapType=summary['mapType']) }}" target="_brank" rel="noopener noreferrer">
+                                    <img src={{ summary['url1Dthum'] }}
+                                         title='[userIdentity] {{ component['summary']['scan']['before'][scan]['userIdentity'] }}&#x0A;[institution] {{ component['summary']['scan']['before'][scan]['institution'] }}' 
+                                         width="80" height="60">
+                                    </img>
+                                  </a>
+                                </td>
+                              {% else %}
+                                <td align="center"><p style="font-size: 15pt;">None.</p> </td>
+                              {% endif %}
+                            {% endfor %}
+                          </tr>
+
+                          <!-- show plots for each map type after selecting (modify) -->
+                          <tr>
+                            <td style="background: #FFEECC;" colspan={{ component['summary']['scan']['after'][scan]['num'] }}>
+                              <div class="row">
+                                <div class="col-md-4" valign="middle"><center>
+                                  <a data-toggle="collapse" href='#{{ scan }}after' aria-controls="testindex" style="color:black;font-size:10pt;">
+                                    <i class="fa fa-caret-down"></i> modify
+                                  </a></center>
+                                </div>
+                                <div class="col-md-4" style="font-size:8pt;" valign="middle"><center>
+                                  Run number<font color=#ff0000 style="font-size: 8pt;">*</font></center>
+                                </div>
+                                {% if component['step'] == 2 or component['step'] == 3 %}
+                                <div class="col-md-4" style="font-size:8pt;" valign="middle"><center>
+                                  {% if component['summary']['scan']['after'][scan]['runNumber'] %}
+                                    {{ component['summary']['scan']['after'][scan]['runNumber'] }}
+                                  {% else %}
+                                    None
+                                  {% endif %}
+                                </center>
+                                </div>
+                                {% else %}
+                                <div class="col-md-4" valign="middle"><center>
+    		                          <select class="form-control" center="text-center" name="runId" required="required" onchange="submit(this.form)" style="font-size:8pt;margin:0px 0px 0px 0px;padding:0px 0px 0px 0px;height:13pt;display:block;">
+                                      {% if scan in component['resultIndex'] %}
+                                            <option value={{ component['summary']['scan']['after'][scan]['runId'] }}>
+                                              {% if component['summary']['scan']['after'][scan]['runNumber'] %}
+                                                {{ component['summary']['scan']['after'][scan]['runNumber'] }}
+                                              {% else %}
+                                                None 
+                                              {% endif %}
+                                            </option>
+                                            <option value="">None</option>
+                                        {% for run in component['resultIndex'][scan]['run'] %}
+                                          {% if run['summary'] %}
+                                            <option value={{ run['_id'] }}>{{ run['runNumber'] }} ( current )</option>
+                                          {% elif run['runNumber']==component['summary']['scan']['after'][scan]['runNumber'] %}
+                                            <option value={{ run['_id'] }}>{{ run['runNumber'] }} ( selected )</option>
+                                          {% elif run['result'] %}
+                                            <option value={{ run['_id'] }}>{{ run['runNumber'] }}</option>
+                                          {% else %}
+                                            <option value={{ run['_id'] }}>{{ run['runNumber'] }} ( failed )</option>
+                                          {% endif %}
+                                        {% endfor %}
+                                      {% else %}
+                                            <option value="">No test</option>
+                                      {% endif %}
+                                  </select>
+                                </div>
+                                {% endif %}
+                              </div>
+                            </td>
+                          </tr>
+                          <tr class="collapse show" id='{{ scan }}after'>
+                            {% for summary in component['summary']['scan']['after'][scan]['map'] %}
+                              {% if summary['url2Dthum'] %}
+                                <td align="center">
+                                  <a href="{{ url_for('show_summary_test', runId=component['summary']['scan']['after'][scan]['runId'], histo="2", mapType=summary['mapType']) }}" target="_brank" rel="noopener noreferrer">
+                                    <img src={{ summary['url2Dthum'] }} 
+                                         title='[userIdentity] {{ component['summary']['scan']['after'][scan]['userIdentity'] }}&#x0A;[institution] {{ component['summary']['scan']['after'][scan]['institution'] }}' 
+                                         width="80" height="80">
+                                    </img>
+                                  </a>
+                                </td>
+                              {% else %}
+                                <td align="center">
+                                  <p style="font-size: 15pt;">None.</p> 
+                                </td>
+                              {% endif %}
+                            {% endfor %}
+                          </tr>
+                          <tr class="collapse show" id='{{ scan }}after'>
+                            {% for summary in component['summary']['scan']['after'][scan]['map'] %}
+                              {% if summary['url1Dthum'] %}
+                                <td align="center">
+                                  <a href="{{ url_for('show_summary_test', runId=component['summary']['scan']['after'][scan]['runId'], histo="1", mapType=summary['mapType']) }}" target="_brank" rel="noopener noreferrer">
+                                    <img src={{ summary['url1Dthum'] }}
+                                         title='[userIdentity] {{ component['summary']['scan']['after'][scan]['userIdentity'] }}&#x0A;[institution] {{ component['summary']['scan']['after'][scan]['institution'] }}' 
+                                         width="80" height="60">
+                                    </img>
+                                  </a>
+                                </td>
+                              {% else %}
+                                <td align="center">
+                                  <p style="font-size: 15pt;">None.</p> 
+                                </td>
+                              {% endif %}
+                            {% endfor %}
+                          </tr>
+
+                        </tbody>
+                      </table>
+                      </form>  
+                  </div>
+                  <!-- (end) table of the summary plots for each test type -->
+                {% endfor %}
+
+              </div> 
+            </div>
+        </div> 
         {% endif %}
+        <!-- (end) show summary plots (before/after select run#) after selecting stage -->
+
+        <!-- (end) add summary function -->
 
     </div>
 {% endblock %}

@@ -182,17 +182,17 @@ def fill_summary_test() :
     query = { "_id" : ObjectId(session.get( 'this' )) }
     thisComponent = yarrdb.component.find_one( query )
 
-    after_dir  = "{0}/{1}".format( THUMA_DIR, session.get('uuid') )
-    clean_dir( after_dir )
-
     if not session['summaryList']['before'] :
+
+        after_dir  = "{0}/{1}".format( THUMA_DIR, session.get('uuid') )
+        clean_dir( after_dir )
 
         before_dir = "{0}/{1}".format( THUMB_DIR, session.get('uuid') )
         clean_dir( before_dir )
      
         for scan in scanList :
-            session['summaryList']['before'].update({ scan : {} })
-            session['summaryList']['after' ].update({ scan : {} })
+            session['summaryList']['before'].update({ scan : { "runId" : None } })
+            session['summaryList']['after' ].update({ scan : { "runId" : None } })
 
             query = { "component" : session.get( 'this' ), "stage" : stage, "testType" : scan }
             componentTestRun_entries = yarrdb.componentTestRun.find( query )
@@ -225,10 +225,17 @@ def fill_summary_test() :
                                 filename_after  = "{0}/{1}_{2}_{3}_{4}{5}.png".format( after_dir,  stage, scan, thisComponent['serialNumber'], mapType, datadict[i] )
                                 image.save( filename_after )
 
-    else :
-       
+    elif session['step'] == 1 :
+        after_dir  = "{0}/{1}".format( THUMA_DIR, session.get('uuid') )
+        #clean_dir( after_dir )
+
         for scan in scanList :
-            if session['summaryList']['after'][scan] :
+            if not session.get('testType') == scan : continue
+
+            for r in glob.glob( '{0}/{1}_{2}*'.format( after_dir, stage, scan ) ) :
+                os.remove(r)
+            
+            if session['summaryList']['after'][scan]['runId'] :
                 query = { "_id" : ObjectId(session['summaryList']['after'][scan]['runId']) }
                 thisRun = yarrdb.testRun.find_one( query )
 
@@ -255,8 +262,8 @@ def fill_summary_test() :
     scandict = { "before" : {},
                  "after"  : {} }
     total = 0
+    submit = True
     for scan in scanList :
-
 
         abType = { 'before' : THUMB_DIR, 'after' : THUMA_DIR }
 
@@ -271,7 +278,7 @@ def fill_summary_test() :
 
                 total += 1
 
-                if session['summaryList'][ab][scan] :
+                if session['summaryList'][ab][scan]['runId'] :
 
                     query = { "_id" : ObjectId(session['summaryList'][ab][scan]['runId']) }
                     thisRun = yarrdb.testRun.find_one( query )
@@ -284,9 +291,11 @@ def fill_summary_test() :
 
                         filename = "{0}/{1}/{2}_{3}_{4}_{5}{6}.png".format( abType[ab], session.get('uuid'), stage, scan, thisComponent['serialNumber'], mapType[0], datadict[i] )
                         if os.path.isfile( filename ) :
-                            url = url_for( 'result.static', filename='{0}_{1}/{2}/{3}_{4}_{5}_{6}{7}.png'.format( "thum", ab, session.get('uuid'), stage, scan, thisComponent['serialNumber'], mapType[0], datadict[i] ))
+                            binary_image = open( filename, 'rb' )
+                            code_base64 = base64.b64encode(binary_image.read()).decode()
+                            binary_image.close()
+                            url = func.bin_to_image( 'png', code_base64 ) 
                             mapDict.update({ "url{}Dthum".format(i) : url })
-
 
                     scandict[ab][scan].update({ "runNumber"    : thisRun['runNumber'],
                                                 "runId"        : str(thisRun['_id']),
@@ -295,14 +304,25 @@ def fill_summary_test() :
                                                 "environment"  : env_dict })
                 mapList.append( mapDict )
 
-            scandict[ab][scan].update({ "map" : mapList,
-                                        "num" : len(mapList) })
+            if session['summaryList']["before"][scan]['runId'] == session['summaryList']["after"][scan]['runId'] :
+                comment = None
+            elif session['summaryList']["after"][scan].get('comment') in listset.summary_comment:
+                comment = session['summaryList']["after"][scan]['comment']
+            elif not session['summaryList']["before"][scan]['runId'] :
+                comment = "add"
+            else :
+                comment = "..."
+                submit = False
 
+            scandict[ab][scan].update({ "map"     : mapList,
+                                        "num"     : len(mapList),
+                                        "comment" : comment })
 
     if not scandict == {} :
-        summaryIndex.update({ "stage" : stage,
-                              "scan"  : scandict,
-                              "total" : total })
+        summaryIndex.update({ "stage"  : stage,
+                              "scan"   : scandict,
+                              "total"  : total,
+                              "submit" : submit })
 
     return summaryIndex
 

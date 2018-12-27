@@ -16,8 +16,8 @@
 {% set _=index.append("totscan") %}
 {% set _=index.append("noisescan") %}
 {% set _=index.append("selftrigger") %}
-{% for stage_results in component['summary'] %}
   <div class="col">
+{% for stage_results in component['summary'] %}
     <table class="table table-sm table-bordered" style="font-size: 7pt;">
       <h4 style="font-size: 10pt;"><i class="fa fa-chevron-right"></i> {{ stage_results['stage'] }}</h4>
       <thead class="table-dark" style="background: #222222;">
@@ -82,7 +82,7 @@
         {% endif %}
       </tbody>
     </table>
-  </div>
 {% endfor %}
+  </div>
 </div>
  

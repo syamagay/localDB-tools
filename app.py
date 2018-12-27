@@ -384,22 +384,45 @@ def add_attachment_result() :
 @app.route('/add_summary_test', methods=['GET','POST'])
 def add_summary_test() :
 
+    session.pop( "testType", None )
     session.pop( "runId", None )
     session.pop( "code", None )
-    session.pop( "stage", None )
     session.pop( "plotList", None )
    
     # get from args
     session['this']  = request.args.get( 'id' ) 
+    # this component
+    query = { "_id" : ObjectId(session['this']) }
+
+    if not mongo.db.component.find_one( query )['componentType'] == "Module" :
+        query = { "child" : session['this'] }
+        session['this'] = mongo.db.childParentRelation.find_one( query )['parent']
+
+    query = { "_id" : ObjectId(session['this']) }
+    thisComponent = mongo.db.component.find_one( query )
+
+    unit = "module"
 
     # get from form
-    if not request.form.get( 'stage' ) == session.get( 'stage' ) :
+    if request.form.get('step') :
+        session['step'] = int(request.form.get('step'))
+
+    if session.get( 'step' ) == 4 :
+        return redirect( url_for("add_summary", id=request.args.get( 'id' )) )
+
+    if not request.form.get( 'stage' ) == session.get( 'stage' ) or not session.get( 'stage' ) :
         session['summaryList'] = { "after"  : {},
                                    "before" : {} }
+        session['step'] = 1
+
     session['stage'] = request.form.get( 'stage' )
 
-    #if request.form.get('testType') :
-        #session['summaryList']['after'].update({ request.form.get('testType') : request.form.get('runId') })
+    if request.form.get('testType') :
+        if session['step'] == 1 :
+            session['summaryList']['after' ][request.form.get('testType')].update({ "runId" : request.form.get('runId') })
+            session['testType'] = request.form.get('testType')
+        else :
+            session['summaryList']['after' ][request.form.get('testType')].update({ "comment" : str(request.form.get('comment')) })
 
     # chips and parent
     chips = []
@@ -408,13 +431,6 @@ def add_summary_test() :
     for child in child_entries :
         chips.append({ "component" : child['child'] })
         ParentId = child['parent']
-
-    # this component
-    query = { "_id" : ObjectId(session['this']) }
-    thisComponent = mongo.db.component.find_one( query )
-
-    if thisComponent['componentType'] == "Module" : unit = "module"
-    else :                                          unit = "chip"
 
     # this module
     query = { "_id" : ObjectId(ParentId) }
@@ -456,6 +472,8 @@ def add_summary_test() :
                        "unit"          : unit,
                        "summary"       : summary,
                        "stages"        : stages,
+                       "step"          : session['step'],
+                       "comments"      : listset.summary_comment,
                        "resultIndex"   : resultIndex,
                        "stage"         : session['stage'] })
 
@@ -463,87 +481,128 @@ def add_summary_test() :
 
 @app.route('/add_summary', methods=['GET', 'POST'])
 def add_summary() :
+
     componentId = request.args.get( 'id' )
-    RunId = session.get( 'runId' )
+    query = { "_id" : ObjectId( componentId ) }
+    thisComponent = mongo.db.component.find_one( query )
 
-    if not DOROOT :
-        forUrl = "show_component"
-        return redirect( url_for(forUrl, id=componentId) )
-    
-    # serialNumber
-    query = { "_id" : ObjectId(componentId) }
-    serialNumber = mongo.db.component.find_one( query )['serialNumber']
-    # stage
-    query = { "testRun" : RunId }
-    stage = mongo.db.componentTestRun.find_one( query )['stage']
-    # is first creation componentTestRun and TestRun for module
-    query = { "component" : componentId, "testRun" : RunId }
-    if mongo.db.componentTestRun.find( query ).count() == 0 :
-        query = { "_id" : ObjectId(RunId) }
-        docs = { "_id"         : 0,
-                 "sys"         : 0 }
-        moduleTestRun = mongo.db.testRun.find_one( query, docs )
-        moduleTestRun.update({ "attachments" : [] })
-        moduleTestRun.update({ "sys" : { "rev" : 0,
-                                         "cts" : datetime.datetime.utcnow(),
-                                         "mts" : datetime.datetime.utcnow() }})
-        RunId = str(mongo.db.testRun.insert( moduleTestRun ))
-        moduleComponentTestRun = { "component"   : componentId,
-                                   "testType"    : moduleTestRun['testType'],
-                                   "testRun"     : RunId,
-                                   "stage"       : stage,
-                                   "runNumber"   : moduleTestRun['runNumber'],
-                                   "sys"         : { "rev" : 0,
-                                                     "cts" : datetime.datetime.utcnow(),
-                                                     "mts" : datetime.datetime.utcnow() }} 
-        moduleComponentRunId = mongo.db.componentTestRun.insert( moduleComponentTestRun )
-    # add attachments into module TestRun
-    query = { "component" : componentId, "testRun" : RunId }
-    thisComponentTestRun = mongo.db.componentTestRun.find_one( query )
-    query = { "_id" : ObjectId(RunId) }
-    thisRun = mongo.db.testRun.find_one( query )
-    for mapType in listset.scan[thisRun['testType']] :
-        for i in [ "1", "2" ] :
-            if i == "1" :
-                filename = "{0}_{1}_Dist".format( serialNumber, mapType[0] )
-            if i == "2" :
-                filename = "{0}_{1}".format( serialNumber, mapType[0] )
-            for attachment in mongo.db.testRun.find_one( query )['attachments'] :
-                if filename == attachment.get('filename') :
-                    fs.delete( ObjectId(attachment.get('code')) )
-                    mongo.db.testRun.update( query, { '$pull' : { "attachments" : { "code" : attachment.get('code') }}}) 
-            filepath = PLOT_DIR + "/" + thisRun['testType'] + "/" + str(thisRun['runNumber']) + "_" + mapType[0] + "_{}.png".format(i)
-            binary_image = open( filepath, 'rb' )
-            image = fs.put( binary_image.read(), filename=filename )
-            binary_image.close()
-            mongo.db.testRun.update( query, { '$push' : { "attachments" : { "code" : str(image),
-                                                                            "dateTime" : datetime.datetime.utcnow(),
-                                                                            "title" : "title",
-                                                                            "description" : "describe",
-                                                                            "contentType" : "png",
-                                                                            "filename" : filename }}}) 
+    for scan in session['summaryList']['before'] :
 
-    # change display bool
-    components = [{ "component" : componentId }]
-    query = { "parent" : componentId }
-    for child in mongo.db.childParentRelation.find( query ) :
-        components.append({ "component" : child['child'] })
-    query = { '$or' : components, "testType" : thisComponentTestRun['testType'], "stage" : thisComponentTestRun['stage'] }
-    runIds = []
-    for run in mongo.db.componentTestRun.find( query ) :
-        runIds.append({ "_id" : ObjectId(run['testRun']) })
-    query = { '$or' : runIds, "display" : True }
-    if not mongo.db.testRun.find( query ).count() == 0 :
-        update_mod( "testRun", query ) 
-        mongo.db.testRun.update( query, { '$set' : { "display" : False }}, multi=True )
-    query.pop("display",None)
-    query.update({ "runNumber" : thisRun['runNumber'], "institution" : thisRun['institution'], "userIdentity" : thisRun['userIdentity'] })
-    update_mod( "testRun", query ) 
-    mongo.db.testRun.update( query, { '$set' : { "display" : True }}, multi=True )
+        if session['summaryList']['before'][scan]['runId'] == session['summaryList']['after'][scan]['runId'] : continue
 
-    forUrl = "show_component"
+        if session['summaryList']['after'][scan]['runId'] :
 
-    return redirect( url_for(forUrl, id=componentId) )
+            # make plot 
+            fei4.make_plot( session['summaryList']['after'][scan]['runId'] )
+
+            # insert testRun and componentTestRun
+            query = { "testRun" : session['summaryList']['after'][scan]['runId'] }
+            thisComponentTestRun = mongo.db.componentTestRun.find_one( query ) 
+
+            if thisComponentTestRun['component'] == componentId : 
+                runId = session['summaryList']['after'][scan]['runId']  
+
+            else :
+                thistime = datetime.datetime.utcnow()
+
+                moduleComponentTestRun = thisComponentTestRun
+                query = { "_id" : ObjectId(session['summaryList']['after'][scan]['runId']) }
+                moduleTestRun = mongo.db.testRun.find_one( query )
+                moduleComponentTestRun.pop( '_id', None )
+                moduleTestRun.pop( '_id', None )
+
+                moduleTestRun.update({ "attachments" : [] })
+                moduleTestRun.update({ "sys" : { "rev" : 0,
+                                                 "cts" : thistime,
+                                                 "mts" : thistime }})
+                runId = str(mongo.db.testRun.insert( moduleTestRun ))
+                moduleComponentTestRun.update({ "component" : componentId,
+                                                "testRun"   : runId,
+                                                "sys"         : { "rev" : 0,
+                                                                  "cts" : thistime,
+                                                                  "mts" : thistime }})
+                mongo.db.componentTestRun.insert( moduleComponentTestRun )
+
+            # add attachments into module TestRun
+            query = { "component" : componentId, "testRun" : runId }
+            thisComponentTestRun = mongo.db.componentTestRun.find_one( query )
+            query = { "_id" : ObjectId(runId) }
+            thisRun = mongo.db.testRun.find_one( query )
+
+            for mapType in session.get('plotList') :
+                if session['plotList'][mapType]['HistoType'] == 1 : continue
+                url = {} 
+                path = {}
+                datadict = { "1" : "_Dist", "2" : "" }
+                for i in datadict :
+                    filename = "{0}_{1}{2}".format( thisComponent['serialNumber'], mapType, datadict[i] )
+                    for attachment in thisRun['attachments'] :
+                        if filename == attachment.get('filename') :
+                            fs.delete( ObjectId(attachment.get('code')) )
+                            mongo.db.testRun.update( query, { '$pull' : { "attachments" : { "code" : attachment.get('code') }}}) 
+
+
+                    filepath = "{0}/{1}/{2}_{3}_{4}.png".format(PLOT_DIR, str(session.get('uuid')), str(thisRun['testType']), str(mapType), i)
+                    if os.path.isfile( filepath ) :
+                        binary_image = open( filepath, 'rb' )
+                        image = fs.put( binary_image.read(), filename="{}.png".format(filename) )
+                        binary_image.close()
+                        mongo.db.testRun.update( query, { '$push' : { "attachments" : { "code"        : str(image),
+                                                                                        "dateTime"    : datetime.datetime.utcnow(),
+                                                                                        "title"       : "title",
+                                                                                        "description" : "describe",
+                                                                                        "contentType" : "png",
+                                                                                        "filename"    : filename }}}) 
+        # change display bool
+        if session['summaryList']['before'][scan]['runId'] :
+            query = { "_id" : ObjectId(session['summaryList']['before'][scan]['runId']) }
+            thisRun = mongo.db.testRun.find_one( query )
+
+            keys = [ "runNumber", "institution", "userIdentity", "testType" ]
+            query_id = dict( [ (key, thisRun[key]) for key in keys ] )
+            mongo.db.testRun.update( query_id, { '$set' : { "display" : False }}, multi=True )
+
+            mongo.db.testRun.update( query_id, { '$push' : { 'comments' : [{ "user"        : session['userIdentity'],
+                                                                             "userid"      : session['uuid'],
+                                                                             "comment"     : session['summaryList']['after'][scan]['comment'], 
+                                                                             "after"       : session['summaryList']['after'][scan]['runId'],
+                                                                             "datetime"    : datetime.datetime.utcnow(), 
+                                                                             "institution" : session['institution'],
+                                                                             "description" : "add_summary" }] }}, multi=True )
+            update_mod( "testRun", query_id ) 
+
+        query = { "component" : componentId, "stage" : session['stage'], "testType" : scan }
+        entries = mongo.db.componentTestRun.find( query )
+        for entry in entries :
+            query = { "_id" : ObjectId( entry['testRun'] )}
+            thisRun = mongo.db.testRun.find_one( query )
+            keys = [ "runNumber", "institution", "userIdentity", "testType" ]
+            query_id = dict( [ (key, thisRun[key]) for key in keys ] )
+            run_entries = mongo.db.testRun.find( query_id )
+            for run in run_entries :
+                if run.get( 'display' ) :
+                    query = { "_id" : run['_id'] }
+                    mongo.db.testRun.update( query, { '$set' : { "display" : False }} )
+                    update_mod( "testRun", query )
+
+        if session['summaryList']['after'][scan]['runId'] :
+            query = { "_id" : ObjectId(session['summaryList']['after'][scan]['runId']) }
+            thisRun = mongo.db.testRun.find_one( query )
+
+            keys = [ "runNumber", "institution", "userIdentity", "testType" ]
+            query_id = dict( [ (key, thisRun[key]) for key in keys ] )
+
+            mongo.db.testRun.update( query_id, { '$set' : { "display" : True }}, multi=True )
+            update_mod( "testRun", query_id ) 
+
+    session.pop( "testType", None )
+    session.pop( "runId", None )
+    session.pop( "summaryList", None )
+    session.pop( "stage", None )
+    session.pop( "step", None )
+    clean_dir( THUM_DIR )
+
+    return redirect( url_for("show_component", id=componentId) )
 
 @app.route('/show_summary', methods=['GET'])
 def show_summary() :
@@ -581,7 +640,13 @@ def show_summary_test() :
 
     fei4.make_plot( runId )
 
-    url = url_for( 'result.static', filename='{0}/{1}_{2}_{3}.png'.format( session.get('uuid'), str(thisRun['testType']), mapType, histo ))
+    url = ""
+    filename = PLOT_DIR + "/" + str(session.get('uuid')) + "/" + str(thisRun['testType']) + "_" + str(mapType) + "_{}.png".format(histo)
+    if os.path.isfile( filename ) :
+        binary_image = open( filename, 'rb' )
+        code_base64 = base64.b64encode(binary_image.read()).decode()
+        binary_image.close()
+        url = func.bin_to_image( 'png', code_base64 )  
  
     return redirect( url )
 
