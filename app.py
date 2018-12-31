@@ -1,72 +1,65 @@
-##################################
-###   Import Module 
-##################################
+#####   Import Module #####
+### general scheme
 import os, pwd, glob, hashlib, datetime, shutil, sys, uuid, json
+### use Flask scheme
+from   flask import Flask, request, redirect, url_for, render_template, session, abort
+### use mongodb scheme
+from   flask_pymongo import PyMongo
+from   pymongo       import MongoClient
+### handle bson format
+from   bson.objectid import ObjectId 
+### image related module
+import base64                          # Base64 encoding scheme
+import gridfs                          # gridfs system 
+import io
+from   werkzeug import secure_filename # for upload system
+from   PIL      import Image
+
 sys.path.append( os.path.dirname(os.path.abspath(__file__)) + "/scripts/src" )
 
-# use Flask scheme
-from flask import Flask, request, redirect, url_for, render_template, session, abort
-
-# use mongodb scheme
-import pymongo
-from flask_pymongo import PyMongo
-from pymongo import MongoClient
-
-# handle bson format
-from bson.objectid import ObjectId 
-from bson.binary import BINARY_SUBTYPE
-
-# image related module
-import base64 # Base64 encoding scheme
-import gridfs # gridfs system 
-from werkzeug import secure_filename # for upload system
-from PIL import Image
-import io
-
-# use PyROOT
+### use PyROOT
 try    : 
-    import root
-    DOROOT = True
+         import root
+         DOROOT = True
 except : 
-    DOROOT = False 
+         DOROOT = False 
+### other function in web-app-db-yarr/scripts/src
 import func, listset
-from arguments import *   # Pass command line arguments into app.py
-# function for each fe types
-from AsicTypes import fei4
+import static
+from   arguments import *     # Pass command line arguments into app.py
+from   AsicTypes import fei4  # function for each fe types
 
 app = Flask( __name__ )
 
 ####################
 # add path to static
-import static
 app.register_blueprint(static.app)
 
 ##################
 # path/to/save/dir 
-USER = pwd.getpwuid( os.geteuid() ).pw_name
-USER_DIR = '/tmp/{}'.format( USER ) 
-PIC_DIR = '{}/upload'.format( USER_DIR )
-DAT_DIR = '{}/dat'.format( USER_DIR )
-PLOT_DIR = '{}/result'.format( USER_DIR )
-THUM_DIR = '{}/result/thum'.format( USER_DIR )
-THUMT_DIR = '{}/result/thum_test'.format( USER_DIR )
-THUMA_DIR = '{}/thum_after'.format(  PLOT_DIR )
-THUMB_DIR = '{}/thum_before'.format( PLOT_DIR )
-STAT_DIR = '{}/static'.format( USER_DIR )
-JSON_DIR = '{}/json'.format( USER_DIR )
+TMP_DIR   = '/tmp/{}'.format( pwd.getpwuid( os.geteuid() ).pw_name ) 
+
+if os.path.isdir( TMP_DIR ) : shutil.rmtree( TMP_DIR )
+os.mkdir( TMP_DIR )
+
+PIC_DIR    = '{}/upload'.format( TMP_DIR )
+DAT_DIR    = '{}/dat'.format( TMP_DIR )
+PLOT_DIR   = '{}/result'.format( TMP_DIR )
+THUM_DIR   = '{}/thumbnail'.format( TMP_DIR )
+#THUM_DIR   = '{}/result/thum'.format( TMP_DIR )
+THUMT_DIR  = '{}/result/thum_test'.format( TMP_DIR )
+THUMA_DIR  = '{}/thum_after'.format(  PLOT_DIR )
+THUMB_DIR  = '{}/thum_before'.format( PLOT_DIR )
+STAT_DIR   = '{}/static'.format( TMP_DIR )
+JSON_DIR   = '{}/json'.format( TMP_DIR )
 SCRIPT_DIR = os.path.dirname(os.path.abspath(__file__)) + "/scripts"
 
 DIRS = [ PIC_DIR, DAT_DIR, PLOT_DIR, STAT_DIR, THUM_DIR, THUMT_DIR, JSON_DIR, THUMB_DIR, THUMA_DIR ] 
-if os.path.isdir( USER_DIR ) :
-    shutil.rmtree( USER_DIR )
-os.mkdir( USER_DIR )
-for DIR in DIRS :
-    os.mkdir( DIR )
+for DIR in DIRS : os.mkdir( DIR )
 
 ############
 # login list
 loginlist = [ "logged_in", "user_id", "user_name", "institute", "read", "write", "edit" ]
-poplist = [ "signup", "code", "runId", "stage", "this" ]
 
 ########
 # Prefix
@@ -106,8 +99,11 @@ app.config["SECRET_KEY"] = os.urandom(24)
 ##########
 # function
 def make_dir() :
-    if not os.path.isdir( USER_DIR ) :
-        os.mkdir( USER_DIR )
+    if not os.path.isdir( TMP_DIR ) :
+        os.mkdir( TMP_DIR )
+    user_dir = TMP_DIR + "/" + str(session.get( 'uuid' ))
+    if not os.path.isdir( user_dir ) :
+        os.mkdir( user_dir )
     for DIR in DIRS :
         if not os.path.isdir( DIR ) :
             os.mkdir( DIR )
@@ -145,21 +141,18 @@ def count_photoNum() :
 def show_modules_and_chips() :
 
     if session.get( 'uuid' ) :
-        dat_dir = DAT_DIR + "/" + str(session.get('uuid'))
-        if os.path.isdir( dat_dir ) :
-            shutil.rmtree( dat_dir )
-        plot_dir = PLOT_DIR+"/"+str(session.get( 'uuid' ))
-        if os.path.isdir( plot_dir ) :
-            shutil.rmtree( plot_dir )
+        user_dir = TMP_DIR + "/" + str(session.get( 'uuid' ))
+        if os.path.isdir( user_dir ) : shutil.rmtree( user_dir )
+        dat_dir  = DAT_DIR  + "/" + str(session.get( 'uuid' ))
+        if os.path.isdir( dat_dir ) : shutil.rmtree( dat_dir )
+        plot_dir = PLOT_DIR + "/" + str(session.get( 'uuid' ))
+        if os.path.isdir( plot_dir ) : shutil.rmtree( plot_dir )
     else :
-        session['uuid'] = str(uuid.uuid4()) 
+        session['uuid'] = str( uuid.uuid4() ) 
 
     make_dir()
     clean_dir( STAT_DIR )
-
-    # pop session
-    for key in poplist :
-        session.pop(key,None)
+    session.pop( 'signup', None )
 
     query = { "componentType" : "Module" }
     component_entries = mongo.db.component.find( query )
@@ -170,6 +163,7 @@ def show_modules_and_chips() :
         child_entries = mongo.db.childParentRelation.find( query )
         chips = []
         componentType = "unknown"
+
         for child in child_entries :
             query = { "_id" : ObjectId(child['child']) }
             thisChip = mongo.db.component.find_one( query )
@@ -178,11 +172,14 @@ def show_modules_and_chips() :
                            "componentType" : thisChip['componentType'],
                            "datetime"      : func.setTime(thisChip['sys']['cts']) }) 
             componentType = thisChip['componentType']
+
         if not componentType in modules :
             modules.update({ componentType : { "modules" : [], "num" : "" } })
+
         modules[componentType]["modules"].append({ "_id"          : str(component['_id']),
                                                    "serialNumber" : component['serialNumber'],
                                                    "chips"        : chips })
+
     for componentType in modules :
         modules[componentType].update({ "num" : len(modules[componentType]["modules"]) })
 
@@ -197,9 +194,6 @@ def show_modules_and_chips() :
 def show_component() :
 
     make_dir()
-    session.pop("summaryList",None)
-
-    if not session.get( 'this' ) == request.args.get( 'id' ) : session.pop( 'stage', None )
 
     session['this']  = request.args.get( 'id' )
     session['code']  = request.args.get( 'code', "" )
@@ -258,7 +252,7 @@ def show_component() :
     for run in run_entries :
         stages.append( run.get('stage') )
     stages = list(set(stages))
-    summary = fei4.fill_summary( thisComponent, stages )
+    summary = fei4.fill_summary( stages )
 
     component.update({ "_id"           : session['this'],
                        "serialNumber"  : thisComponent['serialNumber'],
@@ -280,10 +274,10 @@ def makehisto() :
     # get from form
     session['rootType']  = request.form.get( 'root' )
     session['mapType']   = request.form.get( 'mapType' )
-    session['parameter'] = { "min" : request.form.get('min'), 
-                             "max" : request.form.get('max'), 
-                             "bin" : request.form.get('bin'), 
-                             "log" : request.form.get('log',False) }
+    session['parameter'] = { "min" : request.form.get( 'min' ), 
+                             "max" : request.form.get( 'max' ), 
+                             "bin" : request.form.get( 'bin' ), 
+                             "log" : request.form.get( 'log', False) }
 
     # get from args
     componentId = request.args.get( 'id' )
@@ -291,102 +285,14 @@ def makehisto() :
 
     return redirect( url_for("show_component", id=componentId, runId=runId) )
 
-############
-# tag method
-@app.route('/tag', methods=['GET'])
-def tag() :
-    query = { "_id" : ObjectId(session.get('tagid')) }
-    collection = str(session.get('collection'))
-
-    data_entries = mongo.db[collection].find_one( query )['attachments']
-    for data in data_entries :
-        if data['code'] == request.args.get( 'code' ) :
-            if session.get('tag') == "tag" :
-                 mongo.db[collection].update( query, { '$set' : { 'attachments.{}.display'.format( data_entries.index(data) ) : True }})
-                 update_mod( collection, query )
-            elif session.get('tag') == "untag" :
-                 mongo.db[collection].update( query, { '$unset' : { 'attachments.{}.display'.format( data_entries.index(data) ) : True }})
-                 mongo.db[collection].update( query, { '$set'   : { 'attachments.{}.description'.format( data_entries.index(data) ) : "" }})
-                 update_mod( collection, query )
-            else :
-                 print("can't get tag session")
-
-    forUrl = "show_component"
-
-    session.pop('collection')
-    session.pop('tagid')
-    session.pop('tag')
-
-    return redirect( url_for(forUrl, id=request.args.get( 'id' )) )
-
-@app.route('/tag_image', methods=['GET','POST'])
-def tag_image() :
-    session['tagid'] = request.form.get( 'id' )
-    session['collection'] = "component"
-    session['tag'] = str(request.form.get( 'tag' ))
-
-    return redirect( url_for("tag", id=request.form.get( 'id' ), code=request.form.get( 'code' )) )
-
-@app.route('/tag_result', methods=['GET','POST'])
-def tag_result() :
-    #if session['component'] == "module" :
-    #    session['tagid'] = request.form.get('id')
-    #    session['collection'] = "component"
-    #if session['component'] == "chip" :
-    #    session['tagid'] = request.form.get('runId')
-    #    session['collection'] = "testRun"
-    session['tag'] = str(request.form.get('tag'))
-
-    return redirect( url_for("tag", id=request.form.get( 'id' ), code=request.form.get('code')) )
-
 ##################
-# add attachment ? 
-@app.route('/add_attachment_result', methods=['GET','POST'])
-def add_attachment_result() :
-    fileResult = request.form.get( 'path' ) 
-    binary_image = open( fileResult, 'rb' )
-    runNumber = fileResult.rsplit( '/', 4 )[4].rsplit( '_', 2 )[0]
-    mapType = fileResult.rsplit( '/', 4 )[4].rsplit( '_', 2 )[1]
-    testType = fileResult.rsplit( '/', 4 )[3]
-    filename = "{0}_{1}_{2}.png".format( runNumber, testType, mapType )
-    image = fs.put( binary_image.read(), filename=filename )
-    binary_image.close()
-    
-    chips = []
-    query = { "parent" : request.form.get( 'id' ) } 
-    child_entries = mongo.db.childParentRelation.find( query )
-    for child in child_entries :
-        chips.append( { "component" : child['child'] } )
-    query = { '$or' : chips, "runNumber" : int( runNumber ) }
-    query = { "_id" : ObjectId(mongo.db.componentTestRun.find_one( query )['testRun']) }
-    thisRun = mongo.db.testRun.find_one( query )
-    thisComponentTestRun = mongo.db.componentTestRun.find_one({ "testRun" : str(thisRun['_id']) })
-    env_dict = fill_env( thisComponentTestRun )
- 
-    query = { "_id" : image }
-    date = mongo.db.fs.files.find_one( query )['uploadDate']
-    query = { "_id" : ObjectId(request.form.get('id')) }
-    mongo.db.component.update( query, { '$push' : { "attachments" : { "code"        : str(image),
-                                                                      "dateTime"    : date,
-                                                                      "title"       : "",
-                                                                      "description" : "",
-                                                                      "display"     : True,
-                                                                      "imageType"   : "result",
-                                                                      "contentType" : filename.rsplit( '.', 1 )[1],
-                                                                      "filename"    : filename,
-                                                                      "environment" : env_dict }}})
-    update_mod( "component", query )
-
-    forUrl = "show_component"
-
-    return redirect( url_for(forUrl, id=request.form.get( 'id' )) )
-
-@app.route('/add_summary_test', methods=['GET','POST'])
-def add_summary_test() :
+# add summary plot 
+@app.route('/select_summary', methods=['GET','POST'])
+def select_summary() :
 
     session.pop( "testType", None )
-    session.pop( "runId", None )
-    session.pop( "code", None )
+    session.pop( "runId",    None )
+    session.pop( "code",     None )
     session.pop( "plotList", None )
    
     # get from args
@@ -479,6 +385,8 @@ def add_summary_test() :
 
     return render_template( "add_summary.html", component=component )
 
+############################
+# write summary info into db 
 @app.route('/add_summary', methods=['GET', 'POST'])
 def add_summary() :
 
@@ -542,7 +450,8 @@ def add_summary() :
                             mongo.db.testRun.update( query, { '$pull' : { "attachments" : { "code" : attachment.get('code') }}}) 
 
 
-                    filepath = "{0}/{1}/{2}_{3}_{4}.png".format(PLOT_DIR, str(session.get('uuid')), str(thisRun['testType']), str(mapType), i)
+                    #filepath = "{0}/{1}/{2}_{3}_{4}.png".format(PLOT_DIR, str(session.get('uuid')), str(thisRun['testType']), str(mapType), i)
+                    filepath = "{0}/{1}/plot/{2}_{3}_{4}.png".format(TMP_DIR, str(session.get('uuid')), str(thisRun['testType']), str(mapType), i)
                     if os.path.isfile( filepath ) :
                         binary_image = open( filepath, 'rb' )
                         image = fs.put( binary_image.read(), filename="{}.png".format(filename) )
@@ -553,7 +462,7 @@ def add_summary() :
                                                                                         "description" : "describe",
                                                                                         "contentType" : "png",
                                                                                         "filename"    : filename }}}) 
-        # change display bool
+        # remove "display : True" in current summary run
         if session['summaryList']['before'][scan]['runId'] :
             query = { "_id" : ObjectId(session['summaryList']['before'][scan]['runId']) }
             thisRun = mongo.db.testRun.find_one( query )
@@ -585,6 +494,7 @@ def add_summary() :
                     mongo.db.testRun.update( query, { '$set' : { "display" : False }} )
                     update_mod( "testRun", query )
 
+        # add "display : True" in selected run
         if session['summaryList']['after'][scan]['runId'] :
             query = { "_id" : ObjectId(session['summaryList']['after'][scan]['runId']) }
             thisRun = mongo.db.testRun.find_one( query )
@@ -595,17 +505,19 @@ def add_summary() :
             mongo.db.testRun.update( query_id, { '$set' : { "display" : True }}, multi=True )
             update_mod( "testRun", query_id ) 
 
-    session.pop( "testType", None )
-    session.pop( "runId", None )
+    # pop session
+    session.pop( "testType",    None )
+    session.pop( "runId",       None )
     session.pop( "summaryList", None )
-    session.pop( "stage", None )
-    session.pop( "step", None )
+    session.pop( "stage",       None )
+    session.pop( "step",        None )
     clean_dir( THUM_DIR )
 
     return redirect( url_for("show_component", id=componentId) )
 
 @app.route('/show_summary', methods=['GET'])
 def show_summary() :
+
     # get from args
     code = request.args.get('code')
     scan = request.args.get('scan')
@@ -614,22 +526,29 @@ def show_summary() :
     query = { "_id" : ObjectId(code) }
     data = mongo.db.fs.files.find_one( query )
     if not "png" in data['filename'] : 
-        filePath = "{0}/{1}_{2}_{3}.png".format( PLOT_DIR, stage, scan, data['filename'] )
+        #filePath = "{0}/{1}_{2}_{3}.png".format( PLOT_DIR, stage, scan, data['filename'] )
+        filePath = "{0}/{1}/{2}_{3}_{4}.png".format( THUM_DIR, session.get( 'uuid' ), stage, scan, data['filename'] )
     else :
-        filePath = "{0}/{1}_{2}_{3}".format( PLOT_DIR, stage, scan, data['filename'] )
+        #filePath = "{0}/{1}_{2}_{3}".format( PLOT_DIR, stage, scan, data['filename'] )
+        filePath = "{0}/{1}/{2}_{3}_{4}".format( THUM_DIR, session.get( 'uuid' ), stage, scan, data['filename'] )
+
+    thum_dir = "{0}/{1}".format( THUM_DIR, session.get( 'uuid' ) )
+    clean_dir( thum_dir )
+    
     binary = fs.get(ObjectId(code)).read()
     image_bin = io.BytesIO( binary )
     image = Image.open( image_bin )
     image.save( filePath )
     if not "png" in data['filename'] : 
-        url = url_for( 'result.static', filename='{0}_{1}_{2}.png'.format( stage, scan, data['filename'] ))
+        #url = url_for( 'result.static', filename='{0}_{1}_{2}.png'.format( stage, scan, data['filename'] ))
+        url = url_for( 'thumbnail.static', filename='{0}/{1}_{2}_{3}.png'.format( session.get( 'uuid' ), stage, scan, data['filename'] ))
     else :
-        url = url_for( 'result.static', filename='{0}_{1}_{2}'.format( stage, scan, data['filename'] ))
+        url = url_for( 'thumbnail.static', filename='{0}/{1}_{2}_{3}'.format( session.get( 'uuid' ), stage, scan, data['filename'] ))
  
     return redirect( url )
 
-@app.route('/show_summary_test', methods=['GET'])
-def show_summary_test() :
+@app.route('/show_summary_selected', methods=['GET'])
+def show_summary_selected() :
     # get from args
     runId = request.args.get( 'runId' )
     histo = request.args.get( 'histo' )
@@ -641,7 +560,8 @@ def show_summary_test() :
     fei4.make_plot( runId )
 
     url = ""
-    filename = PLOT_DIR + "/" + str(session.get('uuid')) + "/" + str(thisRun['testType']) + "_" + str(mapType) + "_{}.png".format(histo)
+    #filename = PLOT_DIR + "/" + str(session.get('uuid')) + "/" + str(thisRun['testType']) + "_" + str(mapType) + "_{}.png".format(histo)
+    filename = TMP_DIR + "/" + str(session.get('uuid')) + "/plot/" + str(thisRun['testType']) + "_" + str(mapType) + "_{}.png".format(histo)
     if os.path.isfile( filename ) :
         binary_image = open( filename, 'rb' )
         code_base64 = base64.b64encode(binary_image.read()).decode()
@@ -649,6 +569,97 @@ def show_summary_test() :
         url = func.bin_to_image( 'png', code_base64 )  
  
     return redirect( url )
+
+############
+# tag method
+@app.route('/tag', methods=['GET'])
+def tag() :
+    query = { "_id" : ObjectId(session.get('tagid')) }
+    collection = str(session.get('collection'))
+
+    data_entries = mongo.db[collection].find_one( query )['attachments']
+    for data in data_entries :
+        if data['code'] == request.args.get( 'code' ) :
+            if session.get('tag') == "tag" :
+                 mongo.db[collection].update( query, { '$set' : { 'attachments.{}.display'.format( data_entries.index(data) ) : True }})
+                 update_mod( collection, query )
+            elif session.get('tag') == "untag" :
+                 mongo.db[collection].update( query, { '$unset' : { 'attachments.{}.display'.format( data_entries.index(data) ) : True }})
+                 mongo.db[collection].update( query, { '$set'   : { 'attachments.{}.description'.format( data_entries.index(data) ) : "" }})
+                 update_mod( collection, query )
+            else :
+                 print("can't get tag session")
+
+    forUrl = "show_component"
+
+    session.pop('collection', None)
+    session.pop('tagid',      None)
+    session.pop('tag',        None)
+
+    return redirect( url_for(forUrl, id=request.args.get( 'id' )) )
+
+@app.route('/tag_image', methods=['GET','POST'])
+def tag_image() :
+    session['tagid'] = request.form.get( 'id' )
+    session['collection'] = "component"
+    session['tag'] = str(request.form.get( 'tag' ))
+
+    return redirect( url_for("tag", id=request.form.get( 'id' ), code=request.form.get( 'code' )) )
+
+@app.route('/tag_result', methods=['GET','POST'])
+def tag_result() :
+    #if session['component'] == "module" :
+    #    session['tagid'] = request.form.get('id')
+    #    session['collection'] = "component"
+    #if session['component'] == "chip" :
+    #    session['tagid'] = request.form.get('runId')
+    #    session['collection'] = "testRun"
+    session['tag'] = str(request.form.get('tag'))
+
+    return redirect( url_for("tag", id=request.form.get( 'id' ), code=request.form.get('code')) )
+
+##################
+# add attachment ? 
+@app.route('/add_attachment_result', methods=['GET','POST'])
+def add_attachment_result() :
+    fileResult = request.form.get( 'path' ) 
+    binary_image = open( fileResult, 'rb' )
+    runNumber = fileResult.rsplit( '/', 4 )[4].rsplit( '_', 2 )[0]
+    mapType = fileResult.rsplit( '/', 4 )[4].rsplit( '_', 2 )[1]
+    testType = fileResult.rsplit( '/', 4 )[3]
+    filename = "{0}_{1}_{2}.png".format( runNumber, testType, mapType )
+    image = fs.put( binary_image.read(), filename=filename )
+    binary_image.close()
+    
+    chips = []
+    query = { "parent" : request.form.get( 'id' ) } 
+    child_entries = mongo.db.childParentRelation.find( query )
+    for child in child_entries :
+        chips.append( { "component" : child['child'] } )
+    query = { '$or' : chips, "runNumber" : int( runNumber ) }
+    query = { "_id" : ObjectId(mongo.db.componentTestRun.find_one( query )['testRun']) }
+    thisRun = mongo.db.testRun.find_one( query )
+    thisComponentTestRun = mongo.db.componentTestRun.find_one({ "testRun" : str(thisRun['_id']) })
+    env_dict = fill_env( thisComponentTestRun )
+ 
+    query = { "_id" : image }
+    date = mongo.db.fs.files.find_one( query )['uploadDate']
+    query = { "_id" : ObjectId(request.form.get('id')) }
+    mongo.db.component.update( query, { '$push' : { "attachments" : { "code"        : str(image),
+                                                                      "dateTime"    : date,
+                                                                      "title"       : "",
+                                                                      "description" : "",
+                                                                      "display"     : True,
+                                                                      "imageType"   : "result",
+                                                                      "contentType" : filename.rsplit( '.', 1 )[1],
+                                                                      "filename"    : filename,
+                                                                      "environment" : env_dict }}})
+    update_mod( "component", query )
+
+    forUrl = "show_component"
+
+    return redirect( url_for(forUrl, id=request.form.get( 'id' )) )
+
 
 @app.route('/edit_description', methods=['GET','POST'])
 def edit_description() :
