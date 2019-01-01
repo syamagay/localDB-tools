@@ -42,7 +42,7 @@
               <td scope="col" align="center" colspan="6">{{ comment['comment'] }}</td>
               <td scope="col" align="center" >
                 {{ comment['user'] }}
-                {% if (session['edit'] == 1) and (comment['institute'] == session['institute']) %}
+                {% if (session['edit'] == 1) and (comment['institution'] == session['institution']) %}
              		  <form action="remove_comment" method="post" enctype="multipart/form-data">
                   	<input type="hidden" value="{{ comment['user'] }}" name="user">
                     <input type="hidden" name="runNumber" value={{ component['results']['runNumber'] }} >

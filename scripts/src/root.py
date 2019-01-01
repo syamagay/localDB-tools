@@ -7,8 +7,6 @@ import sys, os, pwd, glob, json
 
 # path to directory
 TMP_DIR = '/tmp/{}'.format( pwd.getpwuid( os.geteuid() ).pw_name ) 
-DAT_DIR  = '{}/dat'.format( TMP_DIR )
-PLOT_DIR = '{}/result'.format( TMP_DIR )
 JSON_DIR = '{}/json'.format( TMP_DIR )
 SCRIPT_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 sys.path.append( SCRIPT_DIR + "/src/PlotTools" )
@@ -34,7 +32,6 @@ def drawScan( testType ):
         if not session['plotList'][mapType]['draw'] : continue
 
         histoPar = {}
-        #files = glob.glob( '{0}/{1}/*{2}.dat'.format( DAT_DIR, str(session.get('uuid')), mapType ))
         files = glob.glob( '{0}/{1}/dat/*{2}.dat'.format( TMP_DIR, str(session.get('uuid')), mapType ))
 
         if session['plotList'][mapType]['chips']==1 : cnt = 1
@@ -113,7 +110,6 @@ def drawScan( testType ):
             for word in entries : 
                 h1.Fill( float(word) )
  
-            #path_dir = PLOT_DIR + "/" + str(session.get('uuid'))
             path_dir = TMP_DIR + "/" + str(session.get('uuid')) + "/plot"
             PH.outDir = path_dir
     

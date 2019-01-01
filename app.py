@@ -29,40 +29,45 @@ import static
 from   arguments import *     # Pass command line arguments into app.py
 from   AsicTypes import fei4  # function for each fe types
 
-app = Flask( __name__ )
+##### directories ##### 
+"""
+ /
+ `-- tmp
+      |-- [ username who execute app.py ]
+               |-- [ reader1's userid ] ... reader's directory ( created and reset in 
+               |       :
+               |-- [ reader#'s userid ]
+               |        |-- dat    ... dat files  ( reset in write_dat() )
+               |        |-- plot   ... plot files ( reset in make_plot() ) 
+               |        |-- before ... previous summary plots in add_summary function ( reset in first time fill_summary_test() )
+               |        `-- after  ... modified summary plots in add_summary function ( reset in first time fill_summary_test() )
+               | 
+               |-- thumbnail ... summary plots ( reset after add_summary function )
+               |        `-- [ reader's userid ] ... summary plots for user ( created and reset in show_summary() )
+               `-- json ... json file ; <reader's userid>_parameter.json ( created in make_plot() )
+"""
 
-####################
-# add path to static
-app.register_blueprint(static.app)
-
-##################
-# path/to/save/dir 
 TMP_DIR   = '/tmp/{}'.format( pwd.getpwuid( os.geteuid() ).pw_name ) 
-
 if os.path.isdir( TMP_DIR ) : shutil.rmtree( TMP_DIR )
 os.mkdir( TMP_DIR )
 
-PIC_DIR    = '{}/upload'.format( TMP_DIR )
-DAT_DIR    = '{}/dat'.format( TMP_DIR )
-PLOT_DIR   = '{}/result'.format( TMP_DIR )
 THUM_DIR   = '{}/thumbnail'.format( TMP_DIR )
-#THUM_DIR   = '{}/result/thum'.format( TMP_DIR )
-THUMT_DIR  = '{}/result/thum_test'.format( TMP_DIR )
-THUMA_DIR  = '{}/thum_after'.format(  PLOT_DIR )
-THUMB_DIR  = '{}/thum_before'.format( PLOT_DIR )
-STAT_DIR   = '{}/static'.format( TMP_DIR )
 JSON_DIR   = '{}/json'.format( TMP_DIR )
+
+PIC_DIR    = '{}/upload'.format( TMP_DIR )
+STAT_DIR   = '{}/static'.format( TMP_DIR )
 SCRIPT_DIR = os.path.dirname(os.path.abspath(__file__)) + "/scripts"
 
-DIRS = [ PIC_DIR, DAT_DIR, PLOT_DIR, STAT_DIR, THUM_DIR, THUMT_DIR, JSON_DIR, THUMB_DIR, THUMA_DIR ] 
+DIRS = [ PIC_DIR, STAT_DIR, THUM_DIR, JSON_DIR ] 
 for DIR in DIRS : os.mkdir( DIR )
 
-############
-# login list
-loginlist = [ "logged_in", "user_id", "user_name", "institute", "read", "write", "edit" ]
+##### session #####
+loginlist = [ "logged_in", "user_id", "user_name", "institution", "read", "write", "edit" ]
 
-########
-# Prefix
+##### app #####
+app = Flask( __name__ )
+
+### Prefix
 class PrefixMiddleware(object):
     def __init__(self, app, prefix=''):
         self.app = app
@@ -80,24 +85,24 @@ class PrefixMiddleware(object):
 
 app.wsgi_app = PrefixMiddleware(app.wsgi_app, prefix='/yarrdb')
 
-##############
-# call mongodb
+### mongodb
 args = getArgs()            # Get command line arguments
-if args.username is None:
-    url = "mongodb://" + args.host + ":" + str(args.port) 
-else:
-    url = "mongodb://" + args.username + ":" + args.password + "@" + args.host + ":" + str(args.port) 
+if args.username : url = "mongodb://" + args.username + ":" + args.password + "@" + args.host + ":" + str(args.port) 
+else :             url = "mongodb://"                                             + args.host + ":" + str(args.port) 
 print("Connecto to mongoDB server: " + url + "/" + args.db)
-mongo = PyMongo( app, uri = url + "/" + args.db )
+mongo     = PyMongo( app, uri = url + "/" + args.db )
 usermongo = PyMongo( app, uri = url + "/" + args.userdb )
 fs = gridfs.GridFS( mongo.db )
 
-############
-# secret_key
+### secret_key
 app.config["SECRET_KEY"] = os.urandom(24)
 
-##########
-# function
+### static
+app.register_blueprint(static.app)
+
+###############################################################
+
+##### function #####
 def make_dir() :
     if not os.path.isdir( TMP_DIR ) :
         os.mkdir( TMP_DIR )
@@ -123,6 +128,7 @@ def update_mod( collection, query ) :
                                  { '$set' : { 'sys.rev' : int( mongo.db[collection].find_one( query )['sys']['rev'] + 1 ), 
                                               'sys.mts' : datetime.datetime.utcnow() }}, 
                                    multi=True )
+
 def count_photoNum() :
     if usermongo.db.counter.find({ "type" : "photoNumber" }).count() == 0 :
         usermongo.db.counter.insert({ "type" : "photoNumber", "num" : 1 })
@@ -131,22 +137,15 @@ def count_photoNum() :
     return int(usermongo.db.counter.find_one({ "type" : "photoNumber" })['num'])
 
 
-#################
-### page function
-#################
+###############################################################
 
-##########
-# top page
+##### top page #####
 @app.route('/', methods=['GET'])
 def show_modules_and_chips() :
 
     if session.get( 'uuid' ) :
         user_dir = TMP_DIR + "/" + str(session.get( 'uuid' ))
         if os.path.isdir( user_dir ) : shutil.rmtree( user_dir )
-        dat_dir  = DAT_DIR  + "/" + str(session.get( 'uuid' ))
-        if os.path.isdir( dat_dir ) : shutil.rmtree( dat_dir )
-        plot_dir = PLOT_DIR + "/" + str(session.get( 'uuid' ))
-        if os.path.isdir( plot_dir ) : shutil.rmtree( plot_dir )
     else :
         session['uuid'] = str( uuid.uuid4() ) 
 
@@ -188,8 +187,7 @@ def show_modules_and_chips() :
 
     return render_template( "toppage.html", modules=modules )
 
-################
-# component page
+##### component page #####
 @app.route('/component', methods=['GET', 'POST'])
 def show_component() :
 
@@ -269,6 +267,7 @@ def show_component() :
 
     return render_template( "component.html", component=component )
 
+##### make histogram #####
 @app.route('/makehisto', methods=['GET','POST'])
 def makehisto() :
     # get from form
@@ -285,8 +284,8 @@ def makehisto() :
 
     return redirect( url_for("show_component", id=componentId, runId=runId) )
 
-##################
-# add summary plot 
+##### add summary plot #####
+### select page
 @app.route('/select_summary', methods=['GET','POST'])
 def select_summary() :
 
@@ -385,8 +384,7 @@ def select_summary() :
 
     return render_template( "add_summary.html", component=component )
 
-############################
-# write summary info into db 
+### write summary into db 
 @app.route('/add_summary', methods=['GET', 'POST'])
 def add_summary() :
 
@@ -450,7 +448,6 @@ def add_summary() :
                             mongo.db.testRun.update( query, { '$pull' : { "attachments" : { "code" : attachment.get('code') }}}) 
 
 
-                    #filepath = "{0}/{1}/{2}_{3}_{4}.png".format(PLOT_DIR, str(session.get('uuid')), str(thisRun['testType']), str(mapType), i)
                     filepath = "{0}/{1}/plot/{2}_{3}_{4}.png".format(TMP_DIR, str(session.get('uuid')), str(thisRun['testType']), str(mapType), i)
                     if os.path.isfile( filepath ) :
                         binary_image = open( filepath, 'rb' )
@@ -515,6 +512,7 @@ def add_summary() :
 
     return redirect( url_for("show_component", id=componentId) )
 
+##### show summary plot #####
 @app.route('/show_summary', methods=['GET'])
 def show_summary() :
 
@@ -526,10 +524,8 @@ def show_summary() :
     query = { "_id" : ObjectId(code) }
     data = mongo.db.fs.files.find_one( query )
     if not "png" in data['filename'] : 
-        #filePath = "{0}/{1}_{2}_{3}.png".format( PLOT_DIR, stage, scan, data['filename'] )
         filePath = "{0}/{1}/{2}_{3}_{4}.png".format( THUM_DIR, session.get( 'uuid' ), stage, scan, data['filename'] )
     else :
-        #filePath = "{0}/{1}_{2}_{3}".format( PLOT_DIR, stage, scan, data['filename'] )
         filePath = "{0}/{1}/{2}_{3}_{4}".format( THUM_DIR, session.get( 'uuid' ), stage, scan, data['filename'] )
 
     thum_dir = "{0}/{1}".format( THUM_DIR, session.get( 'uuid' ) )
@@ -540,18 +536,18 @@ def show_summary() :
     image = Image.open( image_bin )
     image.save( filePath )
     if not "png" in data['filename'] : 
-        #url = url_for( 'result.static', filename='{0}_{1}_{2}.png'.format( stage, scan, data['filename'] ))
         url = url_for( 'thumbnail.static', filename='{0}/{1}_{2}_{3}.png'.format( session.get( 'uuid' ), stage, scan, data['filename'] ))
     else :
         url = url_for( 'thumbnail.static', filename='{0}/{1}_{2}_{3}'.format( session.get( 'uuid' ), stage, scan, data['filename'] ))
  
     return redirect( url )
 
+##### show summary plot ( in add function ) #####
 @app.route('/show_summary_selected', methods=['GET'])
 def show_summary_selected() :
     # get from args
-    runId = request.args.get( 'runId' )
-    histo = request.args.get( 'histo' )
+    runId   = request.args.get( 'runId' )
+    histo   = request.args.get( 'histo' )
     mapType = request.args.get( 'mapType' )
 
     query = { "_id" : ObjectId(runId) }
@@ -560,7 +556,6 @@ def show_summary_selected() :
     fei4.make_plot( runId )
 
     url = ""
-    #filename = PLOT_DIR + "/" + str(session.get('uuid')) + "/" + str(thisRun['testType']) + "_" + str(mapType) + "_{}.png".format(histo)
     filename = TMP_DIR + "/" + str(session.get('uuid')) + "/plot/" + str(thisRun['testType']) + "_" + str(mapType) + "_{}.png".format(histo)
     if os.path.isfile( filename ) :
         binary_image = open( filename, 'rb' )
@@ -569,6 +564,7 @@ def show_summary_selected() :
         url = func.bin_to_image( 'png', code_base64 )  
  
     return redirect( url )
+
 
 ############
 # tag method
@@ -714,13 +710,13 @@ def edit_comment() :
                                                                          "userid"    : session['user_id'],
                                                                          "comment"   : request.form.get('text'), 
                                                                          "datetime"  : datetime.datetime.utcnow(), 
-                                                                         "institute" : session['institute'] }] }} )
+                                                                         "institution" : session['institution'] }] }} )
         else :
             mongo.db.testRun.update( query, { '$push' : { 'comments' : { "user"      : session['user_name'],
                                                                          "userid"    : session['user_id'],
                                                                          "comment"   : request.form.get('text'), 
                                                                          "datetime"  : datetime.datetime.utcnow(), 
-                                                                         "institute" : session['institute'] } }} )
+                                                                         "institution" : session['institution'] } }} )
         update_mod( "testRun", query )
         #userquery = { "userName" : session['user_name'] }
         #usermongo.db.user.update( userquery , { '$push' : { 'commentTestRun' : query }})
@@ -819,7 +815,7 @@ def login() :
             session['logged_in'] = True
             session['user_id'] = str(userName['_id'])
             session['user_name'] = userName['userName']
-            session['institute'] = userName['institute']
+            session['institution'] = userName['institution']
             session['read'] = userName['authority']%2
             session['write'] = int(userName['authority']/2)%2
             session['edit'] = int(userName['authority']/4)%2
@@ -836,7 +832,7 @@ def logout() :
     session['logged_in'] = False
     session['user_id'] = ""
     session['user_name'] = ""
-    session['institute'] = "" 
+    session['institution'] = "" 
     session['read'] = 1
     session['write'] = 0
     session['edit'] = 0

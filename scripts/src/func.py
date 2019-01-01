@@ -57,7 +57,7 @@ def add_request(userinfo) :
                              "firstName" : userinfo[1],
                              "lastName"  : userinfo[2],
                              "email"     : userinfo[3],
-                             "institute" : userinfo[4],
+                             "institution" : userinfo[4],
                              "type"      : "user", 
                              "password"  : password })
 def add_user(userinfo) :
@@ -65,7 +65,7 @@ def add_user(userinfo) :
                           "firstName" : userinfo['firstName'],
                           "lastName"  : userinfo['lastName'],
                           "authority" : int(userinfo['authority']),
-                          "institute" : userinfo['institute'],
+                          "institution" : userinfo['institution'],
                           "type"      : userinfo['type'], 
                           "email"     : userinfo['email'],
                           "passWord"  : userinfo['password'] })

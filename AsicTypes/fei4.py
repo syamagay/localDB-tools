@@ -1,41 +1,41 @@
+##### import #####
+### general scheme
 import os, pwd, glob, sys, json, re, shutil
 APP_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 sys.path.append( APP_DIR )
-SCRIPT_DIR = APP_DIR + "/scripts"
 
-try    : 
-    import root
-    DOROOT = True
-except : 
-    DOROOT = False 
+from flask         import url_for, session         # use Flask scheme
+from pymongo       import MongoClient, DESCENDING  # use mongodb scheme
+from bson.objectid import ObjectId                 # handle bson format
 
-from flask import url_for, session  # use Flask scheme
-from pymongo import MongoClient, DESCENDING  # use mongodb scheme
-from bson.objectid import ObjectId  # handle bson format
-
-# image related module
 import base64 # Base64 encoding scheme
 import gridfs # gridfs system 
-from PIL import Image
 import io
+from   PIL import Image
 
-# other function
+### use PyROOT
+try    : 
+         import root
+         DOROOT = True
+except : 
+    I    DOROOT = False 
+
+### other function in web-app-db-yarr/scripts/src
 import func, listset
-from arguments import *   # Pass command line arguments into app.py
+from   arguments import *   # Pass command line arguments into app.py
 
-##################
-# path/to/save/dir 
+##### directories ##### 
 TMP_DIR   = '/tmp/{}'.format( pwd.getpwuid( os.geteuid() ).pw_name ) 
 PIC_DIR   = '{}/upload'.format( TMP_DIR )
 THUM_DIR  = '{}/thumbnail'.format( TMP_DIR )
 STAT_DIR  = '{}/static'.format( TMP_DIR )
 JSON_DIR  = '{}/json'.format( TMP_DIR )
+SCRIPT_DIR = APP_DIR + "/scripts"
 
-#############
-# set dbs
+##### setting about dbs #####
 args = getArgs()         
-if args.username is None : url = "mongodb://"                                             + args.host + ":" + str(args.port) 
-else :                     url = "mongodb://" + args.username + ":" + args.password + "@" + args.host + ":" + str(args.port) 
+if args.username : url = "mongodb://" + args.username + ":" + args.password + "@" + args.host + ":" + str(args.port) 
+else :             url = "mongodb://"                                             + args.host + ":" + str(args.port) 
 client  = MongoClient( url )
 yarrdb  = client[args.db]
 localdb = client[args.userdb]
@@ -250,8 +250,7 @@ def fill_summary_test() :
         for scan in scanList :
             if not session.get('testType') == scan : continue
 
-            for r in glob.glob( '{0}/{1}_{2}*'.format( after_dir, stage, scan ) ) :
-                os.remove(r)
+            for r in glob.glob( '{0}/{1}_{2}*'.format( after_dir, stage, scan ) ) : os.remove(r)
             
             if session['summaryList']['after'][scan]['runId'] :
                 query = { "_id" : ObjectId(session['summaryList']['after'][scan]['runId']) }
@@ -428,7 +427,6 @@ def fill_results() :
 
         results.update({ "testType"     : thisRun['testType'],
                          "runNumber"    : thisRun['runNumber'],
-                         "runId"        : str(thisRun['_id']),
                          "comments"     : list(thisRun['comments']),
                          "stage"        : thisComponentTestRun['stage'],
                          "institution"  : thisRun['institution'],
@@ -441,6 +439,9 @@ def fill_results() :
 
 # create dat file from dat data in attachments of run
 def write_dat( runId ) :
+
+    dat_dir  = TMP_DIR + "/" + str(session.get('uuid')) + "/dat"
+    clean_dir( dat_dir )
 
     query = { "_id" : ObjectId(runId) }
     thisRun = yarrdb.testRun.find_one( query )
@@ -480,12 +481,10 @@ def write_dat( runId ) :
 
 # make plot using PyROOT
 def make_plot( runId ) :
-
     query = { "_id" : ObjectId(runId) }
     thisRun = yarrdb.testRun.find_one( query )
 
     if session.get('rootType') :
-
         mapType = session['mapType']
 
         if session['rootType'] == 'set' : 
@@ -496,13 +495,10 @@ def make_plot( runId ) :
             session['plotList'][mapType].update({ "draw" : True, "parameter" : session['parameter'] })
 
     else :
-
         session['plotList'] = {}
     
         plot_dir = TMP_DIR + "/" + str(session.get('uuid')) + "/plot"
-        dat_dir  = TMP_DIR  + "/" + str(session.get('uuid')) + "/dat"
         clean_dir( plot_dir )
-        clean_dir( dat_dir )
     
         jsonFile = JSON_DIR + "/{}_parameter.json".format(session.get('uuid'))
         if not os.path.isfile( jsonFile ) :
@@ -529,47 +525,33 @@ def fill_roots() :
         roots.update({ "rootsw" : False })
         return roots
 
-    make_plot(session['runId'])
+    make_plot( session['runId'] )
 
     query = { "_id" : ObjectId(session['runId']) }
     thisRun = yarrdb.testRun.find_one( query )
 
     results = []
-    thisComponentTestRun = yarrdb.componentTestRun.find_one({ "testRun" : str(thisRun['_id']) })
-    env_dict = fill_env( thisComponentTestRun ) 
 
     for mapType in session.get('plotList') :
         if session['plotList'][mapType]['HistoType'] == 1 : continue
         url = {} 
-        path = {}
         for i in [ "1", "2" ] :
             filename = TMP_DIR + "/" + str(session.get('uuid')) + "/plot/" + str(thisRun['testType']) + "_" + str(mapType) + "_{}.png".format(i)
-            stage = thisComponentTestRun['stage']
             if os.path.isfile( filename ) :
                 binary_image = open( filename, 'rb' )
                 code_base64 = base64.b64encode(binary_image.read()).decode()
                 binary_image.close()
                 url.update({ i : func.bin_to_image( 'png', code_base64 ) }) 
-                path.update({ i : filename }) 
 
-        results.append({ "testType"    : thisRun['testType'], 
-                         "mapType"     : mapType, 
-                         "sortkey"     : "{}0".format(mapType), 
-                         "runNumber"   : thisRun['runNumber'], 
-                         "runId"       : session['runId'],
-                         "comments"    : list(thisRun['comments']),
-                         "path_Dist"   : path.get("1"), 
-                         "path"        : path.get("2"), 
-                         "stage"       : stage,
-                         "institution" : thisRun['institution'],
-                         "userIdentity": thisRun['userIdentity'],
-                         "urlDist"     : url.get("1"), 
-                         "urlMap"      : url.get("2"), 
-                         "environment" : env_dict,
-                         "setLog"      : session['plotList'][mapType]['parameter']["log"], 
-                         "minValue"    : session['plotList'][mapType]['parameter']["min"],
-                         "maxValue"    : session['plotList'][mapType]['parameter']["max"],
-                         "binValue"    : session['plotList'][mapType]['parameter']["bin"] })
+        results.append({ "mapType"  : mapType, 
+                         "sortkey"  : "{}0".format(mapType), 
+                         "runId"    : session['runId'],
+                         "urlDist"  : url.get("1"), 
+                         "urlMap"   : url.get("2"), 
+                         "setLog"   : session['plotList'][mapType]['parameter']["log"], 
+                         "minValue" : session['plotList'][mapType]['parameter']["min"],
+                         "maxValue" : session['plotList'][mapType]['parameter']["max"],
+                         "binValue" : session['plotList'][mapType]['parameter']["bin"] })
 
     results = sorted( results, key=lambda x:int((re.search(r"[0-9]+",x['sortkey'])).group(0)), reverse=True)
 
@@ -577,3 +559,4 @@ def fill_roots() :
                    "results" : results })
 
     return roots
+
