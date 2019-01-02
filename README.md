@@ -16,11 +16,11 @@
   * Request to create user account who can upload pictures into database 
   * Write user account into userDB in browser
 
-# Quich Tutorial
+# Quick Tutorial
 
   ```
   $ git clone https://gitlab.cern.ch/akubota/web-app-db-yarr.git
-  $ cd path/to/web-app-db-yarr
+  $ cd web-app-db-yarr
   $ cp scripts/yaml/web-conf.yml conf.yml
   $ python app.py --config conf.yml
   ```
@@ -55,36 +55,41 @@
   ## User Setting
 
   1) Make conf.yaml
+
   ```
-  $ cd path/to/web-app-db-yarr
+  $ cd web-app-db-yarr
   $ cp scripts/yaml/web-conf.yml conf.yml
   $ vim conf.yml
   ```
 
   2) Install python modules
+
   ```
-  $ cd path/to/web-app-db-yarr/scripts/install
+  $ cd web-app-db-yarr/scripts/install
   $ ./make_pipinstall.sh ---> generate pipinstall.py
   $ python pipinstall.py 
   ```
-  - PIPPATH ... change if user use python3.
+  make_pipinstall.sh ... change PIPPATH if user use python3.
 
   3) If you use apache system 
+
   ```
-  $ cd path/to/web-app-db-yarr
+  $ cd web-app-db-yarr
   $ cp scripts/apache/config.conf /etc/httpd/conf.d/web-app-db-yarr.conf
   $ apachectl restart
   $ systemctl restart httpd
   ```
 
   ## running web-app-db-yarr
+
   ```
-   $  python app.py --config conf.yml
+  $ python app.py --config conf.yml
   ```
 
-  You can check viewer by typing localhost:5000/yarrdb or <IPADDRESS>:5000/yarrdb/ , or <IPADDRESS>/yarrdb/ if you use apache system.
+  You can check viewer by typing localhost:5000/yarrdb or (IPADDRESS):5000/yarrdb/ , or (IPADDRESS)/yarrdb/ if you use apache system.
   
 # Helpful Information
+
   ## summary.py
 
   You can add summary results for each stage and module in summary page by excuting script.
