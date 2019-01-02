@@ -18,7 +18,7 @@ try    :
          import root
          DOROOT = True
 except : 
-    I    DOROOT = False 
+         DOROOT = False 
 
 ### other function in web-app-db-yarr/scripts/src
 import func, listset
@@ -38,7 +38,7 @@ if args.username : url = "mongodb://" + args.username + ":" + args.password + "@
 else :             url = "mongodb://"                                             + args.host + ":" + str(args.port) 
 client  = MongoClient( url )
 yarrdb  = client[args.db]
-localdb = client[args.userdb]
+userdb = client[args.userdb]
 fs = gridfs.GridFS( yarrdb )
 
 ######################################################################

@@ -132,6 +132,121 @@ def drawScan( testType ):
 
             session['plotList'][mapType].update({ "parameter" : { "min" : h1d_min, "max" : h1d_max, "bin" : h1d_bin, "log" : h1d_log }, "draw" : False, "HistoType" : 2 })
 
+def localDrawScan( testType, plotList ):
+
+    ROOT.gROOT.SetBatch()
+
+    jsonFile = JSON_DIR + "/localuser_parameter.json"
+    with open( jsonFile, 'r' ) as f : jsonData = json.load( f )
+    jsonPar = jsonData.get( testType, {} )
+
+    par = ["histoType","mapType","xaxis","yaxis","zaxis","xrange","yrange","zrange"]
+
+    for mapType in plotList :
+
+        if not plotList[mapType]['draw'] : continue
+
+        histoPar = {}
+        files = glob.glob( '{0}/localuser/dat/*{1}.dat'.format( TMP_DIR, mapType ))
+
+        if plotList[mapType]['chips']==1 : cnt = 1
+        else :                                        cnt = 2
+
+        zmax = 0
+        entries = []
+        for i,filename in enumerate( files ) :
+            for txt in filename.split( "/" ) :
+                if "chipId" in txt : chipId = int( txt.split("_")[0][6] ) - 1
+            with open( filename ) as f :      
+                readlines = f.readlines()
+                if not readlines[0].split()[0] == "Histo2d" :
+                    plotList[mapType].update({ "HistoType" : 1, "draw" : False })
+                else :
+                    for j, readline in enumerate(readlines) :
+                        if j<len(par) and i==0 : histoPar.update({ par[j] : readline.split() }) 
+                        if j==len(par) :
+                            if i==0 :
+                                h2 = ROOT.TH2D( mapType,
+                                                mapType+";"+" ".join(histoPar["xaxis"])+";"+" ".join(histoPar["yaxis"])+";"+" ".join(histoPar["zaxis"]),
+                                                int(histoPar["xrange"][0])*cnt, float(histoPar["xrange"][1]), float(histoPar["xrange"][0])*cnt+0.5,
+                                                int(histoPar["yrange"][0])*cnt, float(histoPar["yrange"][1]), float(histoPar["yrange"][0])*cnt+0.5 )
+                            if cnt==1 : row = 0 
+                            else :
+                                if   chipId==0 or chipId==1 : row = int(histoPar["yrange"][0])-1
+                                elif chipId==2 or chipId==3 : row = int(histoPar["yrange"][0])
+                        if not j<len(par) :
+                            words = readline.split()
+
+                            if cnt==1 : col = 0
+                            else :      
+                                if   chipId==0 : col = int(histoPar["xrange"][0])-1
+                                elif chipId==1 : col = int(histoPar["xrange"][0])*2-1
+                                elif chipId==2 : col = 0
+                                elif chipId==3 : col = int(histoPar["xrange"][0])
+
+                            for k in range( int(histoPar["xrange"][0]) ) :
+                                entries.append( words[k] )
+                                h2.SetBinContent( col+1, row+1, float(words[k]) )
+                                if zmax<float(words[k]) : zmax = float(words[k])
+                                if cnt == 1 : col = col + 1
+                                else : 
+                                    if   chipId==0 or chipId==1 : col = col - 1
+                                    elif chipId==2 or chipId==3 : col = col + 1
+       
+                            if cnt==1 : row = row + 1
+                            else :     
+                               if   chipId==0 or chipId==1 : row = row - 1
+                               elif chipId==2 or chipId==3 : row = row + 1
+
+
+        if histoPar :
+            parameter = jsonPar.get( mapType.split("-")[0], [] )
+
+            if plotList[mapType].get('parameter') :
+                h1d_min =  int(plotList[mapType]['parameter']['min'])
+                h1d_max =  int(plotList[mapType]['parameter']['max'])
+                h1d_bin =  int(plotList[mapType]['parameter']['bin'])
+                h1d_log = bool(plotList[mapType]['parameter']['log'])
+            elif len(parameter)==4 :
+                h1d_min =  int(parameter[0])
+                h1d_max =  int(parameter[1])
+                h1d_bin =  int(parameter[2])
+                h1d_log = bool(parameter[3])
+            else :
+                h1d_min = int(0)
+                h1d_max = int(2*zmax)
+                h1d_bin = int(h1d_max)
+                h1d_log = False 
+
+            h1 = ROOT.TH1D( mapType+"_Dist",
+                            mapType+"_Dist"+";"+" ".join(histoPar["zaxis"])+";#Ch",
+                            h1d_bin, h1d_min, h1d_max )
+
+            for word in entries : 
+                h1.Fill( float(word) )
+ 
+            path_dir = TMP_DIR + "/localuser/plot"
+            PH.outDir = path_dir
+    
+            path_plot = testType + "_" + mapType
+            Plot.Plot1D_fromHistos( h1, 
+                                    h1d_log, 
+                                    path_plot+"_1", 
+                                    "#Ch.", 
+                                    "histo", 
+                                    h1d_min, 
+                                    h1d_max 
+                                  )
+            Plot.Plot2D_fromHistos( h2, 
+                                    h1d_log, 
+                                    path_plot+"_2", 
+                                    " ".join(histoPar["zaxis"]), 
+                                    h1d_min, 
+                                    h1d_max 
+                                  )
+
+            plotList[mapType].update({ "parameter" : { "min" : h1d_min, "max" : h1d_max, "bin" : h1d_bin, "log" : h1d_log }, "draw" : False, "HistoType" : 2 })
+
 def setParameter(testType, mapType) :
 
     inputData = {}

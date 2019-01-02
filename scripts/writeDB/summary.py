@@ -1,354 +1,498 @@
-import os, sys
+"""
+script for add summary plots
+"""
+##### import #####
+import os, sys, pwd, glob, datetime, shutil, json, hashlib
+import gridfs # gridfs system 
+from   pymongo       import MongoClient, ASCENDING # use mongodb scheme
+from   bson.objectid import ObjectId               # handle bson format
+from   getpass       import getpass
+
 SCRIPT_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)) )
 sys.path.append( SCRIPT_DIR )
 sys.path.append( SCRIPT_DIR + "/src" )
 
-from arguments import *   # Pass command line arguments into app.py
-try    : 
+# exit if not enable to use ROOT SW
+try : 
     import root
-    DOROOT = True
 except : 
-    DOROOT = False 
+    print( "# Can not use ROOT software, exit ..." )
+    sys.exit()     
 
-import pwd, glob, datetime, shutil, json
-
-# use mongodb scheme
-import pymongo
-from flask_pymongo import PyMongo
-from pymongo import MongoClient
-
-# handle bson format
-from bson.objectid import ObjectId 
-
-# image related module
-import gridfs # gridfs system 
-
-# other function
 import listset, func
+from   arguments import *   # Pass command line arguments into app.py
 
-#############
-# set dbs
-args = getArgs()            # Get command line arguments
-client = MongoClient( host=args.host, port=args.port )
-yarrdb = client[args.db]
+##### setting about dbs #####
+args = getArgs()         
+if args.username : url = "mongodb://" + args.username + ":" + args.password + "@" + args.host + ":" + str(args.port) 
+else :             url = "mongodb://"                                             + args.host + ":" + str(args.port) 
+client  = MongoClient( url )
+yarrdb  = client[args.db]
+userdb = client[args.userdb]
 fs = gridfs.GridFS( yarrdb )
 
-##################
-# path/to/save/dir 
-USER = pwd.getpwuid( os.geteuid() ).pw_name
-USER_DIR = '/tmp/{}'.format( USER ) 
-DAT_DIR = '{}/dat'.format( USER_DIR )
-PLOT_DIR = '{}/result'.format( USER_DIR )
-THUM_DIR = '{}/result/thum'.format( USER_DIR )
+##### directories ##### 
+TMP_DIR   = '/tmp/{}'.format( pwd.getpwuid( os.geteuid() ).pw_name ) 
+THUM_DIR  = '{}/thumbnail'.format( TMP_DIR )
+STAT_DIR  = '{}/static'.format( TMP_DIR )
+JSON_DIR  = '{}/json'.format( TMP_DIR )
 
-if os.path.isdir( PLOT_DIR ) :
-    shutil.rmtree( PLOT_DIR )
-    os.mkdir( PLOT_DIR )
-    os.mkdir( THUM_DIR )
+##### function #####
+def make_dir() :
+    if not os.path.isdir( TMP_DIR ) :
+        os.mkdir( TMP_DIR )
+    user_dir = TMP_DIR + "/localuser" 
+    if not os.path.isdir( user_dir ) :
+        os.mkdir( user_dir )
 
-dataPath = "{0}/{1}/identity.json".format( SCRIPT_DIR, "json" )
-parameterPath = "{0}/{1}/parameter_default.json".format( SCRIPT_DIR, "json")
-if os.path.isfile( dataPath ) :
-    with open( dataPath, 'r' ) as f :
-        dataJson = json.load( f )
-if os.path.isfile( parameterPath ) :
-    with open( parameterPath, 'r' ) as f :
-        parameterJson = json.load( f )
-
-##########
-# function
-def clean_dir( path ) :
-    r = glob.glob( path + "/*" )
-    for i in r:
-        os.remove(i)
+def clean_dir( dir_name ) :
+    if os.path.isdir( dir_name ) : shutil.rmtree( dir_name )
+    os.mkdir( dir_name )
 
 def update_mod( collection, query ) :
     yarrdb[collection].update( query, 
                                { '$set' : { 'sys.rev' : int( yarrdb[collection].find_one( query )['sys']['rev'] + 1 ), 
                                             'sys.mts' : datetime.datetime.utcnow() }}, 
                                  multi=True )
-
+def input_v( message ) :
+    answer = ""
+    if args.fpython == 2 : answer = raw_input( message ) 
+    if args.fpython == 3 : answer =     input( message )
+    return answer
+def max_run( id_list ) :
+    max_entry = {}  
+    for entry in id_list :
+        if entry['runNumber'] > max_entry.get('runNumber',0) : max_entry = entry
+    return max_entry
+def number2entry( runNumber, id_list ) :
+    entry = {}
+    for query in id_list :
+        if runNumber == query['runNumber'] : entry = query
+    return entry
 #################################################################
-# check python version
-if not args.fpython in [ 2, 3 ] :
-    print( "# Set python version by setting.sh" )
-print( "# Use python : version " + str(args.fpython) + "\n")
+### password required
+print( "# Use python : version " + str(args.fpython) )
+print( " " )
+print( "%%% This function can be used by people with administrator authority %%%" )
+print( " " )
+username = input_v( "# Username of administrator account >> " ) 
+password = getpass( "# Password of administrator account >> " )
+password = hashlib.md5(password.encode("utf-8")).hexdigest()
 
-# exit if not enable to use ROOT SW
-if not DOROOT :
-    print( "# Can not use ROOT software, exit ..." )
+query = { "userName" : username }
+user = userdb.user.find_one( query )
+if not user :
+    print(" ")
+    print("# Not found the user, exit ...")
     sys.exit()     
-i=0
-print("--- stage list ---")
-for stage in listset.stage :
-    print( str(i) + " : " + stage )
-    i+=1
-print( " " )
-
-# enter stage number
-num = ""
-while num == "" :
-    if args.fpython == 2 :
-        num = raw_input( "# Type stage number >> " ) #python2
-    elif args.fpython == 3 :
-        num = str(input( "# Type stage number >> " )) #python3
-if not num.isdigit() :
-    print( "# Enter STAGE NUMBER, exist ... ")
-    sys.exit()
-if not int(num) < len(listset.stage) :
-    print( "# Enter STAGE NUMBER, exist ... ")
-    sys.exit()
-dataJson.update({ "stage" : listset.stage[int(num)]}) 
-print("# ok.\n")
-
-# serial number
-serialNumber = ""
-while serialNumber == "" :
-    if args.fpython == 2 :
-        serialNumber = raw_input( "# Type serial number of module >> " ) #python2
-    elif args.fpython == 3 :
-        serialNumber = str(input( "# Type serial number of module >> " )) #python3
-dataJson.update({ "serialNumber" : serialNumber }) 
-query = { "serialNumber" : dataJson['serialNumber'] }
-if not yarrdb.component.find( query ).count() == 1 :
-    print( "# Not found module " + dataJson['serialNumber'] + ", exit ... " )
+if not user['authority'] == 7 :
+    print(" ")
+    print("# Not user with administrator authority, exit ...")
     sys.exit()     
-thisComponent = yarrdb.component.find_one( query )
-print("# found.\n")
+if not user['passWord'] == password :
+    print(" ")
+    print("# Not match password, exit ...")
+    sys.exit()     
 
-# Check the informations of the summary result 
-print( "# Start to add summary plots " )    
+### setup for add summary plot
+make_dir()
+
+plot_dir = TMP_DIR + "/localuser/plot"
+clean_dir( plot_dir )
+ 
+jsonFile = JSON_DIR + "/localuser_parameter.json"
+if not os.path.isfile( jsonFile ) :
+    jsonFile_default = SCRIPT_DIR + "/json/parameter_default.json"
+    with open( jsonFile_default, 'r' ) as f : jsonData_default = json.load( f )
+    with open( jsonFile,         'w' ) as f : json.dump( jsonData_default, f, indent=4 )
+ 
 print( " " )
-print( "      < General information >       " )
-print( " ---------------------------------- " )
-print( "  serialNumber : " + str(dataJson['serialNumber']) )
-print( "  stage        : " + str(dataJson['stage']) )
-print( "  institution  : " + str(dataJson['institution']) )
-print( "  userIdentity : " + str(dataJson['userIdentity']) )
-print( " ---------------------------------- " )
+print( "# Add summary plot ..." )
 print( " " )
+
 answer = ""
 while answer == "" :
-    if args.fpython == 2 :
-        answer = raw_input( "# Continue to check results of this module? Type 'y' if continue >> " ) #python2
-    elif args.fpython == 3 :
-        answer = str(input( "# Continue to check results of this module? Type 'y' if continue >> " )) #python3
-if not answer == "y" : 
-    print( "# exit ... " )
-    sys.exit()
-print( " " )
+    answer = input_v( "# Type 'y' if conitinue to add summary plot >> " )
+if not answer == 'y' :
+    print(" ")
+    print("# Exit ...")
+    sys.exit()     
 
-# Check chip entries
-query = { "parent" : str(thisComponent['_id']) }
-child_entries = yarrdb.childParentRelation.find( query )
+### serial number
+print(" ")
+serialNumber = ""
+while serialNumber == "" :
+    serialNumber = input_v( "# Enter serial number of module >> " ) 
+query = { "serialNumber" : serialNumber }
+if not yarrdb.component.find( query ).count() == 1 :
+    print( "# Not found module " + serialNumber + ", exit ... " )
+    sys.exit()     
+
+thisComponent = yarrdb.component.find_one( query )
 chips = []
-chips.append({ "component" : str(thisComponent['_id']) })
+componentId = str(thisComponent['_id'])
+query = { "parent" : componentId }
+child_entries = yarrdb.childParentRelation.find( query )
 for child in child_entries :
     chips.append({ "component" : child['child'] })
 
-# Check last run for each scan
+### select stage
+query = { '$or' : chips }
+run_entries = yarrdb.componentTestRun.find( query )
+stages = []
+for run in run_entries :
+    stages.append( run.get('stage') )
+stages = list(set(stages))
+
 i=0
-scannum = {}
-runNumbers = {}
-scanList = [ "digitalscan", "analogscan", "thresholdscan", "totscan", "noisescan", "selftrigger" ] 
-
-for scan in scanList :
-    runNumbers.update({ scan : {} })
-    scannum.update({ i : scan })
+stageDict = {}
+print(" ")
+print("----- stage list -----")
+for stage in stages :
+    print( " {0:<3}".format(i) + " : " + stage )
+    stageDict.update({ i : stage })
     i+=1
-    runNumber = 0
-    query = { '$or' : chips, "stage" : dataJson['stage'], "testType" : scan }
-    run_entries = yarrdb.componentTestRun.find( query ).sort( "runNumber", pymongo.ASCENDING )
-    for run in run_entries :
-        query = { "_id" : ObjectId(run['testRun']), "institution" : dataJson['institution'], "userIdentity" : dataJson['userIdentity'] }
-        thisRun = yarrdb.testRun.find_one( query )
-        if thisRun :
-            dateTime = func.setTime( thisRun['date'] )
-            runNumbers[scan].update({ thisRun['runNumber'] : [ thisRun['_id'], dateTime ] })
-            if thisRun['runNumber'] > runNumber :
-                runNumber = thisRun['runNumber']
-                dataJson.update({ scan : { "runNumber" : runNumber,
-                                           "datetime"  : dateTime }})
-answer = "first"
-while not answer == "y" :
-    if answer == "first" :
-        pass
-    elif not answer.isdigit() :
-        print( "# Type NUMBER.\n" )
-    elif not int(answer) in scannum :
-        print( "# Type THE NUMBER BEFORE SCAN NAME.\n" )
+print( " " )
+stage_num = ""
+while stage_num == "" :
+    num = ""
+    while num == "" :
+        num = input_v( "# Enter stage number >> " ) 
+    print(" ")
+    if not num.isdigit() : 
+        print( "# Input item is not number, enter agein. ")
+        print(" ")
+    elif not int(num) < len(stages) : 
+        print( "# Input number is not included in the stage list, enter agein. ")
+        print(" ")
     else :
-        print( "  testType        : " + scannum[int(answer)] )
-        print( "  Run number list : " )
-        for n in sorted(runNumbers[scannum[int(answer)]].keys()) :
-            print( "                    " + str(n) + " : " + runNumbers[scannum[int(answer)]][n][1] )
-        print( " " )
-        number = ""
-        while number == "" :
-            if args.fpython == 2 :
-                number = raw_input( '# Enter run number from this list for summary plot. If you want not to select, type "N". >> ' ) #python2
-            elif args.fpython == 3 :
-                number = str(input( '# Enter run number from this list for summary plot. If you want not to select, type "N". >> ' )) #python3
-            if number == "N" :
-                number = None
-            elif not number.isdigit() :
-                print("# Enter NUMBER.")
-                number = ""
-            elif not int(number) in runNumbers[scannum[int(answer)]] :
-                print( "# Enter RUN NUMBER from this LIST." )
-                number = ""
-            else : 
-                number = int(number)
-        print( " " )
-        if number :
-            query = { "_id" : runNumbers[scannum[int(answer)]][number][0] }
-            thisRun = yarrdb.testRun.find_one( query )
-            if thisRun :
-                dateTime = func.setTime( thisRun['date'] )
-                runNumber = thisRun['runNumber']
-                dataJson.update({ scannum[int(answer)] : { "runNumber" : runNumber,
-                                                           "datetime"  : dateTime }})
-        else :
-                dataJson.pop( scannum[int(answer)] )
+        stage_num = int(num)
 
-    print( "      < Confirm information >       " )
-    print( " ---------------------------------- " )
-    for i in [ 0, 1, 2, 3, 4, 5 ] :
-        print( "  " + str(i) + ", " + scannum[i] ) 
-        if dataJson.get(scannum[i]) :
-            print( "  runNumber   : " + str(dataJson[scannum[i]].get( 'runNumber', "None" )))
-            print( "  datetime    : " + str(dataJson[scannum[i]].get( 'datetime', "None" )))
+stage = stageDict[stage_num]
+    
+### Check the informations of the summary result 
+print( "# Start to add summary plots " )    
+print( "----------------------------------" )
+print( " serialNumber : {}".format(serialNumber) )
+print( " stage        : {}".format(stage) )
+print( "----------------------------------" )
+print( " " )
+
+answer = ""
+while answer == "" :
+    answer = input_v( "# Type 'y' if continue >> " ) 
+if not answer == "y" : 
+    print( "# Exit ... " )
+    sys.exit()
+
+### Check current summary plot
+i=0
+runNumbers = {}
+summaryList = { "before" : {}, "after" : {} }
+scanList = [ "digitalscan", "analogscan", "thresholdscan", "totscan", "noisescan", "selftrigger" ] 
+keys = [ "runNumber", "institution", "userIdentity" ]
+current = False
+scanDict = {}
+for scan in scanList :
+    runNumbers.update({ scan : [] })
+    summaryList['before'].update({ scan : {} })
+    summaryList['after' ].update({ scan : {} })
+    query = { '$or' : chips + [{ "component" : componentId }], "stage" : stage, "testType" : scan }
+    run_entries = yarrdb.componentTestRun.find( query )
+    for run in run_entries :
+        query = { "_id" : ObjectId(run['testRun']) }
+        thisRun = yarrdb.testRun.find_one( query )
+        query_id = dict( [ (key, thisRun[key]) for key in keys ] )
+        if query_id in runNumbers[scan] : continue
+        runNumbers[scan].append( query_id ) 
+        if thisRun.get( 'display' ) : 
+            summaryList['before'].update({ scan : query_id })
+            summaryList['after' ].update({ scan : query_id })
+            current = True
+    scanDict.update({ i : scan })
+    i+=1
+
+if not current :
+    print( " " )
+    print( "%%% Current summary plot is not registered, then latest test will be added for summary %%%" )    
+    for i in scanDict :
+        scan = scanDict[i]
+        thisRun = max_run( runNumbers[scan] )
+        if thisRun : summaryList['after'].update({ scan : thisRun })
+
+print( " " )
+answer = ""
+while answer == "" :
+    print( "# Change summary plot as below " )    
+    print( "-----------------------------------------------------" )
+    print( " {0:^3} {1:^20} : {2:^10} -> {3:^10} ".format( "num", "test type", "current", "change" ))
+    for i in scanDict :
+        scan = scanDict[i]
+        if summaryList['before'][scan] == summaryList['after'][scan] :
+            print( " {0:<3} {1:<20} : {2:^10} -> {3:^10} ".format( str(i)+",", scanDict[i], summaryList['before'][scan].get('runNumber',"None"), "No change" ))
         else :
-            print( "  data        : None" )
-            dataJson.update({ scannum[i] : { "runNumber" : None } }) 
-        print( " ---------------------------------- \n" )
-    answer = "" 
-    while answer == "" :
-        if args.fpython == 2 :
-            answer = raw_input( "# Type 'y' if continue to make plots, or type the number before scan name if change run number >> " ) #python2
-        elif args.fpython == 3 :
-            answer = str(input( "# Type 'y' if continue to make plots, or type the number before scan name if change run number >> " )) #python3
+            print( " {0:<3} {1:<20} : {2:^10} -> {3:^10} ".format( str(i)+",", scanDict[i], summaryList['before'][scan].get('runNumber',"None"), summaryList['after'][scan].get('runNumber',"None") ))
+    print( "-----------------------------------------------------" )
     print( " " )
 
-runIds = {}
-for scan in listset.scan :
-    runIds.update({ scan : [] })
-    if dataJson[scan].get('runNumber',None) :
-        query = { '$or' : chips, "stage" : dataJson['stage'], "testType" : scan, "runNumber" : dataJson[scan]['runNumber'] }
-        run_entries = yarrdb.componentTestRun.find( query )
-        for run in run_entries :
-            query = { "_id" : ObjectId(run['testRun']), "institution" : dataJson['institution'], "userIdentity" : dataJson['userIdentity'] }
-            thisRun = yarrdb.testRun.find_one( query )
-            if thisRun : 
-                runIds[scan].append({ "_id" : thisRun['_id'] })
+    number = ""
+    while number == "" :
+        answer_num = ""
+        while answer_num == "" :
+            answer_num = input_v( "# Type 'y' if continue, or type the number before scan name if change summary run  >> " )
+        print( " " )
+        if answer_num == 'y' : 
+            number = "y"
+        elif not answer_num.isdigit() :
+            print( "# Input item is not number, enter agein. ")
+            print( " " )
+        elif not int(answer_num) < len(scanList) : 
+            print( "# Input number is not before scan name, enter agein. ")
+            print( " " )
+        else :
+            number = int(answer_num)
 
-# make histogram
+    if number == 'y' : 
+        answer = "y"
+        continue
+
+    scan = scanDict[number]
+    print( "# testType : {}".format(scan) )
+    print( " " )
+    print( "------------------------------------ run number list ------------------------------------" )
+    for entry in runNumbers[scan] :
+        print( " runNumber : {0:^5} userIdentity : {1:^20} institution : {2:^20} ".format( str(entry['runNumber'])+",", entry['userIdentity']+",", entry['institution']+"," ))
+    print( " " )
+    run_num = ""
+    while run_num == "" :
+        answer_num = ""
+        while answer_num == "" :
+            answer_num = input_v( "# Enter summary run number, or type 'N' if not to select >> " )
+        print( " " )
+        if answer_num == 'N' :
+            summaryList['after'].update({ scan : {} })
+            run_num = "N"
+        elif not answer_num.isdigit() :
+            print( "# Input item is not number, enter agein. ")
+            print( " " )
+        elif not number2entry( int(answer_num), runNumbers[scan] )  in runNumbers[scan]  : 
+            print( "# Input number is not included in run number list, enter agein. ")
+            print( " " )
+        else :
+            run_num = int(answer_num)
+            summaryList['after'].update({ scan : number2entry(run_num, runNumbers[scan]) })
+
+### Add comment
+comments = {}
+for scan in scanList :
+    if summaryList['before'][scan] == summaryList['after'][scan] : continue
+    if not summaryList['before'][scan] : continue
+    
+    print( "%%%%%%%%%%%%%%%%%%%%%%%%%%%%" )
+    print( "    {0:^20}    ".format(scan) )
+    print( " " )
+    print( " {0:^10} -> {1:^10} ".format( summaryList['before'][scan].get('runNumber',"None"), summaryList['after'][scan].get('runNumber',"None") ))
+    print( "%%%%%%%%%%%%%%%%%%%%%%%%%%%%" )
+    print( " " )
+    print( "%%%            There are already set summary plot in this scan           %%%" )
+    print( "%%% You must leave a comment about the reason to remove/replace the plot %%%" )
+    print( " " )
+    print("----- comment list -----")
+    i=0
+    commentDict = {}
+    for comment in listset.summary_comment :
+        print( " {0:<3}".format(i) + " : " + comment )
+        commentDict.update({ i : comment })
+        i+=1
+    print( " " )
+    comment_num = ""
+    while comment_num == "" :
+        num = ""
+        while num == "" :
+            num = input_v( "# Enter comment number >> " ) 
+        print(" ")
+        if not num.isdigit() : 
+            print( "# Input item is not number, enter agein. ")
+            print(" ")
+        elif not int(num) < len(stages) : 
+            print( "# Input number is not included in the comment list, enter agein. ")
+            print(" ")
+        else :
+            comment_num = int(num)
+    comments.update({ scan : commentDict[comment_num] })
+
+### Confirmation
+
+print( "# Confirmation " )    
+print( "-----------------------------------------------------------------------------" )
+print( " {0:^3} {1:^20} : {2:^10} -> {3:^10} : {4:^20} ".format( "num", "test type", "current", "change", "comment" ))
+for i in scanDict :
+    scan = scanDict[i]
+    if summaryList['before'][scan] == summaryList['after'][scan] :
+        print( " {0:<3} {1:<20} : {2:^10} -> {3:^10} ".format( str(i)+",", scanDict[i], summaryList['before'][scan].get('runNumber',"None"), "No change" ))
+    elif not summaryList['before'][scan] :
+        print( " {0:<3} {1:<20} : {2:^10} -> {3:^10} : {4:^20} ".format( str(i)+",", scanDict[i], summaryList['before'][scan].get('runNumber',"None"), summaryList['after'][scan].get('runNumber',"None"), "-----" ))
+    else :
+        print( " {0:<3} {1:<20} : {2:^10} -> {3:^10} : {4:^20} ".format( str(i)+",", scanDict[i], summaryList['before'][scan].get('runNumber',"None"), summaryList['after'][scan].get('runNumber',"None"), comments[scan] ))
+print( "-----------------------------------------------------------------------------" )
+print( " " )
+
+### Make histogram
 print( "# Start to make histograms.\n" )
-for scan in listset.scan :
-    print( "--- Start : " + scan + " ---" )
-    clean_dir( DAT_DIR )
-    if not runIds[scan] == [] :
-        query = { '$or' : runIds[scan] }
-        run_entries = yarrdb.testRun.find( query )
-        for thisRun in run_entries :
-            data_entries = thisRun['attachments']
+plotList = {}
+for scan in scanList :
+    print( "--- Start : " + "{0:^20}".format(scan) + " ---" )
+    
+    dat_dir = TMP_DIR + "/localuser/dat"
+    clean_dir( dat_dir )
+ 
+    plotList.update({ scan : {} })
+    if not summaryList['after'][scan] : continue
+
+    thisRun = summaryList['after'][scan]
+    components = sorted( chips, key=lambda x:x['component'] )
+    components = sorted( chips, key=lambda x:x['component'] )
+    i=1
+    chipIds = {}
+    for component in components :
+        if not component['component'] in chipIds :
+            chipIds.update({ component['component'] : i })
+            i+=1
+    query = { '$or' : components, "runNumber" : thisRun['runNumber'], "testType" : scan, "stage" : stage }
+    run_entries = yarrdb.componentTestRun.find( query )
+    for run in run_entries :
+        query = { "_id" : ObjectId( run['testRun'] )}
+        query.update( summaryList['after'][scan] )
+        chiprun = yarrdb.testRun.find_one( query )
+        if chiprun :
+            data_entries = chiprun['attachments']
             for data in data_entries :
                 if data['contentType'] == "dat" :
-                    f = open( '{0}/{1}_{2}_{3}.dat'.format( DAT_DIR, thisRun['runNumber'], data['filename'].rsplit("_",2)[1], data['filename'].rsplit("_",2)[2] ), "wb" )
+                    f = open( '{0}/localuser/dat/{1}_{2}.dat'.format( TMP_DIR, 'chipId{}'.format(chipIds[run['component']]), data['filename'].rsplit("_",1)[1] ), 'wb' )
                     f.write( fs.get(ObjectId(data['code']) ).read())
                     f.close()
-        mapList = {}
-        for mapType in listset.scan[thisRun['testType']] :
-            mapList.update({ mapType[0] : True })
-        root.drawScan( thisRun['testType'], mapList )
-        print( "done. " )
-    else :
-        print( "failure. " )
-    print( "--- Finish : " + scan + " ---\n" )
+                    mapType = data['filename'].rsplit("_",1)[1]
+                    plotList[scan].update({ mapType : { "draw" : True, "chips" : len(chipIds) } })
+
+    root.localDrawScan( scan, plotList[scan] )
+    print( "--------------- done ---------------" )
 
 print( "# Finish to make histograms of all scans.\n" )
-if args.fpython == 2 :
-    if not raw_input( "# Continue to insert plots into Database? Type 'y' if continue >> " ) == "y" : #python2
-        print( "# exit ... " )
-        sys.exit()     
-elif args.fpython == 3 :
-    if not str(input( "# Continue to insert plots into Database? Type 'y' if continue >> " )) == "y" : #python3
-        print( "# exit ... " )
-        sys.exit()     
 
-# insert testRun and componentTestRun
-for scan in listset.scan :
-    testRuns = []
-    if not runIds[scan] == [] :
-        for runId in runIds[scan] :
-            testRuns.append({ "testRun" : str(runId['_id']) })
-        query = { "component" : str(thisComponent['_id']), '$or' : testRuns }
-        if yarrdb.componentTestRun.find( query ).count() == 1 :
-            RunId = yarrdb.componentTestRun.find_one( query )['testRun']
-        elif yarrdb.componentTestRun.find( query ).count() == 0 :
-            query = { '$or' : runIds[scan] }
-            moduleTestRun = yarrdb.testRun.find_one( query )
-            runid = moduleTestRun.pop( '_id', None )
-            query = { "testRun" : str(runid) }
-            moduleComponentTestRun = yarrdb.componentTestRun.find_one( query )
-            moduleComponentTestRun.pop( '_id', None )
-            moduleTestRun.update({ "attachments" : [] })
-            moduleTestRun.update({ "sys" : { "rev" : 0,
-                                             "cts" : datetime.datetime.utcnow(),
-                                             "mts" : datetime.datetime.utcnow() }})
-            RunId = str(yarrdb.testRun.insert( moduleTestRun ))
-            moduleComponentTestRun.update({ "component" : str(thisComponent['_id']),
-                                            "testRun"   : RunId,
-                                            "sys"         : { "rev" : 0,
-                                                              "cts" : datetime.datetime.utcnow(),
-                                                              "mts" : datetime.datetime.utcnow() }})
-            moduleComponentRunId = yarrdb.componentTestRun.insert( moduleComponentTestRun )
-        else : 
-            print("# something wrong, exit ... ")
-            sys.exit()
+if not input_v( "# Continue to insert plots into Database? Type 'y' if continue >> " ) == "y" : #python2
+    print( "# exit ... " )
+    sys.exit()     
 
-        # add attachments into module TestRun
-        query = { "component" : str(thisComponent['_id']), "testRun" : RunId }
-        thisComponentTestRun = yarrdb.componentTestRun.find_one( query )
-        query = { "_id" : ObjectId(RunId) }
-        thisRun = yarrdb.testRun.find_one( query )
-        for mapType in listset.scan[thisRun['testType']] :
-            for i in [ "1", "2" ] :
-                if i == "1" :
-                    filename = "{0}_{1}_Dist".format( dataJson['serialNumber'], mapType[0] )
-                if i == "2" :
-                    filename = "{0}_{1}".format( dataJson['serialNumber'], mapType[0] )
-                for attachment in yarrdb.testRun.find_one( query )['attachments'] :
-                    if filename == attachment.get('filename') :
-                        fs.delete( ObjectId(attachment.get('code')) )
-                        yarrdb.testRun.update( query, { '$pull' : { "attachments" : { "code" : attachment.get('code') }}}) 
-                filepath = PLOT_DIR + "/" + str(session.get('uuid')) + "/" + str(thisRun['testType']) + "_" + str(mapType) + "_{}.png".format(i)
+### Insert testRun and componentTestRun
+for scan in scanList :
+
+    if not summaryList['after'][scan] : continue
+
+    query = summaryList['after'][scan]
+    run_entries = yarrdb.testRun.find( query )
+    runIds = []
+    for run in run_entries :
+        runIds.append({ "testRun" : str( run['_id'] ) })
+    query = { '$or' : runIds, "component" : componentId }
+    thisComponentTestRun = yarrdb.componentTestRun.find_one( query )
+    if thisComponentTestRun : 
+        runId = thisComponentTestRun['testRun']
+    else :
+        query = runIds[0] 
+        moduleComponentTestRun = yarrdb.componentTestRun.find_one( query )
+        query = { "_id" : ObjectId(runIds[0]['testRun']) }
+        moduleTestRun = yarrdb.testRun.find_one( query )
+        moduleComponentTestRun.pop( '_id', None )
+        moduleTestRun.pop( '_id', None )
+
+        thistime = datetime.datetime.utcnow()
+        moduleTestRun.update({ "attachments" : [] })
+        moduleTestRun.update({ "sys" : { "rev" : 0,
+                                         "cts" : thistime,
+                                         "mts" : thistime }})
+        runId = str(yarrdb.testRun.insert( moduleTestRun ))
+        moduleComponentTestRun.update({ "component" : componentId,
+                                        "testRun"   : runId,
+                                        "sys"       : { "rev" : 0,
+                                                        "cts" : thistime,
+                                                        "mts" : thistime }})
+        yarrdb.componentTestRun.insert( moduleComponentTestRun )
+
+    ### add attachments into module TestRun
+    query = { "component" : componentId, "testRun" : runId }
+    thisComponentTestRun = yarrdb.componentTestRun.find_one( query )
+    query = { "_id" : ObjectId(runId) }
+    thisRun = yarrdb.testRun.find_one( query )
+
+    for mapType in plotList[scan] :
+        if plotList[scan][mapType]['HistoType'] == 1 : continue
+        url = {} 
+        path = {}
+        datadict = { "1" : "_Dist", "2" : "" }
+        for i in datadict :
+            filename = "{0}_{1}{2}".format( thisComponent['serialNumber'], mapType, datadict[i] )
+            for attachment in thisRun['attachments'] :
+                if filename == attachment.get('filename') :
+                    fs.delete( ObjectId(attachment.get('code')) )
+                    yarrdb.testRun.update( query, { '$pull' : { "attachments" : { "code" : attachment.get('code') }}}) 
+
+            filepath = "{0}/localuser/plot/{1}_{2}_{3}.png".format(TMP_DIR, str(thisRun['testType']), str(mapType), i)
+            if os.path.isfile( filepath ) :
                 binary_image = open( filepath, 'rb' )
-                image = fs.put( binary_image.read(), filename=filename )
+                image = fs.put( binary_image.read(), filename="{}.png".format(filename) )
                 binary_image.close()
-                yarrdb.testRun.update( query, { '$push' : { "attachments" : { "code" : str(image),
-                                                                              "dateTime" : datetime.datetime.utcnow(),
-                                                                              "title" : "title",
+                yarrdb.testRun.update( query, { '$push' : { "attachments" : { "code"        : str(image),
+                                                                              "dateTime"    : datetime.datetime.utcnow(),
+                                                                              "title"       : "title",
                                                                               "description" : "describe",
                                                                               "contentType" : "png",
-                                                                              "filename" : filename }}}) 
+                                                                              "filename"    : filename }}}) 
+    ### remove "display : True" in current summary run
+    if summaryList['before'][scan] :
+        query_id = summaryList['before'][scan] 
+        yarrdb.testRun.update( query_id, { '$set' : { "display" : False }}, multi=True )
 
-        # change display bool
-        components = [{ "component" : str(thisComponent['_id']) }]
-        query = { "parent" : str(thisComponent['_id']) }
-        for child in yarrdb.childParentRelation.find( query ) :
-            components.append({ "component" : child['child'] })
-        query = { '$or' : components, "testType" : thisComponentTestRun['testType'], "stage" : thisComponentTestRun['stage'] }
-        runids = []
-        for run in yarrdb.componentTestRun.find( query ) :
-            runids.append({ "_id" : ObjectId(run['testRun']) })
-        query = { '$or' : runids, "display" : True }
-        if not yarrdb.testRun.find( query ).count() == 0 :
-            update_mod( "testRun", query ) 
-            yarrdb.testRun.update( query, { '$set' : { "display" : False }}, multi=True )
-        query.pop("display",None)
-        query.update({ "runNumber" : thisRun['runNumber'], "institution" : thisRun['institution'], "userIdentity" : thisRun['userIdentity'] })
-        update_mod( "testRun", query ) 
-        yarrdb.testRun.update( query, { '$set' : { "display" : True }}, multi=True )
-
-print( "Finish." )
+###########
+#        yarrdb.testRun.update( query_id, { '$push' : { 'comments' : [{ "user"        : session['userIdentity'],
+#                                                                       "userid"      : session['uuid'],
+#                                                                       "comment"     : session['summaryList']['after'][scan]['comment'], 
+#                                                                       "after"       : session['summaryList']['after'][scan]['runId'],
+#                                                                       "datetime"    : datetime.datetime.utcnow(), 
+#                                                                       "institution" : session['institution'],
+#                                                                       "description" : "add_summary" }] }}, multi=True )
+#        update_mod( "testRun", query_id ) 
+#
+#    query = { "component" : componentId, "stage" : session['stage'], "testType" : scan }
+#    entries = mongo.db.componentTestRun.find( query )
+#    for entry in entries :
+#        query = { "_id" : ObjectId( entry['testRun'] )}
+#        thisRun = mongo.db.testRun.find_one( query )
+#        keys = [ "runNumber", "institution", "userIdentity", "testType" ]
+#        query_id = dict( [ (key, thisRun[key]) for key in keys ] )
+#        run_entries = mongo.db.testRun.find( query_id )
+#        for run in run_entries :
+#            if run.get( 'display' ) :
+#                query = { "_id" : run['_id'] }
+#                mongo.db.testRun.update( query, { '$set' : { "display" : False }} )
+#                update_mod( "testRun", query )
+#
+#
+#        # change display bool
+#        components = [{ "component" : str(thisComponent['_id']) }]
+#        query = { "parent" : str(thisComponent['_id']) }
+#        for child in yarrdb.childParentRelation.find( query ) :
+#            components.append({ "component" : child['child'] })
+#        query = { '$or' : components, "testType" : thisComponentTestRun['testType'], "stage" : thisComponentTestRun['stage'] }
+#        runids = []
+#        for run in yarrdb.componentTestRun.find( query ) :
+#            runids.append({ "_id" : ObjectId(run['testRun']) })
+#        query = { '$or' : runids, "display" : True }
+#        if not yarrdb.testRun.find( query ).count() == 0 :
+#            update_mod( "testRun", query ) 
+#            yarrdb.testRun.update( query, { '$set' : { "display" : False }}, multi=True )
+#        query.pop("display",None)
+#        query.update({ "runNumber" : thisRun['runNumber'], "institution" : thisRun['institution'], "userIdentity" : thisRun['userIdentity'] })
+#        update_mod( "testRun", query ) 
+#        yarrdb.testRun.update( query, { '$set' : { "display" : True }}, multi=True )
+#
+#print( "Finish." )

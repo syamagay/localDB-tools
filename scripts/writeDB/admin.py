@@ -21,8 +21,9 @@ if args.username : url = "mongodb://" + args.username + ":" + args.password + "@
 else :             url = "mongodb://"                                             + args.host + ":" + str(args.port) 
 client  = MongoClient( url )
 yarrdb  = client[args.db]
-localdb = client[args.userdb]
+userdb = client[args.userdb]
 
+##### function #####
 def input_v( message ) :
     answer = ""
     if args.fpython == 2 : answer = raw_input( message ) 
@@ -30,81 +31,73 @@ def input_v( message ) :
     return answer
 
 ##### FOR CREATE ADMINISTRATOR CODE #####
-if localdb.user.find({ "type" : "administrator" }).count() == 0 : # if admin has already created, you cannot add admin 
+if not userdb.user.find({ "type" : "administrator" }).count() == 0 :
+    print( "Administrator account is already exist, exit ..." )
+    sys.exit()     
 
-    items = ['user name', 'institution', 'password', 'password again']
+items = ['user name', 'institution', 'password', 'password again']
 
-    # check python version
-    print( "# Use python : version " + str(args.fpython) + "\n" )
+# check python version
+print( "# Use python : version " + str(args.fpython) )
+print( " " )
+print( "# Create administrator account ..." )
+print( " " )
 
-    print( "# Create administrator account ..." )
-    print( " " )
-
+answer = ""
+while answer == "" :
     answer = input_v( "# Type 'y' if conitinue to create administrator account >> " )
 
-    if not answer == 'y' :
-        print(" ")
-        print("# Exit ...")
-        sys.exit()     
+if not answer == 'y' :
+    print(" ")
+    print("# Exit ...")
+    sys.exit()     
 
+admininfo = {}
+for item in items :
+    info = ""
+    while info == "" :
+        if not (item == 'password' or item == 'password again') :
+            print(" ")
+            info = input_v( "# Enter {}. >> ".format(item) )
+        else :
+            print(" ")
+            info =  getpass("# Enter {}. >> ".format(item))
+    admininfo.update({ item : info })
+       
+if not admininfo['password'] == admininfo['password again'] :
     print(" ")
-    admininfo = {}
-    for item in items :
-        info = ""
-        while info == "" :
-            if not (item == 'passWord' or item == 'passWord again') :
-                input_item = ""
-                while input_item = "" :
-                    input_item = input_v( "# Enter {}. >> ".format(item) )
-                print(" ")
-                print( "# Your input ... {0} : {1}".format( item, input_item ) )
-                print(" ")
-                answer = ""
-                while not answer == 'y' and not answer == 'm' :
-                    answer = input_v( "# Type 'y' if conitune, or 'm' if want to change input item >> " )
-    
-                if answer == "y" : info = input_item
-            else :
-                info =  getpass("# Enter {}. >> ")
-                print(" ")
-                while not answer == 'y' and not answer == 'm' :
-                    answer = input_v( "# Type 'y' if conitune, or 'm' if want to change input item >> " )
-    
-                if not answer == "y" : info = ""
-           
-    if not admininfo['passWord'] == admininfo['passWord again'] :
-        print(" ")
-        print("# Not match password, exit ...")
-        sys.exit()     
-    
-    print(" ")
-    print("# Please check the input information")
-    for item in items :
-        if not (item == 'passWord' or item == 'passWord again') :
-            print(' - ' + item + ' : ' + admininfo[ item ])
-    
-    print(" ")
-    answer = input_v("# Type 'y' if continue >> ")
+    print("# Not match password, exit ...")
+    sys.exit()     
 
-    if not answer == 'y' :
-        print(" ")
-        print("# Exit ...")
-        sys.exit()     
+print(" ")
+print("# Please check the input information")
+print(" ")
+print("------------------------------------")
+for item in items :
+    if not (item == 'password' or item == 'password again') :
+        print(' ' + item + ' : ' + admininfo[ item ])
+print("------------------------------------")
+print(" ")
+answer = input_v("# Type 'y' if continue >> ")
 
-    items = ['user name', 'institution', 'password', 'password again']
-    admininfo['password'] = hashlib.md5(admininfo['password'].encode("utf-8")).hexdigest()
-    userinfo = { "userName"     : admininfo['user name'],
-                 "userIdentity" : "Administrator",
-                 "authority"    : 7,
-                 "type"         : "administrator",
-                 "institution"  : admininfo["insitution"],
-                 "passWord"     : admininfo['pass word'] }
-    
+if not answer == 'y' :
     print(" ")
-    print("# Creating administrator account ...")
+    print("# Exit ...")
+    sys.exit()     
 
-    localdb.user.insert( userinfo )
-    print(" ")
-    print("# Finish")
-    print(" ")
+admininfo['password'] = hashlib.md5(admininfo['password'].encode("utf-8")).hexdigest()
+userinfo = { "userName"     : admininfo['user name'],
+             "userIdentity" : "Administrator",
+             "authority"    : 7,
+             "type"         : "administrator",
+             "institution"  : admininfo["institution"],
+             "passWord"     : admininfo['password'] }
+
+print(" ")
+print("# Creating administrator account ...")
+
+userdb.user.insert( userinfo )
+print(" ")
+print("# Finish")
+print(" ")
 

@@ -17,7 +17,7 @@ if args.username is None:
 else:
     url = "mongodb://" + args.username + ":" + args.password + "@" + args.host + ":" + str(args.port) 
 client = MongoClient( url )
-localdb = client['yarrlocal']
+userdb = client['yarrlocal']
 
 USER=pwd.getpwuid( os.geteuid() ).pw_name
 USER_DIR = '/tmp/{}'.format( USER ) # directory to temporarily store image.pdf and image.png
@@ -53,7 +53,7 @@ def bin_to_image( typ, binary ) :
 
 def add_request(userinfo) :
     password = hashlib.md5(userinfo[5].encode("utf-8")).hexdigest()
-    localdb.request.insert({ "userName"  : userinfo[0],
+    userdb.request.insert({ "userName"  : userinfo[0],
                              "firstName" : userinfo[1],
                              "lastName"  : userinfo[2],
                              "email"     : userinfo[3],
@@ -61,7 +61,7 @@ def add_request(userinfo) :
                              "type"      : "user", 
                              "password"  : password })
 def add_user(userinfo) :
-    localdb.user.insert({ "userName"  : userinfo['userName'],
+    userdb.user.insert({ "userName"  : userinfo['userName'],
                           "firstName" : userinfo['firstName'],
                           "lastName"  : userinfo['lastName'],
                           "authority" : int(userinfo['authority']),
@@ -71,8 +71,8 @@ def add_user(userinfo) :
                           "passWord"  : userinfo['password'] })
    
 def remove_request(userid) :
-    localdb.request.remove({ "_id" : ObjectId(userid) })
+    userdb.request.remove({ "_id" : ObjectId(userid) })
 
 def remove_user(userid) :
-    localdb.user.remove({ "_id" : ObjectId(userid) })
+    userdb.user.remove({ "_id" : ObjectId(userid) })
 
