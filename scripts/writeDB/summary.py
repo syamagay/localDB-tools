@@ -16,10 +16,10 @@ sys.path.append( SCRIPT_DIR + "/src" )
 try : 
     import root
 except : 
-    print( "# Can not use ROOT software, exit ..." )
+    print( "[EXIT] Can not use ROOT software." )
     sys.exit()     
 
-import listset, func
+import listset
 from   arguments import *   # Pass command line arguments into app.py
 
 ##### setting about dbs #####
@@ -71,27 +71,26 @@ def number2entry( runNumber, id_list ) :
     return entry
 #################################################################
 ### password required
-print( "# Use python : version " + str(args.fpython) )
-print( " " )
 print( "%%% This function can be used by people with administrator authority %%%" )
 print( " " )
 username = input_v( "# Username of administrator account >> " ) 
 password = getpass( "# Password of administrator account >> " )
 password = hashlib.md5(password.encode("utf-8")).hexdigest()
+print( " " )
 
 query = { "userName" : username }
 user = userdb.user.find_one( query )
 if not user :
     print(" ")
-    print("# Not found the user, exit ...")
+    print("[EXIT] Not found the user.")
     sys.exit()     
 if not user['authority'] == 7 :
     print(" ")
-    print("# Not user with administrator authority, exit ...")
+    print("[EXIT] Not user with administrator authority.")
     sys.exit()     
 if not user['passWord'] == password :
     print(" ")
-    print("# Not match password, exit ...")
+    print("[EXIT] Not match password.")
     sys.exit()     
 
 ### setup for add summary plot
@@ -105,27 +104,28 @@ if not os.path.isfile( jsonFile ) :
     jsonFile_default = SCRIPT_DIR + "/json/parameter_default.json"
     with open( jsonFile_default, 'r' ) as f : jsonData_default = json.load( f )
     with open( jsonFile,         'w' ) as f : json.dump( jsonData_default, f, indent=4 )
- 
-print( " " )
-print( "# Add summary plot ..." )
-print( " " )
 
 answer = ""
 while answer == "" :
     answer = input_v( "# Type 'y' if conitinue to add summary plot >> " )
 if not answer == 'y' :
     print(" ")
-    print("# Exit ...")
+    print("[EXIT]")
     sys.exit()     
 
 ### serial number
-print(" ")
-serialNumber = ""
-while serialNumber == "" :
-    serialNumber = input_v( "# Enter serial number of module >> " ) 
+if yarrdb.component.find({ "serialNumber" : str(args.serial) }).count() == 1 :
+    serialNumber = str(args.serial)
+else :
+    if args.serial : print( "\n[WARNING] {} is not found. ".format( args.serial ) )
+    print(" ")
+    serialNumber = ""
+    while serialNumber == "" :
+        serialNumber = input_v( "# Enter serial number of module >> " ) 
+
 query = { "serialNumber" : serialNumber }
 if not yarrdb.component.find( query ).count() == 1 :
-    print( "# Not found module " + serialNumber + ", exit ... " )
+    print( "[EXIT] Not found module " + serialNumber )
     sys.exit()     
 
 thisComponent = yarrdb.component.find_one( query )
@@ -144,34 +144,33 @@ for run in run_entries :
     stages.append( run.get('stage') )
 stages = list(set(stages))
 
-i=0
-stageDict = {}
-print(" ")
-print("----- stage list -----")
-for stage in stages :
-    print( " {0:<3}".format(i) + " : " + stage )
-    stageDict.update({ i : stage })
-    i+=1
-print( " " )
-stage_num = ""
-while stage_num == "" :
-    num = ""
-    while num == "" :
-        num = input_v( "# Enter stage number >> " ) 
-    print(" ")
-    if not num.isdigit() : 
-        print( "# Input item is not number, enter agein. ")
-        print(" ")
-    elif not int(num) < len(stages) : 
-        print( "# Input number is not included in the stage list, enter agein. ")
-        print(" ")
-    else :
-        stage_num = int(num)
+if str(args.stage) in stages :
+    stage = str(args.stage)
+else :
+    if args.stage : print( "\n[WARNING] {} is not found, select stage from the list.".format( args.stage ) )
 
-stage = stageDict[stage_num]
+    print(" ")
+    print("----- stage list -----")
+    for stage in stages :
+        print( " {0:<3}".format(stages.index(stage)) + " : " + stage )
+    print(" ")
+    stage_num = ""
+    while stage_num == "" :
+        num = ""
+        while num == "" :
+            num = input_v( "# Enter stage number >> " ) 
+        if not num.isdigit() : 
+            print( "[WARNING] Input item is not number, enter agein. ")
+        elif not int(num) < len(stages) : 
+            print( "[WARNING] Input number is not included in the stage list, enter agein. ")
+        else :
+            stage_num = int(num)
+    
+    stage = stages[stage_num]
     
 ### Check the informations of the summary result 
-print( "# Start to add summary plots " )    
+print( " " )
+print( "%%% Start to add summary plots %%%" )    
 print( "----------------------------------" )
 print( " serialNumber : {}".format(serialNumber) )
 print( " stage        : {}".format(stage) )
@@ -182,17 +181,15 @@ answer = ""
 while answer == "" :
     answer = input_v( "# Type 'y' if continue >> " ) 
 if not answer == "y" : 
-    print( "# Exit ... " )
+    print( "[EXIT]" )
     sys.exit()
 
 ### Check current summary plot
-i=0
 runNumbers = {}
 summaryList = { "before" : {}, "after" : {} }
 scanList = [ "digitalscan", "analogscan", "thresholdscan", "totscan", "noisescan", "selftrigger" ] 
 keys = [ "runNumber", "institution", "userIdentity", "testType" ]
 current = False
-scanDict = {}
 for scan in scanList :
     runNumbers.update({ scan : [] })
     summaryList['before'].update({ scan : {} })
@@ -209,29 +206,25 @@ for scan in scanList :
             summaryList['before'].update({ scan : query_id })
             summaryList['after' ].update({ scan : query_id })
             current = True
-    scanDict.update({ i : scan })
-    i+=1
 
 if not current :
     print( " " )
     print( "%%% Current summary plot is not registered, then latest test will be added for summary %%%" )    
-    for i in scanDict :
-        scan = scanDict[i]
+    for scan in scanList :
         thisRun = max_run( runNumbers[scan] )
         if thisRun : summaryList['after'].update({ scan : thisRun })
 
 print( " " )
 answer = ""
 while answer == "" :
-    print( "# Change summary plot as below " )    
+    print( "%%%         Change summary plot as below          %%%" )    
     print( "-----------------------------------------------------" )
     print( " {0:^3} {1:^20} : {2:^10} -> {3:^10} ".format( "num", "test type", "current", "change" ))
-    for i in scanDict :
-        scan = scanDict[i]
+    for scan in scanList :
         if summaryList['before'][scan] == summaryList['after'][scan] :
-            print( " {0:<3} {1:<20} : {2:^10} -> {3:^10} ".format( str(i)+",", scanDict[i], summaryList['before'][scan].get('runNumber',"None"), "No change" ))
+            print( " {0:<3} {1:<20} : {2:^10} -> {3:^10} ".format( str(scanList.index(scan))+",", scan, summaryList['before'][scan].get('runNumber',"None"), "No change" ))
         else :
-            print( " {0:<3} {1:<20} : {2:^10} -> {3:^10} ".format( str(i)+",", scanDict[i], summaryList['before'][scan].get('runNumber',"None"), summaryList['after'][scan].get('runNumber',"None") ))
+            print( " {0:<3} {1:<20} : {2:^10} -> {3:^10} ".format( str(scanList.index(scan))+",", scan, summaryList['before'][scan].get('runNumber',"None"), summaryList['after'][scan].get('runNumber',"None") ))
     print( "-----------------------------------------------------" )
     print( " " )
 
@@ -240,15 +233,12 @@ while answer == "" :
         answer_num = ""
         while answer_num == "" :
             answer_num = input_v( "# Type 'y' if continue, or type the number before scan name if change summary run  >> " )
-        print( " " )
         if answer_num == 'y' : 
             number = "y"
         elif not answer_num.isdigit() :
-            print( "# Input item is not number, enter agein. ")
-            print( " " )
+            print( "[WARNING] Input item is not number, enter agein. ")
         elif not int(answer_num) < len(scanList) : 
-            print( "# Input number is not before scan name, enter agein. ")
-            print( " " )
+            print( "[WARNING] Input number is not before scan name, enter agein. ")
         else :
             number = int(answer_num)
 
@@ -256,31 +246,27 @@ while answer == "" :
         answer = "y"
         continue
 
-    scan = scanDict[number]
-    print( "# testType : {}".format(scan) )
+    scan = scanList[number]
     print( " " )
-    print( "------------------------------------ run number list ------------------------------------" )
+    print( "--------------------------- run number list ({0:^19}) ---------------------------".format( scan ) )
     for entry in runNumbers[scan] :
-        print( " runNumber : {0:^5} userIdentity : {1:^20} institution : {2:^20} ".format( str(entry['runNumber'])+",", entry['userIdentity']+",", entry['institution']+"," ))
+        print( " {0:<3} runNumber : {1:^5} userIdentity : {2:^20} institution : {3:^20} ".format( str(runNumbers[scan].index( entry ))+",", str(entry['runNumber'])+",", entry['userIdentity']+",", entry['institution']+"," ))
     print( " " )
     run_num = ""
     while run_num == "" :
         answer_num = ""
         while answer_num == "" :
-            answer_num = input_v( "# Enter summary run number, or type 'N' if not to select >> " )
-        print( " " )
+            answer_num = input_v( "# Enter the number before run number for summary, or type 'N' if not to select >> " )
         if answer_num == 'N' :
             summaryList['after'].update({ scan : {} })
             run_num = "N"
         elif not answer_num.isdigit() :
-            print( "# Input item is not number, enter agein. ")
-            print( " " )
-        elif not number2entry( int(answer_num), runNumbers[scan] )  in runNumbers[scan]  : 
-            print( "# Input number is not included in run number list, enter agein. ")
-            print( " " )
+            print( "[WARNING] Input item is not number, enter agein. ")
+        elif not int(answer_num) < len(runNumbers[scan]) : 
+            print( "[WARNING] Input number is not before run number, enter agein. ")
         else :
             run_num = int(answer_num)
-            summaryList['after'].update({ scan : number2entry(run_num, runNumbers[scan]) })
+            summaryList['after'].update({ scan : runNumbers[scan][run_num] })
 
 ### Add comment
 comments = {}
@@ -288,9 +274,9 @@ for scan in scanList :
     if summaryList['before'][scan] == summaryList['after'][scan] : continue
     if not summaryList['before'][scan] : continue
     
+    print( " " )
     print( "%%%%%%%%%%%%%%%%%%%%%%%%%%%%" )
     print( "    {0:^20}    ".format(scan) )
-    print( " " )
     print( " {0:^10} -> {1:^10} ".format( summaryList['before'][scan].get('runNumber',"None"), summaryList['after'][scan].get('runNumber',"None") ))
     print( "%%%%%%%%%%%%%%%%%%%%%%%%%%%%" )
     print( " " )
@@ -298,56 +284,63 @@ for scan in scanList :
     print( "%%% You must leave a comment about the reason to remove/replace the plot %%%" )
     print( " " )
     print("----- comment list -----")
-    i=0
-    commentDict = {}
     for comment in listset.summary_comment :
-        print( " {0:<3}".format(i) + " : " + comment )
-        commentDict.update({ i : comment })
-        i+=1
+        print( " {0:<3}".format(listset.summary_comment.index(comment)) + " : " + comment )
     print( " " )
     comment_num = ""
     while comment_num == "" :
         num = ""
         while num == "" :
             num = input_v( "# Enter comment number >> " ) 
-        print(" ")
         if not num.isdigit() : 
-            print( "# Input item is not number, enter agein. ")
-            print(" ")
-        elif not int(num) < len(stages) : 
-            print( "# Input number is not included in the comment list, enter agein. ")
-            print(" ")
+            print( "[WARNING] Input item is not number, enter agein. ")
+        elif not int(num) < len(listset.summary_comment) : 
+            print( "[WARNING] Input number is not included in the comment list, enter agein. ")
         else :
             comment_num = int(num)
-    comments.update({ scan : commentDict[comment_num] })
+    comments.update({ scan : listset.summary_comment[comment_num] })
 
 ### Confirmation
 
-print( "# Confirmation " )    
-print( "-----------------------------------------------------------------------------" )
-print( " {0:^3} {1:^20} : {2:^10} -> {3:^10} : {4:^20} ".format( "num", "test type", "current", "change", "comment" ))
-for i in scanDict :
-    scan = scanDict[i]
+print( " " )
+print( "%%%                           Confirmation                            %%%" )    
+print( "-------------------------------------------------------------------------" )
+print( " {0:^20} : {1:^10} -> {2:^10} : {3:^20} ".format( "test type", "current", "change", "comment" ))
+for scan in scanList :
     if summaryList['before'][scan] == summaryList['after'][scan] :
-        print( " {0:<3} {1:<20} : {2:^10} -> {3:^10} ".format( str(i)+",", scanDict[i], summaryList['before'][scan].get('runNumber',"None"), "No change" ))
+        print( " {0:<20} : {1:^10} -> {2:^10} ".format( scan, summaryList['before'][scan].get('runNumber',"None"), "No change" ))
     elif not summaryList['before'][scan] :
-        print( " {0:<3} {1:<20} : {2:^10} -> {3:^10} : {4:^20} ".format( str(i)+",", scanDict[i], summaryList['before'][scan].get('runNumber',"None"), summaryList['after'][scan].get('runNumber',"None"), "-----" ))
+        print( " {0:<20} : {1:^10} -> {2:^10} : {3:^20} ".format( scan, summaryList['before'][scan].get('runNumber',"None"), summaryList['after'][scan].get('runNumber',"None"), "-----" ))
     else :
-        print( " {0:<3} {1:<20} : {2:^10} -> {3:^10} : {4:^20} ".format( str(i)+",", scanDict[i], summaryList['before'][scan].get('runNumber',"None"), summaryList['after'][scan].get('runNumber',"None"), comments[scan] ))
-print( "-----------------------------------------------------------------------------" )
+        print( " {0:<20} : {1:^10} -> {2:^10} : {3:^20} ".format( scan, summaryList['before'][scan].get('runNumber',"None"), summaryList['after'][scan].get('runNumber',"None"), comments[scan] ))
+print( "-------------------------------------------------------------------------" )
 print( " " )
 
+answer = ""
+while answer == "" :
+    answer = input_v( "# Type 'y' if conitinue to add summary plot >> " )
+if not answer == 'y' :
+    print(" ")
+    print("[EXIT]")
+    sys.exit()     
+
 ### Make histogram
-print( "# Start to make histograms.\n" )
+print( "%%% Start to make histograms %%%" )
+print( " " )
 plotList = {}
 for scan in scanList :
+
+    if summaryList['before'][scan] == summaryList['after'][scan] : continue
+
     print( "--- Start : " + "{0:^20}".format(scan) + " ---" )
     
     dat_dir = TMP_DIR + "/localuser/dat"
     clean_dir( dat_dir )
  
     plotList.update({ scan : {} })
-    if not summaryList['after'][scan] : continue
+    if not summaryList['after'][scan] : 
+        print( "--------------- done ---------------" )
+        continue
 
     thisRun = summaryList['after'][scan]
     components = sorted( chips, key=lambda x:x['component'] )
@@ -377,104 +370,121 @@ for scan in scanList :
     root.localDrawScan( scan, plotList[scan] )
     print( "--------------- done ---------------" )
 
-print( "# Finish to make histograms of all scans.\n" )
+print( "%%% Finish to make histograms of all scans %%%" )
+print( " " )
 
 if not input_v( "# Continue to insert plots into Database? Type 'y' if continue >> " ) == "y" : #python2
-    print( "# exit ... " )
+    print( "[EXIT]" )
     sys.exit()     
 
-#### Insert testRun and componentTestRun
-#for scan in scanList :
-#
-#    if not summaryList['after'][scan] : continue
-#
-#    query = summaryList['after'][scan]
-#    run_entries = yarrdb.testRun.find( query )
-#    runIds = []
-#    for run in run_entries :
-#        runIds.append({ "testRun" : str( run['_id'] ) })
-#    query = { '$or' : runIds, "component" : componentId }
-#    thisComponentTestRun = yarrdb.componentTestRun.find_one( query )
-#    if thisComponentTestRun : 
-#        runId = thisComponentTestRun['testRun']
-#    else :
-#        query = runIds[0] 
-#        moduleComponentTestRun = yarrdb.componentTestRun.find_one( query )
-#        query = { "_id" : ObjectId(runIds[0]['testRun']) }
-#        moduleTestRun = yarrdb.testRun.find_one( query )
-#        moduleComponentTestRun.pop( '_id', None )
-#        moduleTestRun.pop( '_id', None )
-#
-#        thistime = datetime.datetime.utcnow()
-#        moduleTestRun.update({ "attachments" : [] })
-#        moduleTestRun.update({ "sys" : { "rev" : 0,
-#                                         "cts" : thistime,
-#                                         "mts" : thistime }})
-#        runId = str(yarrdb.testRun.insert( moduleTestRun ))
-#        moduleComponentTestRun.update({ "component" : componentId,
-#                                        "testRun"   : runId,
-#                                        "sys"       : { "rev" : 0,
-#                                                        "cts" : thistime,
-#                                                        "mts" : thistime }})
-#        yarrdb.componentTestRun.insert( moduleComponentTestRun )
-#
-#    ### add attachments into module TestRun
-#    query = { "component" : componentId, "testRun" : runId }
-#    thisComponentTestRun = yarrdb.componentTestRun.find_one( query )
-#    query = { "_id" : ObjectId(runId) }
-#    thisRun = yarrdb.testRun.find_one( query )
-#
-#    for mapType in plotList[scan] :
-#        if plotList[scan][mapType]['HistoType'] == 1 : continue
-#        url = {} 
-#        path = {}
-#        datadict = { "1" : "_Dist", "2" : "" }
-#        for i in datadict :
-#            filename = "{0}_{1}{2}".format( thisComponent['serialNumber'], mapType, datadict[i] )
-#            for attachment in thisRun['attachments'] :
-#                if filename == attachment.get('filename') :
-#                    fs.delete( ObjectId(attachment.get('code')) )
-#                    yarrdb.testRun.update( query, { '$pull' : { "attachments" : { "code" : attachment.get('code') }}}) 
-#
-#            filepath = "{0}/localuser/plot/{1}_{2}_{3}.png".format(TMP_DIR, str(thisRun['testType']), str(mapType), i)
-#            if os.path.isfile( filepath ) :
-#                binary_image = open( filepath, 'rb' )
-#                image = fs.put( binary_image.read(), filename="{}.png".format(filename) )
-#                binary_image.close()
-#                yarrdb.testRun.update( query, { '$push' : { "attachments" : { "code"        : str(image),
-#                                                                              "dateTime"    : datetime.datetime.utcnow(),
-#                                                                              "title"       : "title",
-#                                                                              "description" : "describe",
-#                                                                              "contentType" : "png",
-#                                                                              "filename"    : filename }}}) 
-#    ### remove "display : True" in current summary run
-#    if summaryList['before'][scan] :
-#        query_id = summaryList['before'][scan] 
-#        yarrdb.testRun.update( query_id, { '$set'  : { "display" : False }}, multi=True )
-#        yarrdb.testRun.update( query_id, { '$push' : { 'comments' : [{ "user"        : user['userIdentity'],
-#                                                                       "userid"      : str(user['_id']),
-#                                                                       "comment"     : comments[scan], 
-#                                                                       "after"       : summaryList['after'][scan]['runId'],
-#                                                                       "datetime"    : datetime.datetime.utcnow(), 
-#                                                                       "institution" : user['institution'],
-#                                                                       "description" : "add_summary" }] }}, multi=True )
-#
-#        update_mod( "testRun", query_id ) 
-#
-#    query = { '$or' : chips + [{ "component" : componentId }], "stage" : stage, "testType" : scan }
-#    entries = yarrdb.componentTestRun.find( query )
-#    for entry in entries :
-#        query = { "_id" : ObjectId( entry['testRun'] )}
-#        thisRun = yarrdb.testRun.find_one( query )
-#        if thisRun.get( 'display' ) :
-#            query = { "_id" : thisRun['_id'] }
-#            yarrdb.testRun.update( query, { '$set' : { "display" : False }} )
-#            update_mod( "testRun", query )
-#
-#    # add "display : True" in selected run
-#    if summaryList['after'][scan]['runId'] :
-#        query_id = summaryList['after'][scan]
-#        yarrdb.testRun.update( query_id, { '$set' : { "display" : True }}, multi=True )
-#        update_mod( "testRun", query_id ) 
-#
-#print( "Finish." )
+### Insert data into Database
+print( "%%% Start to insert data into database %%%" )
+print( " " )
+for scan in scanList :
+    print( "--- Start : " + "{0:^20}".format(scan) + " ---" )
+
+    if summaryList['before'][scan] == summaryList['after'][scan] : continue
+
+    ### Insert testRun and componentTestRun
+    runId = None
+    if summaryList['after'][scan] : 
+
+        query = summaryList['after'][scan]
+        run_entries = yarrdb.testRun.find( query )
+        runIds = []
+        for run in run_entries :
+            runIds.append({ "testRun" : str( run['_id'] ) })
+        query = { '$or' : runIds, "component" : componentId }
+        thisComponentTestRun = yarrdb.componentTestRun.find_one( query )
+        if thisComponentTestRun : 
+            runId = thisComponentTestRun['testRun']
+        else :
+            query = runIds[0] 
+            moduleComponentTestRun = yarrdb.componentTestRun.find_one( query )
+            query = { "_id" : ObjectId(runIds[0]['testRun']) }
+            moduleTestRun = yarrdb.testRun.find_one( query )
+            moduleComponentTestRun.pop( '_id', None )
+            moduleTestRun.pop( '_id', None )
+
+            thistime = datetime.datetime.utcnow()
+            moduleTestRun.update({ "attachments" : [] })
+            moduleTestRun.update({ "sys" : { "rev" : 0,
+                                             "cts" : thistime,
+                                             "mts" : thistime }})
+            runId = str(yarrdb.testRun.insert( moduleTestRun ))
+            print( "Info in <testRun>: id {} has been inserted".format( runId ) )
+            moduleComponentTestRun.update({ "component" : componentId,
+                                            "testRun"   : runId,
+                                            "sys"       : { "rev" : 0,
+                                                            "cts" : thistime,
+                                                            "mts" : thistime }})
+            componentRunId = str(yarrdb.componentTestRun.insert( moduleComponentTestRun ) )
+            print( "Info in <componentTestRun>: id {} has been inserted".format( componentRunId ) )
+
+        ### add attachments into module TestRun
+        query = { "component" : componentId, "testRun" : runId }
+        thisComponentTestRun = yarrdb.componentTestRun.find_one( query )
+        query = { "_id" : ObjectId(runId) }
+        thisRun = yarrdb.testRun.find_one( query )
+
+        for mapType in plotList[scan] :
+            if plotList[scan][mapType]['HistoType'] == 1 : continue
+            url = {} 
+            path = {}
+            datadict = { "1" : "_Dist", "2" : "" }
+            for i in datadict :
+                filename = "{0}_{1}{2}".format( thisComponent['serialNumber'], mapType, datadict[i] )
+                for attachment in thisRun['attachments'] :
+                    if filename == attachment.get('filename') :
+                        fs.delete( ObjectId(attachment.get('code')) )
+                        yarrdb.testRun.update( query, { '$pull' : { "attachments" : { "code" : attachment.get('code') }}}) 
+                        print( "Info in <testRun>: code {} has been pulled".format( str(attachment.get('code')) ) )
+
+                filepath = "{0}/localuser/plot/{1}_{2}_{3}.png".format(TMP_DIR, str(thisRun['testType']), str(mapType), i)
+                if os.path.isfile( filepath ) :
+                    binary_image = open( filepath, 'rb' )
+                    image = fs.put( binary_image.read(), filename="{}.png".format(filename) )
+                    binary_image.close()
+                    yarrdb.testRun.update( query, { '$push' : { "attachments" : { "code"        : str(image),
+                                                                                  "dateTime"    : datetime.datetime.utcnow(),
+                                                                                  "title"       : "title",
+                                                                                  "description" : "describe",
+                                                                                  "contentType" : "png",
+                                                                                  "filename"    : filename }}}) 
+                    print( "Info in <testRun>: code {} has been pushed".format( str(image) ) )
+
+    ### remove "display : True" in current summary run
+    if summaryList['before'][scan] :
+        query_id = summaryList['before'][scan] 
+        yarrdb.testRun.update( query_id, { '$set'  : { "display" : False }}, multi=True )
+        print( "Info in <testRun>: run number {} has been set to false".format( query_id['runNumber'] ) )
+        yarrdb.testRun.update( query_id, { '$push' : { 'comments' : { "userIdentity" : user['userIdentity'],
+                                                                      "userid"       : str(user['_id']),
+                                                                      "comment"      : comments[scan], 
+                                                                      "after"        : runId,
+                                                                      "datetime"     : datetime.datetime.utcnow(), 
+                                                                      "institution"  : user['institution'],
+                                                                      "description"  : "add_summary" }}}, multi=True )
+        print( "Info in <testRun>: run number {} has been set comment".format( query_id['runNumber'] ) )
+        update_mod( "testRun", query_id ) 
+
+    query = { '$or' : chips + [{ "component" : componentId }], "stage" : stage, "testType" : scan }
+    entries = yarrdb.componentTestRun.find( query )
+    for entry in entries :
+        query = { "_id" : ObjectId( entry['testRun'] )}
+        thisRun = yarrdb.testRun.find_one( query )
+        if thisRun.get( 'display' ) :
+            query = { "_id" : thisRun['_id'] }
+            yarrdb.testRun.update( query, { '$set' : { "display" : False }} )
+            print( "Info in <testRun>: run number {} has been set to false".format( thisRun['runNumber'] ) )
+            update_mod( "testRun", query )
+
+    # add "display : True" in selected run
+    if summaryList['after'][scan] :
+        query_id = summaryList['after'][scan]
+        yarrdb.testRun.update( query_id, { '$set' : { "display" : True }}, multi=True )
+        print( "Info in <testRun>: run number {} has been set to true".format( query_id['runNumber'] ) )
+        update_mod( "testRun", query_id ) 
+    print( "--------------- done ---------------" )
+
+print( "%%% Finish %%%" )

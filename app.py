@@ -468,13 +468,13 @@ def add_summary() :
             query_id = dict( [ (key, thisRun[key]) for key in keys ] )
             mongo.db.testRun.update( query_id, { '$set' : { "display" : False }}, multi=True )
 
-            mongo.db.testRun.update( query_id, { '$push' : { 'comments' : [{ "user"        : session['userIdentity'],
-                                                                             "userid"      : session['uuid'],
-                                                                             "comment"     : session['summaryList']['after'][scan]['comment'], 
-                                                                             "after"       : session['summaryList']['after'][scan]['runId'],
-                                                                             "datetime"    : datetime.datetime.utcnow(), 
-                                                                             "institution" : session['institution'],
-                                                                             "description" : "add_summary" }] }}, multi=True )
+            mongo.db.testRun.update( query_id, { '$push' : { 'comments' : { "userIdentity" : session['userIdentity'],
+                                                                            "userid"       : session['uuid'],
+                                                                            "comment"      : session['summaryList']['after'][scan]['comment'], 
+                                                                            "after"        : session['summaryList']['after'][scan]['runId'],
+                                                                            "datetime"     : datetime.datetime.utcnow(), 
+                                                                            "institution"  : session['institution'],
+                                                                            "description"  : "add_summary" }}}, multi=True )
             update_mod( "testRun", query_id ) 
 
         query = { "component" : componentId, "stage" : session['stage'], "testType" : scan }

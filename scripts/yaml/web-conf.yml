@@ -14,5 +14,9 @@ flask:
     host: 127.0.0.1
     port: 5000
 
+summary:
+    serial: AA-11
+    stage: encapsulation
+
 # python version
 python: 2
