@@ -73,8 +73,8 @@ def number2entry( runNumber, id_list ) :
 ### password required
 print( "%%% This function can be used by people with administrator authority %%%" )
 print( " " )
-username = input_v( "# Username of administrator account >> " ) 
-password = getpass( "# Password of administrator account >> " )
+username = input_v( "# Username of account with administrator authority >> " ) 
+password = getpass( "# Password of account with administrator authority >> " )
 password = hashlib.md5(password.encode("utf-8")).hexdigest()
 print( " " )
 
