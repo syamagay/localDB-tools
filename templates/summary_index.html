@@ -1,12 +1,12 @@
 <h4 style="font-size: 13pt;"><i class="fa fa-cog"></i> Test summary </h4>
 
-{# if session['logged_in'] == True #}
+{% if session['logged_in'] == True %}
   <div class="row align-items-top">
     <div class="col">
       <a href="{{ url_for('select_summary', id=component['_id']) }}">Add summary</a>
     </div>
   </div>
-{# endif #}
+{% endif %}
 
 <div class="row align-items-top">
 {% set index = [] %}
