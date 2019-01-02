@@ -190,7 +190,7 @@ i=0
 runNumbers = {}
 summaryList = { "before" : {}, "after" : {} }
 scanList = [ "digitalscan", "analogscan", "thresholdscan", "totscan", "noisescan", "selftrigger" ] 
-keys = [ "runNumber", "institution", "userIdentity" ]
+keys = [ "runNumber", "institution", "userIdentity", "testType" ]
 current = False
 scanDict = {}
 for scan in scanList :
@@ -383,116 +383,98 @@ if not input_v( "# Continue to insert plots into Database? Type 'y' if continue 
     print( "# exit ... " )
     sys.exit()     
 
-### Insert testRun and componentTestRun
-for scan in scanList :
-
-    if not summaryList['after'][scan] : continue
-
-    query = summaryList['after'][scan]
-    run_entries = yarrdb.testRun.find( query )
-    runIds = []
-    for run in run_entries :
-        runIds.append({ "testRun" : str( run['_id'] ) })
-    query = { '$or' : runIds, "component" : componentId }
-    thisComponentTestRun = yarrdb.componentTestRun.find_one( query )
-    if thisComponentTestRun : 
-        runId = thisComponentTestRun['testRun']
-    else :
-        query = runIds[0] 
-        moduleComponentTestRun = yarrdb.componentTestRun.find_one( query )
-        query = { "_id" : ObjectId(runIds[0]['testRun']) }
-        moduleTestRun = yarrdb.testRun.find_one( query )
-        moduleComponentTestRun.pop( '_id', None )
-        moduleTestRun.pop( '_id', None )
-
-        thistime = datetime.datetime.utcnow()
-        moduleTestRun.update({ "attachments" : [] })
-        moduleTestRun.update({ "sys" : { "rev" : 0,
-                                         "cts" : thistime,
-                                         "mts" : thistime }})
-        runId = str(yarrdb.testRun.insert( moduleTestRun ))
-        moduleComponentTestRun.update({ "component" : componentId,
-                                        "testRun"   : runId,
-                                        "sys"       : { "rev" : 0,
-                                                        "cts" : thistime,
-                                                        "mts" : thistime }})
-        yarrdb.componentTestRun.insert( moduleComponentTestRun )
-
-    ### add attachments into module TestRun
-    query = { "component" : componentId, "testRun" : runId }
-    thisComponentTestRun = yarrdb.componentTestRun.find_one( query )
-    query = { "_id" : ObjectId(runId) }
-    thisRun = yarrdb.testRun.find_one( query )
-
-    for mapType in plotList[scan] :
-        if plotList[scan][mapType]['HistoType'] == 1 : continue
-        url = {} 
-        path = {}
-        datadict = { "1" : "_Dist", "2" : "" }
-        for i in datadict :
-            filename = "{0}_{1}{2}".format( thisComponent['serialNumber'], mapType, datadict[i] )
-            for attachment in thisRun['attachments'] :
-                if filename == attachment.get('filename') :
-                    fs.delete( ObjectId(attachment.get('code')) )
-                    yarrdb.testRun.update( query, { '$pull' : { "attachments" : { "code" : attachment.get('code') }}}) 
-
-            filepath = "{0}/localuser/plot/{1}_{2}_{3}.png".format(TMP_DIR, str(thisRun['testType']), str(mapType), i)
-            if os.path.isfile( filepath ) :
-                binary_image = open( filepath, 'rb' )
-                image = fs.put( binary_image.read(), filename="{}.png".format(filename) )
-                binary_image.close()
-                yarrdb.testRun.update( query, { '$push' : { "attachments" : { "code"        : str(image),
-                                                                              "dateTime"    : datetime.datetime.utcnow(),
-                                                                              "title"       : "title",
-                                                                              "description" : "describe",
-                                                                              "contentType" : "png",
-                                                                              "filename"    : filename }}}) 
-    ### remove "display : True" in current summary run
-    if summaryList['before'][scan] :
-        query_id = summaryList['before'][scan] 
-        yarrdb.testRun.update( query_id, { '$set' : { "display" : False }}, multi=True )
-
-###########
-#        yarrdb.testRun.update( query_id, { '$push' : { 'comments' : [{ "user"        : session['userIdentity'],
-#                                                                       "userid"      : session['uuid'],
-#                                                                       "comment"     : session['summaryList']['after'][scan]['comment'], 
-#                                                                       "after"       : session['summaryList']['after'][scan]['runId'],
+#### Insert testRun and componentTestRun
+#for scan in scanList :
+#
+#    if not summaryList['after'][scan] : continue
+#
+#    query = summaryList['after'][scan]
+#    run_entries = yarrdb.testRun.find( query )
+#    runIds = []
+#    for run in run_entries :
+#        runIds.append({ "testRun" : str( run['_id'] ) })
+#    query = { '$or' : runIds, "component" : componentId }
+#    thisComponentTestRun = yarrdb.componentTestRun.find_one( query )
+#    if thisComponentTestRun : 
+#        runId = thisComponentTestRun['testRun']
+#    else :
+#        query = runIds[0] 
+#        moduleComponentTestRun = yarrdb.componentTestRun.find_one( query )
+#        query = { "_id" : ObjectId(runIds[0]['testRun']) }
+#        moduleTestRun = yarrdb.testRun.find_one( query )
+#        moduleComponentTestRun.pop( '_id', None )
+#        moduleTestRun.pop( '_id', None )
+#
+#        thistime = datetime.datetime.utcnow()
+#        moduleTestRun.update({ "attachments" : [] })
+#        moduleTestRun.update({ "sys" : { "rev" : 0,
+#                                         "cts" : thistime,
+#                                         "mts" : thistime }})
+#        runId = str(yarrdb.testRun.insert( moduleTestRun ))
+#        moduleComponentTestRun.update({ "component" : componentId,
+#                                        "testRun"   : runId,
+#                                        "sys"       : { "rev" : 0,
+#                                                        "cts" : thistime,
+#                                                        "mts" : thistime }})
+#        yarrdb.componentTestRun.insert( moduleComponentTestRun )
+#
+#    ### add attachments into module TestRun
+#    query = { "component" : componentId, "testRun" : runId }
+#    thisComponentTestRun = yarrdb.componentTestRun.find_one( query )
+#    query = { "_id" : ObjectId(runId) }
+#    thisRun = yarrdb.testRun.find_one( query )
+#
+#    for mapType in plotList[scan] :
+#        if plotList[scan][mapType]['HistoType'] == 1 : continue
+#        url = {} 
+#        path = {}
+#        datadict = { "1" : "_Dist", "2" : "" }
+#        for i in datadict :
+#            filename = "{0}_{1}{2}".format( thisComponent['serialNumber'], mapType, datadict[i] )
+#            for attachment in thisRun['attachments'] :
+#                if filename == attachment.get('filename') :
+#                    fs.delete( ObjectId(attachment.get('code')) )
+#                    yarrdb.testRun.update( query, { '$pull' : { "attachments" : { "code" : attachment.get('code') }}}) 
+#
+#            filepath = "{0}/localuser/plot/{1}_{2}_{3}.png".format(TMP_DIR, str(thisRun['testType']), str(mapType), i)
+#            if os.path.isfile( filepath ) :
+#                binary_image = open( filepath, 'rb' )
+#                image = fs.put( binary_image.read(), filename="{}.png".format(filename) )
+#                binary_image.close()
+#                yarrdb.testRun.update( query, { '$push' : { "attachments" : { "code"        : str(image),
+#                                                                              "dateTime"    : datetime.datetime.utcnow(),
+#                                                                              "title"       : "title",
+#                                                                              "description" : "describe",
+#                                                                              "contentType" : "png",
+#                                                                              "filename"    : filename }}}) 
+#    ### remove "display : True" in current summary run
+#    if summaryList['before'][scan] :
+#        query_id = summaryList['before'][scan] 
+#        yarrdb.testRun.update( query_id, { '$set'  : { "display" : False }}, multi=True )
+#        yarrdb.testRun.update( query_id, { '$push' : { 'comments' : [{ "user"        : user['userIdentity'],
+#                                                                       "userid"      : str(user['_id']),
+#                                                                       "comment"     : comments[scan], 
+#                                                                       "after"       : summaryList['after'][scan]['runId'],
 #                                                                       "datetime"    : datetime.datetime.utcnow(), 
-#                                                                       "institution" : session['institution'],
+#                                                                       "institution" : user['institution'],
 #                                                                       "description" : "add_summary" }] }}, multi=True )
+#
 #        update_mod( "testRun", query_id ) 
 #
-#    query = { "component" : componentId, "stage" : session['stage'], "testType" : scan }
-#    entries = mongo.db.componentTestRun.find( query )
+#    query = { '$or' : chips + [{ "component" : componentId }], "stage" : stage, "testType" : scan }
+#    entries = yarrdb.componentTestRun.find( query )
 #    for entry in entries :
 #        query = { "_id" : ObjectId( entry['testRun'] )}
-#        thisRun = mongo.db.testRun.find_one( query )
-#        keys = [ "runNumber", "institution", "userIdentity", "testType" ]
-#        query_id = dict( [ (key, thisRun[key]) for key in keys ] )
-#        run_entries = mongo.db.testRun.find( query_id )
-#        for run in run_entries :
-#            if run.get( 'display' ) :
-#                query = { "_id" : run['_id'] }
-#                mongo.db.testRun.update( query, { '$set' : { "display" : False }} )
-#                update_mod( "testRun", query )
+#        thisRun = yarrdb.testRun.find_one( query )
+#        if thisRun.get( 'display' ) :
+#            query = { "_id" : thisRun['_id'] }
+#            yarrdb.testRun.update( query, { '$set' : { "display" : False }} )
+#            update_mod( "testRun", query )
 #
-#
-#        # change display bool
-#        components = [{ "component" : str(thisComponent['_id']) }]
-#        query = { "parent" : str(thisComponent['_id']) }
-#        for child in yarrdb.childParentRelation.find( query ) :
-#            components.append({ "component" : child['child'] })
-#        query = { '$or' : components, "testType" : thisComponentTestRun['testType'], "stage" : thisComponentTestRun['stage'] }
-#        runids = []
-#        for run in yarrdb.componentTestRun.find( query ) :
-#            runids.append({ "_id" : ObjectId(run['testRun']) })
-#        query = { '$or' : runids, "display" : True }
-#        if not yarrdb.testRun.find( query ).count() == 0 :
-#            update_mod( "testRun", query ) 
-#            yarrdb.testRun.update( query, { '$set' : { "display" : False }}, multi=True )
-#        query.pop("display",None)
-#        query.update({ "runNumber" : thisRun['runNumber'], "institution" : thisRun['institution'], "userIdentity" : thisRun['userIdentity'] })
-#        update_mod( "testRun", query ) 
-#        yarrdb.testRun.update( query, { '$set' : { "display" : True }}, multi=True )
+#    # add "display : True" in selected run
+#    if summaryList['after'][scan]['runId'] :
+#        query_id = summaryList['after'][scan]
+#        yarrdb.testRun.update( query_id, { '$set' : { "display" : True }}, multi=True )
+#        update_mod( "testRun", query_id ) 
 #
 #print( "Finish." )
