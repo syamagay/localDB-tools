@@ -9,6 +9,6 @@ scan = { "selftrigger"   : [( "OccupancyMap-0", "#Hit" ),],
          "digitalscan"   : [( "OccupancyMap", "Occupancy" ),       ( "EnMask", "EnMask" )],
          "analogscan"    : [( "OccupancyMap", "Occupancy" ),       ( "EnMask", "EnMask" )]}
 
-stage = [ "wirebond", "encapsulation" ]
+stage = [ "encapsulation", "wirebond" ]
 
 summary_comment = [ "re-test", "plan_to_re-test", "failure", "other" ]

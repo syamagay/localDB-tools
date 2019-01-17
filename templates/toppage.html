@@ -1,3 +1,23 @@
+<style>
+table.toppage {
+  table-layout: fixed;
+}
+table.toppage th {
+  text-align: center;
+  vertical-align: middle;
+}
+table.toppage td {
+  text-align: center;
+  vertical-align: middle;
+  border: 2px dotted #e1e1e1;
+}
+table.toppage td.border_inner {
+  border-right-width: 2px;
+  border-right-style: dotted;
+  border-right-color: #e1e1e1;
+}
+
+</style>
 {% extends "layout.html" %}    <!-- これで元になるHTML(laytout.html)を指定 -->
 
 {% block body %}    <!-- layout.htmlのbodyというブロックを以下で置き換える -->
@@ -37,31 +57,46 @@
         {% for FE in modules %}
         <a data-toggle="collapse" href='#{{ FE }}' aria-controls="testindex" style="color: black;"><h4 style="font-size: 10pt;"><i class="fa fa-cog"></i> {{ FE }} ( {{ modules[FE]['num'] }} modules )</h4></a>
 
-          <table class="table table-sm table-hover collapse" id={{ FE }} style="font-size: 10pt;">
+          <table class="table table-sm collapse toppage" id={{ FE }} style="font-size: 10pt;">
             <thead class="table-dark" style="background: #222222;">
               <tr>
-                <th scope="col" width="110">Module</th>
-                <th scope="col" width="700">Chips</th>
-                <th scope="col" width="110">FE type</th>
-                <th scope="col" width="300">Created date</th>
+                <th scope="col" style="width:calc(100%/7);" >Module</th>
+                <th scope="col" style="width:calc(100%/7*4);" colspan="4">Chips</th>
+                <th scope="col" style="width:calc(100%/7);" >Created Date</th>
+                <th scope="col" style="width:calc(100%/7);" >Cuurent Stage</th>
               </tr>
             </thead>
             <tbody>
               {% for module in modules[FE]["modules"] %}
                 <tr>
-                  <td><a href="{{ url_for('show_component', id=module["_id"]) }}">{{ module["serialNumber"] }}</a></td>
-                  <td>
-                  <div class="wrapper" style="display: flex;justify-content: space-around;">
-                  {% for chip in module["chips"] %}
-                    <div class="element">
-                      <a href="{{ url_for('show_component', id=chip["_id"]) }}">{{ chip["serialNumber"] }}
-                      </a>&ensp;
-                    </div>
+                  {% if not "total" in module['grade'] %}
+                  <td style="width:calc(100%/7);">
+                  {% elif module['grade']['total'] == 6 %}
+                  <td style="background: #ccffb9; width:calc(100%/7);">
+                  {% elif module['grade']['total'] == 5 %}
+                  <td style="background: #fffdb9; width:calc(100%/7);">
+                  {% else %}
+                  <td style="background: #ffc3b9; width:calc(100%/7);">
+                  {% endif %}
+                  <a href="{{ url_for('show_component', id=module["_id"]) }}" title="the total : {{ module['grade']['totPix'] }}">{{ module["serialNumber"] }}</a></td>
+                  {% for num in range(4) %}
+                    {% if module["chips"][num] %}
+                      {% if not "total" in module["chips"][num]['grade'] %}
+                      <td style="width:calc(100%/7);">
+                      {% elif module["chips"][num]['grade']['total'] == 6 %}
+                      <td style="background: #e2ffd8; width:calc(100%/7);">
+                      {% elif module["chips"][num]['grade']['total'] == 5 %}
+                      <td style="background: #fffee6; width:calc(100%/7);">
+                      {% else %}
+                      <td style="background: #ffe5e1; width:calc(100%/7);">
+                      {% endif %}
+                      <a href="{{ url_for('show_component', id=module["chips"][num]["_id"]) }}">{{ module["chips"][num]["serialNumber"] }}</a></td>
+                    {% else %}
+                      <td></td>
+                    {% endif %}
                   {% endfor %}
-                  </div>
-                  </td>
-                  <td>{{ module["chips"][0]["componentType"] }}</td>
-                  <td>{{ module["chips"][0]["datetime"] }}</td>
+                  <td>{{ module["datetime"] }}</td>
+                  <td>{{ module["stage"] }}</td>
                 </tr>
               {% endfor %}
             </tbody>

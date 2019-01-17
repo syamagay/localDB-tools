@@ -469,6 +469,53 @@ def fill_summary_test():
 
     return summaryIndex
 
+def grade_module(moduleId):
+    scoreIndex = { "stage": None }
+    scoreIndex.update({ "module": {} })
+
+    query = { "_id": ObjectId(moduleId) }
+    thisModule = yarrdb.component.find_one( query )
+
+    query = { "parent": moduleId }
+    child_entries = yarrdb.childParentRelation.find( query )
+    for i,child in enumerate(child_entries):
+        scoreIndex.update({ i: {} })
+
+    entries = {}
+    for stage in listset.stage:
+        query = { "component": moduleId, "stage": stage }
+        run_entries = yarrdb.componentTestRun.find( query )
+        if run_entries.count() == 0: continue
+
+        scoreIndex.update({ "stage": stage })
+
+        for run in run_entries:
+            query = { "_id": ObjectId(run['testRun']), "display": True }
+            thisRun = yarrdb.testRun.find_one( query )
+            if thisRun:
+                entries.update({ thisRun['testType']: str(thisRun['_id']) }) 
+        break
+
+    if entries == {}: return scoreIndex
+
+    for scan in listset.scan:
+        if not scan in entries: continue
+
+        session['this'] = moduleId 
+        write_dat( entries[scan] )
+        if not scan == "thresholdscan":
+            score = root.countPix( scan, thisModule["serialNumber"] )
+        else:
+            score = root.countPix( scan, thisModule["serialNumber"] )
+
+        for component in scoreIndex:
+            if component == "stage": continue
+            scoreIndex[component].update({ scan: score.get(component,0) })
+            scoreIndex[component].update({ "total": scoreIndex[component].get("total",0) + score.get(component,0) })
+
+    return scoreIndex
+
+
 ######################################################################
 
 # run number list
@@ -574,9 +621,20 @@ def fill_results():
 # create dat file from dat data in attachments of run
 def write_dat(runId):
 
+    session['plotList'] = {}
+
+    plot_dir = TMP_DIR + "/" + str(session.get('uuid')) + "/plot"
+    clean_dir(plot_dir)
+
     dat_dir = TMP_DIR + '/' + str(session.get('uuid')) + '/dat'
     clean_dir(dat_dir)
 
+    jsonFile = JSON_DIR + "/{}_parameter.json".format(session.get('uuid'))
+    if not os.path.isfile( jsonFile ):
+        jsonFile_default = SCRIPT_DIR + "/json/parameter_default.json"
+        with open(jsonFile_default, 'r') as f: jsonData_default = json.load(f)
+        with open(jsonFile,         'w') as f: json.dump(jsonData_default, f, indent=4)
+ 
     query = {'_id': ObjectId(runId)}
     thisRun = yarrdb.testRun.find_one(query)
     thisComponentTestRun = yarrdb.componentTestRun.find_one({'testRun': str(thisRun['_id'])})
@@ -632,17 +690,6 @@ def make_plot(runId):
             session['plotList'][mapType].update({'draw': True, 'parameter': session['parameter']})
 
     else:
-        session['plotList'] = {}
-    
-        plot_dir = TMP_DIR + '/' + str(session.get('uuid')) + '/plot'
-        clean_dir(plot_dir)
-    
-        jsonFile = JSON_DIR + '/{}_parameter.json'.format(session.get('uuid'))
-        if not os.path.isfile(jsonFile):
-            jsonFile_default = './scripts/json/parameter_default.json'
-            with open(jsonFile_default, 'r') as f: jsonData_default = json.load(f)
-            with open(jsonFile, 'w') as f: json.dump(jsonData_default, f, indent=4)
-    
         write_dat(runId)
 
     root.drawScan(thisRun['testType'])
