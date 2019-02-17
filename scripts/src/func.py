@@ -257,6 +257,7 @@ def fill_summary(stages):
     for stage in entries:
         scandict = {}
 
+        datadict = { '1': { 'name': '_Dist', 'count': 0 }, '2': { 'name': '', 'count': 0 } }
         for scan in entries[stage]:
             mapList = []
             total = False
@@ -275,10 +276,10 @@ def fill_summary(stages):
                     data_entries = thisRun['attachments']
                     for data in data_entries:
 
-                        datadict = {'1': '_Dist', '2': ''}
                         for i in datadict:
-                            if data['filename'] == '{0}_{1}{2}'.format(thisComponent['serialNumber'], mapType[0], datadict[i]):
+                            if data['filename'] == '{0}_{1}{2}'.format(thisComponent['serialNumber'], mapType[0], datadict[i]['name']):
                                 if data['contentType'] == 'png':
+                                    datadict[i].update({ 'count': int(datadict[i]['count'])+1 })
                                     filePath = '{0}/{1}_{2}_{3}.png'.format(THUMBNAIL_DIR, stage, scan, data['filename'])
                                     mapDict.update({'code{}D'.format(i): data['code']})
                                     if not os.path.isfile(filePath):
@@ -301,12 +302,11 @@ def fill_summary(stages):
             scandict[scan].update({'map': mapList,
                                    'num': len(mapList)})
 
-            if mapList: total = True
-
         if not scandict == {}:
             summaryIndex.append({'stage': stage,
                                  'scan': scandict,
-                                 'total': total})
+                                 '2Dnum': datadict['2']['count'],
+                                 '1Dnum': datadict['1']['count'] })
 
     return summaryIndex
 
@@ -470,27 +470,27 @@ def fill_summary_test():
     return summaryIndex
 
 def grade_module(moduleId):
-    scoreIndex = { "stage": None }
-    scoreIndex.update({ "module": {} })
+    scoreIndex = { 'stage': None }
+    scoreIndex.update({ 'module': {} })
 
-    query = { "_id": ObjectId(moduleId) }
+    query = { '_id': ObjectId(moduleId) }
     thisModule = yarrdb.component.find_one( query )
 
-    query = { "parent": moduleId }
+    query = { 'parent': moduleId }
     child_entries = yarrdb.childParentRelation.find( query )
     for i,child in enumerate(child_entries):
-        scoreIndex.update({ i: {} })
+        scoreIndex.update({ i+1: {} })
 
     entries = {}
     for stage in listset.stage:
-        query = { "component": moduleId, "stage": stage }
+        query = { 'component': moduleId, 'stage': stage }
         run_entries = yarrdb.componentTestRun.find( query )
         if run_entries.count() == 0: continue
 
-        scoreIndex.update({ "stage": stage })
+        scoreIndex.update({ 'stage': stage })
 
         for run in run_entries:
-            query = { "_id": ObjectId(run['testRun']), "display": True }
+            query = { '_id': ObjectId(run['testRun']), 'display': True }
             thisRun = yarrdb.testRun.find_one( query )
             if thisRun:
                 entries.update({ thisRun['testType']: str(thisRun['_id']) }) 
@@ -503,15 +503,15 @@ def grade_module(moduleId):
 
         session['this'] = moduleId 
         write_dat( entries[scan] )
-        if not scan == "thresholdscan":
-            score = root.countPix( scan, thisModule["serialNumber"] )
+        if not scan == 'thresholdscan':
+            score = root.countPix( scan, thisModule['serialNumber'] )
         else:
-            score = root.countPix( scan, thisModule["serialNumber"] )
+            score = root.countPix( scan, thisModule['serialNumber'] )
 
         for component in scoreIndex:
-            if component == "stage": continue
+            if component == 'stage': continue
             scoreIndex[component].update({ scan: score.get(component,0) })
-            scoreIndex[component].update({ "total": scoreIndex[component].get("total",0) + score.get(component,0) })
+            scoreIndex[component].update({ 'total': scoreIndex[component].get('total',0) + score.get(component,{'score':0})['score'] })
 
     return scoreIndex
 
@@ -623,15 +623,15 @@ def write_dat(runId):
 
     session['plotList'] = {}
 
-    plot_dir = TMP_DIR + "/" + str(session.get('uuid')) + "/plot"
+    plot_dir = TMP_DIR + '/' + str(session.get('uuid')) + '/plot'
     clean_dir(plot_dir)
 
     dat_dir = TMP_DIR + '/' + str(session.get('uuid')) + '/dat'
     clean_dir(dat_dir)
 
-    jsonFile = JSON_DIR + "/{}_parameter.json".format(session.get('uuid'))
+    jsonFile = JSON_DIR + '/{}_parameter.json'.format(session.get('uuid'))
     if not os.path.isfile( jsonFile ):
-        jsonFile_default = SCRIPT_DIR + "/json/parameter_default.json"
+        jsonFile_default = './scripts/json/parameter_default.json'
         with open(jsonFile_default, 'r') as f: jsonData_default = json.load(f)
         with open(jsonFile,         'w') as f: json.dump(jsonData_default, f, indent=4)
  
@@ -646,14 +646,14 @@ def write_dat(runId):
     child_entries = yarrdb.childParentRelation.find({'$or': query})
     for child in child_entries:
         chips.append({'component': child['child']})
+        query = { '_id': ObjectId(child['child']) }
+        thisChip = yarrdb.component.find_one( query )
+        if 'chipId' in thisChip['serialNumber']:
+            chipIds.update({ child['child']: int(thisChip['serialNumber'].split('chipId')[1]) })
+        else:
+            chipIds.update({ child['child']: 1 })
 
-    components = sorted(chips, key=lambda x:x['component'])
-    i=1
-    for component in components:
-        if not component['component'] in chipIds:
-            chipIds.update({component['component']: i})
-            i+=1
-    query = {'$or': components, 'runNumber': thisRun['runNumber'], 'testType': thisRun['testType'], 'stage': thisComponentTestRun['stage']}
+    query = { '$or': chips, 'runNumber': thisRun['runNumber'], 'testType': thisRun['testType'], 'stage': thisComponentTestRun['stage'] }
     run_entries = yarrdb.componentTestRun.find(query)
 
     for run in run_entries:
@@ -665,10 +665,8 @@ def write_dat(runId):
             data_entries = chiprun['attachments']
             for data in data_entries:
                 if data['contentType'] == 'dat':
-                    f = open('{0}/{1}/dat/{2}_{3}.dat'.format(TMP_DIR, 
-                                                              session.get('uuid'), 
-                                                              'chipId{}'.format(chipIds[run['component']]), 
-                                                              data['filename'].rsplit('_',1)[1]), 'wb')
+
+                    f = open( '{0}/{1}/dat/{2}_{3}.dat'.format( TMP_DIR, session.get('uuid'), data['filename'].rsplit('_',1)[1], 'chipId{}'.format(chipIds[run['component']]) ), 'wb' )
                     f.write(fs.get(ObjectId(data['code'])).read())
                     f.close()
                     mapType = data['filename'].rsplit('_',1)[1]

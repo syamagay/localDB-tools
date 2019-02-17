@@ -89,84 +89,84 @@ def show_modules_and_chips():
         chips = []
         componentType = 'unknown'
 
-        for i, child in enumerate(child_entries) :
-            query = { "_id" : ObjectId(child['child']) }
+        for i, child in enumerate(child_entries):
+            query = { '_id': ObjectId(child['child']) }
             thisChip = mongo.db.component.find_one( query )
-            chips.append({ "_id"           : str(thisChip['_id']),
-                           "serialNumber"  : thisChip['serialNumber'],
-                           "datetime"      : set_time(thisChip['sys']['cts']),
-                           "grade"         : None }) 
+            chips.append({ '_id'          : str(thisChip['_id']),
+                           'serialNumber' : thisChip['serialNumber'],
+                           'datetime'     : set_time(thisChip['sys']['cts']),
+                           'grade'        : {} }) 
             componentType = thisChip['componentType']
 
         if not componentType in modules:
             modules.update({ componentType: { 'modules': [], 'num': '' } })
 
-        modules[componentType]["modules"].append({ "_id"          : str(component['_id']),
-                                                   "serialNumber" : component['serialNumber'],
-                                                   "chips"        : chips,
-                                                   "datetime"     : set_time(component['sys']['cts']),
-                                                   "grade"        : None,
-                                                   "stage"        : None })
+        modules[componentType]['modules'].append({ '_id'         : str(component['_id']),
+                                                   'serialNumber': component['serialNumber'],
+                                                   'chips'       : chips,
+                                                   'datetime'    : set_time(component['sys']['cts']),
+                                                   'grade'       : {},
+                                                   'stage'       : None })
 
-    for componentType in modules :
-        modules[componentType].update({ "num" : len(modules[componentType]["modules"]) })
+    for componentType in modules:
+        modules[componentType].update({ 'num': len(modules[componentType]['modules']) })
 
-    module = sorted( modules[componentType]["modules"], key=lambda x:x["serialNumber"], reverse=True)
-    modules[componentType]["modules"] = module
+    module = sorted( modules[componentType]['modules'], key=lambda x:x['serialNumber'], reverse=True)
+    modules[componentType]['modules'] = module
 
-    return render_template( "toppage.html", modules=modules )
+    return render_template( 'toppage.html', modules=modules )
 
 @app.route('/development', methods=['GET'])
-def show_modules_and_chips_develop() :
+def show_modules_and_chips_develop():
 
-    if session.get( 'uuid' ) :
-        user_dir = TMP_DIR + "/" + str(session.get( 'uuid' ))
-        if os.path.isdir( user_dir ) : shutil.rmtree( user_dir )
-    else :
+    if session.get( 'uuid' ):
+        user_dir = TMP_DIR + '/' + str(session.get( 'uuid' ))
+        if os.path.isdir( user_dir ): shutil.rmtree( user_dir )
+    else:
         session['uuid'] = str( uuid.uuid4() ) 
 
     make_dir()
-    clean_dir( STAT_DIR )
+    clean_dir( STATIC_DIR )
     session.pop( 'signup', None )
 
-    query = { "componentType" : "Module" }
+    query = { 'componentType': 'Module' }
     component_entries = mongo.db.component.find( query )
     modules = {}
 
-    for component in component_entries :
-        query = { "parent" : str(component['_id']) }
+    for component in component_entries:
+        query = { 'parent': str(component['_id']) }
         child_entries = mongo.db.childParentRelation.find( query )
         chips = []
-        componentType = "unknown"
+        componentType = 'unknown'
 
         # grade module
-        score  = fei4.grade_module(str(component['_id'])) 
+        score  = grade_module(str(component['_id'])) 
 
-        for child in child_entries :
-            query = { "_id" : ObjectId(child['child']) }
+        for child in child_entries:
+            query = { '_id': ObjectId(child['child']) }
             thisChip = mongo.db.component.find_one( query )
-            if "chipId" in thisChip['serialNumber'] :
-                chipId = int(thisChip['serialNumber'].split("chipId")[1]) 
-            else :
+            if 'chipId' in thisChip['serialNumber']:
+                chipId = int(thisChip['serialNumber'].split('chipId')[1]) 
+            else:
                 chipId = 1 
-            chips.append({ "_id"           : str(thisChip['_id']),
-                           "serialNumber"  : thisChip['serialNumber'],
-                           "datetime"      : set_time(thisChip['sys']['cts']),
-                           #"grade"         : score[chipId].get('total') }) 
-                           "grade"         : score[chipId] }) 
+            chips.append({ '_id'          : str(thisChip['_id']),
+                           'serialNumber' : thisChip['serialNumber'],
+                           'datetime'     : set_time(thisChip['sys']['cts']),
+                           #'grade'        : score[chipId].get('total') }) 
+                           'grade'        : score.get(chipId,{}) }) 
             componentType = thisChip['componentType']
 
-        if not componentType in modules :
-            modules.update({ componentType : { "modules" : [], "num" : "" } })
+        if not componentType in modules:
+            modules.update({ componentType: { 'modules': [], 'num': '' } })
 
 
-        modules[componentType]["modules"].append({ "_id"          : str(component['_id']),
-                                                   "serialNumber" : component['serialNumber'],
-                                                   "chips"        : chips,
-                                                   "datetime"     : set_time(component['sys']['cts']),
-                                                   #"grade"        : score['module'].get('total'),
-                                                   "grade"        : score['module'],
-                                                   "stage"        : score['stage'] })
+        modules[componentType]['modules'].append({ '_id'         : str(component['_id']),
+                                                   'serialNumber': component['serialNumber'],
+                                                   'chips'       : chips,
+                                                   'datetime'    : set_time(component['sys']['cts']),
+                                                   #'grade'       : score['module'].get('total'),
+                                                   'grade'       : score['module'],
+                                                   'stage'       : score['stage'] })
 
     for componentType in modules:
         modules[componentType].update({ 'num': len(modules[componentType]['modules']) })
@@ -216,11 +216,11 @@ def show_component():
         query = { '_id': ObjectId(child['child']) }
         thisChip = mongo.db.component.find_one( query )
         component['componentType'] = thisChip['componentType']
-        component_chips.append({ '_id'         : child['child'],
+        component_chips.append({ '_id'        : child['child'],
                                  'serialNumber': thisChip['serialNumber'] })
 
-    module = { '_id'          : ParentId,
-               'serialNumber' : thisModule['serialNumber'] }
+    module = { '_id'         : ParentId,
+               'serialNumber': thisModule['serialNumber'] }
     
     # fill photos
     photoDisplay = fill_photoDisplay( thisComponent )
@@ -236,24 +236,24 @@ def show_component():
     query = { '$or': chips }
     run_entries = mongo.db.componentTestRun.find( query )
     stages = []
-    for run in run_entries :
-        if not run.get('stage') == "" :
+    for run in run_entries:
+        if not run.get('stage') == '':
             stages.append( run.get('stage') )
     stages = list(set(stages))
     summary = fill_summary( stages )
 
-    component.update({ '_id'          : session['this'],
-                       'serialNumber' : thisComponent['serialNumber'],
-                       'module'       : module,
-                       'chips'        : component_chips,
-                       'unit'         : unit, 
-                       'photoDisplay' : photoDisplay,
-                       'photoIndex'   : photoIndex,
-                       'photos'       : photos,
-                       'resultIndex'  : resultIndex,
-                       'results'      : results,
-                       'roots'        : roots,
-                       'summary'      : summary })
+    component.update({ '_id'         : session['this'],
+                       'serialNumber': thisComponent['serialNumber'],
+                       'module'      : module,
+                       'chips'       : component_chips,
+                       'unit'        : unit, 
+                       'photoDisplay': photoDisplay,
+                       'photoIndex'  : photoIndex,
+                       'photos'      : photos,
+                       'resultIndex' : resultIndex,
+                       'results'     : results,
+                       'roots'       : roots,
+                       'summary'     : summary })
 
     return render_template( 'component.html', component=component )
 
@@ -305,7 +305,7 @@ def select_summary():
         return redirect( url_for('add_summary', id=request.args.get( 'id' )) )
 
     if not request.form.get( 'stage' ) == session.get( 'stage' ) or not session.get( 'stage' ):
-        session['summaryList'] = { 'after' : {},
+        session['summaryList'] = { 'after': {},
                                    'before': {} }
         session['step'] = 1
 
@@ -341,10 +341,10 @@ def select_summary():
         query = { '_id': ObjectId(child['child']) }
         thisChip = mongo.db.component.find_one( query )
         component['componentType'] = thisChip['componentType']
-        component_chips.append({ '_id'         : child['child'],
+        component_chips.append({ '_id'        : child['child'],
                                  'serialNumber': thisChip['serialNumber'] })
-    module = { '_id'          : ParentId,
-               'serialNumber' : thisModule['serialNumber'] }
+    module = { '_id'         : ParentId,
+               'serialNumber': thisModule['serialNumber'] }
 
     query = { '$or': chips }
     run_entries = mongo.db.componentTestRun.find( query )
@@ -359,17 +359,17 @@ def select_summary():
     # fill result index 
     resultIndex = fill_resultIndex()
 
-    component.update({ '_id'          : session['this'],
-                       'serialNumber' : thisComponent['serialNumber'],
-                       'module'       : module,
-                       'chips'        : component_chips,
-                       'unit'         : unit,
-                       'summary'      : summary,
-                       'stages'       : stages,
-                       'step'         : session['step'],
-                       'comments'     : listset.summary_comment,
-                       'resultIndex'  : resultIndex,
-                       'stage'        : session['stage'] })
+    component.update({ '_id'         : session['this'],
+                       'serialNumber': thisComponent['serialNumber'],
+                       'module'      : module,
+                       'chips'       : component_chips,
+                       'unit'        : unit,
+                       'summary'     : summary,
+                       'stages'      : stages,
+                       'step'        : session['step'],
+                       'comments'    : listset.summary_comment,
+                       'resultIndex' : resultIndex,
+                       'stage'       : session['stage'] })
 
     return render_template( 'add_summary.html', component=component )
 
@@ -412,8 +412,8 @@ def add_summary():
                                                  'mts': thistime }})
                 runId = str(mongo.db.testRun.insert( moduleTestRun ))
                 moduleComponentTestRun.update({ 'component': componentId,
-                                                'testRun'  : runId,
-                                                'sys'        : { 'rev': 0,
+                                                'testRun' : runId,
+                                                'sys'       : { 'rev': 0,
                                                                   'cts': thistime,
                                                                   'mts': thistime }})
                 mongo.db.componentTestRun.insert( moduleComponentTestRun )
@@ -442,12 +442,12 @@ def add_summary():
                         binary_image = open( filepath, 'rb' )
                         image = fs.put( binary_image.read(), filename='{}.png'.format(filename) )
                         binary_image.close()
-                        mongo.db.testRun.update( query, { '$push': { 'attachments': { 'code'       : str(image),
-                                                                                        'dateTime'   : datetime.datetime.utcnow(),
-                                                                                        'title'      : 'title',
+                        mongo.db.testRun.update( query, { '$push': { 'attachments': { 'code'      : str(image),
+                                                                                        'dateTime'  : datetime.datetime.utcnow(),
+                                                                                        'title'     : 'title',
                                                                                         'description': 'describe',
                                                                                         'contentType': 'png',
-                                                                                        'filename'   : filename }}}) 
+                                                                                        'filename'  : filename }}}) 
         # remove 'display: True' in current summary run
         if session['summaryList']['before'][scan]['runId']:
             query = { '_id': ObjectId(session['summaryList']['before'][scan]['runId']) }
@@ -458,12 +458,12 @@ def add_summary():
             mongo.db.testRun.update( query_id, { '$set': { 'display': False }}, multi=True )
 
             mongo.db.testRun.update( query_id, { '$push': { 'comments': { 'userIdentity': session['userIdentity'],
-                                                                            'userid'      : session['uuid'],
-                                                                            'comment'     : session['summaryList']['after'][scan]['comment'], 
-                                                                            'after'       : session['summaryList']['after'][scan]['runId'],
-                                                                            'datetime'    : datetime.datetime.utcnow(), 
-                                                                            'institution' : session['institution'],
-                                                                            'description' : 'add_summary' }}}, multi=True )
+                                                                            'userid'     : session['uuid'],
+                                                                            'comment'    : session['summaryList']['after'][scan]['comment'], 
+                                                                            'after'      : session['summaryList']['after'][scan]['runId'],
+                                                                            'datetime'   : datetime.datetime.utcnow(), 
+                                                                            'institution': session['institution'],
+                                                                            'description': 'add_summary' }}}, multi=True )
             update_mod( 'testRun', query_id ) 
 
         query = { 'component': componentId, 'stage': session['stage'], 'testType': scan }
@@ -569,7 +569,7 @@ def tag():
                  update_mod( collection, query )
             elif session.get('tag') == 'untag':
                  mongo.db[collection].update( query, { '$unset': { 'attachments.{}.display'.format( data_entries.index(data) ): True }})
-                 mongo.db[collection].update( query, { '$set'  : { 'attachments.{}.description'.format( data_entries.index(data) ): '' }})
+                 mongo.db[collection].update( query, { '$set' : { 'attachments.{}.description'.format( data_entries.index(data) ): '' }})
                  update_mod( collection, query )
             else:
                  print('can\'t get tag session')
@@ -628,14 +628,14 @@ def add_attachment_result():
     query = { '_id': image }
     date = mongo.db.fs.files.find_one( query )['uploadDate']
     query = { '_id': ObjectId(request.form.get('id')) }
-    mongo.db.component.update( query, { '$push': { 'attachments': { 'code'       : str(image),
-                                                                      'dateTime'   : date,
-                                                                      'title'      : '',
+    mongo.db.component.update( query, { '$push': { 'attachments': { 'code'      : str(image),
+                                                                      'dateTime'  : date,
+                                                                      'title'     : '',
                                                                       'description': '',
-                                                                      'display'    : True,
-                                                                      'imageType'  : 'result',
+                                                                      'display'   : True,
+                                                                      'imageType' : 'result',
                                                                       'contentType': filename.rsplit( '.', 1 )[1],
-                                                                      'filename'   : filename,
+                                                                      'filename'  : filename,
                                                                       'environment': env_dict }}})
     update_mod( 'component', query )
 
@@ -693,16 +693,16 @@ def edit_comment():
             mongo.db.testRun.update( query, { '$set': { 'comments.{}.comment'.format( comment_entries.index(comment) ): request.form.get('text') } } )
             mongo.db.testRun.update( query, { '$set': { 'comments.{}.datetime'.format( comment_entries.index(comment) ): datetime.datetime.utcnow() } } )
         elif comment_entries == {}:
-            mongo.db.testRun.update( query, { '$set': { 'comments': [{ 'user'     : session['user_name'],
-                                                                         'userid'   : session['user_id'],
-                                                                         'comment'  : request.form.get('text'), 
-                                                                         'datetime' : datetime.datetime.utcnow(), 
+            mongo.db.testRun.update( query, { '$set': { 'comments': [{ 'user'    : session['user_name'],
+                                                                         'userid'  : session['user_id'],
+                                                                         'comment' : request.form.get('text'), 
+                                                                         'datetime': datetime.datetime.utcnow(), 
                                                                          'institution': session['institution'] }] }} )
         else:
-            mongo.db.testRun.update( query, { '$push': { 'comments': { 'user'     : session['user_name'],
-                                                                         'userid'   : session['user_id'],
-                                                                         'comment'  : request.form.get('text'), 
-                                                                         'datetime' : datetime.datetime.utcnow(), 
+            mongo.db.testRun.update( query, { '$push': { 'comments': { 'user'    : session['user_name'],
+                                                                         'userid'  : session['user_id'],
+                                                                         'comment' : request.form.get('text'), 
+                                                                         'datetime': datetime.datetime.utcnow(), 
                                                                          'institution': session['institution'] } }} )
         update_mod( 'testRun', query )
         #userquery = { 'userName': session['user_name'] }
@@ -764,15 +764,15 @@ def add_attachment():
         query = { '_id': image }
         date = mongo.db.fs.files.find_one( query )['uploadDate']
         query = { '_id': ObjectId(request.form.get('id')) }
-        mongo.db.component.update( query, { '$push': { 'attachments': { 'code'       : str(image),
-                                                                          'dateTime'   : date,
-                                                                          'title'      : 'title',
+        mongo.db.component.update( query, { '$push': { 'attachments': { 'code'      : str(image),
+                                                                          'dateTime'  : date,
+                                                                          'title'     : 'title',
                                                                           'description': description,
-                                                                          'imageType'  : 'image',
-                                                                          'stage'      : stage,
+                                                                          'imageType' : 'image',
+                                                                          'stage'     : stage,
                                                                           'photoNumber': count_photoNum(),
                                                                           'contentType': filename.rsplit( '.', 1 )[1],
-                                                                          'filename'   : filename }}})
+                                                                          'filename'  : filename }}})
         update_mod( 'component', query )
 
     forUrl = 'show_component'
@@ -861,7 +861,7 @@ def admin_page():
     request = []
     for req in request_entries:
         req.update({ 'authority': 3,
-                     'approval' : '' }) 
+                     'approval': '' }) 
         request.append(req) 
     return render_template( 'admin.html', request=request, user=user_entries, admin=admin_entries )
 
