@@ -13,7 +13,6 @@ from   getpass import getpass
 from   pymongo import MongoClient
 
 sys.path.append( os.path.dirname(os.path.dirname(os.path.abspath(__file__)) ) + "/src" )
-import func
 from   arguments import *   # Pass command line arguments into app.py
 
 args    = getArgs()            # Get command line arguments
