@@ -60,6 +60,10 @@ app.register_blueprint(static.app)
 app.config['SECRET_KEY'] = os.urandom(24)
 
 # MongoDB settings
+if args.username:
+    MONGO_URL = 'mongodb://' + args.username + ':' + args.password + '@' + args.host + ':' + str(args.port) 
+else:
+    MONGO_URL = 'mongodb://' + args.host + ':' + str(args.port) 
 url = "mongodb://" + args.host + ":" + str(args.port)
 print("Connecto to mongoDB server: " + url + "/" + args.db)
 mongo     = PyMongo(app, uri=MONGO_URL+'/'+args.db)

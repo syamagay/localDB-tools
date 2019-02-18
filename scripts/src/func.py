@@ -8,7 +8,6 @@ import shutil
 import base64  # Base64 encoding scheme
 import datetime
 import hashlib
-import listset
 import gridfs # gridfs system 
 import io
 
@@ -17,12 +16,13 @@ from pymongo       import MongoClient, DESCENDING  # use mongodb scheme
 from bson.objectid import ObjectId  # handle bson format
 from binascii      import a2b_base64  # convert a block of base64 data back to binary
 from pdf2image     import convert_from_path  # convert pdf to image
-from arguments     import *  # Pass command line arguments into app.py
 from PIL           import Image
+from scripts.src.arguments import *  # Pass command line arguments into app.py
+from scripts.src import listset
 
 # PyROOT
 try: 
-    import root
+    from scripts.src import root
     DOROOT = True
 except: 
     DOROOT = False 
@@ -54,12 +54,11 @@ _DIRS = [UPLOAD_DIR, STATIC_DIR, THUMBNAIL_DIR, JSON_DIR]
 
 # MongoDB setting
 args = getArgs()
-if args.username:
-    MONGO_URL = 'mongodb://' + args.username + ':' + args.password + '@' + args.host + ':' + str(args.port) 
-else:
-    MONGO_URL = 'mongodb://' + args.host + ':' + str(args.port) 
-client = MongoClient(MONGO_URL)
+_MONGO_URL = 'mongodb://' + args.host + ':' + str(args.port) 
+client = MongoClient(_MONGO_URL)
 yarrdb = client[args.db]
+if args.username:
+    yarrdb.authenticate(args.username, args.password)
 userdb = client[args.userdb]
 fs = gridfs.GridFS(yarrdb)
 
