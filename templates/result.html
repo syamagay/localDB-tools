@@ -97,6 +97,18 @@
     </table>
   </div>
 </div>
+
+{% if "filename" in component['results']['config'] %}
+<h4 style="font-size: 10pt;"><i class="fa fa-file"></i> Config </h4>
+<div class="row align-items-top">
+  <div class="col">
+    <a href="{{ url_for('download_config', code=component['results']['config']['code']) }}" target="_brank" rel="noopener noreferrer">
+    <h4 style="font-size: 10pt;"><i class="fa fa-caret-right"></i>{{ component['results']['config']['filename'] }}</h4>
+    </a>
+  </div>
+</div>
+{% endif %}
+
 <h4 style="font-size: 10pt;"><i class="fa fa-folder-open"></i> Plot </h4>
 <div class="row align-items-top">
     {% if not component['results']['plots'] == [] %}

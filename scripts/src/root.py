@@ -276,7 +276,7 @@ def countPix( testType, serialNumber ) :
     thr = 0.98
     thr_sigma = 5
 
-    par = ["histoType","mapType","xaxis","yaxis","zaxis","xrange","yrange","zrange"]
+    par = ["histoType", "mapType", "xaxis", "yaxis", "zaxis", "xrange", "yrange", "zrange"]
 
     scanList = { "selftrigger"   : { "mapType" : "OccupancyMap-0", "criterion" : "more than one hit", "threshold" : 1 },
                  "noisescan"     : { "mapType" : "NoiseMask",      "criterion" : "noise mask = 1",    "threshold" : 1 },
@@ -309,12 +309,19 @@ def countPix( testType, serialNumber ) :
             scorePar.update({ chipId : {} })
             entries.update({ chipId : [] })
             readlines = f.readlines()
+            if readlines[0].split() != ['Histo2d'] : continue
             for j,readline in enumerate(readlines) :
                 if j<len(par) and i==0 : histoPar.update({ par[j] : readline.split() }) 
                 if not j<len(par) :
                     words = readline.split()
                     for k in range( int(histoPar["xrange"][0]) ) :
                         entries[chipId].append( words[k] )
+
+    if histoPar == {}:
+        for i in entries :
+            scorePar[i].update({ "totPix" : 0, "countPix" : 0, "criterion" : scanList[testType]["criterion"], "score" : 0 })
+        scorePar["module"].update({ "totPix" : 0, "countPix" : 0, "criterion" : scanList[testType]["criterion"], "score" : 0 })
+        return scorePar
 
     if testType == "thresholdscan" :
         jsonFile = JSON_DIR + "/{}_parameter.json".format(session.get('uuid'))
@@ -339,7 +346,7 @@ def countPix( testType, serialNumber ) :
             par = f1.GetParameters()  
             scanList[testType]["mean"][i] = par[1]
             scanList[testType]["sigma"][i] = thr_sigma*par[2]
-            scorePar[i].update({ "parameter" : "mean : {0}, sigma : {1}".format( par[1], par[2] ) })
+            scorePar[i].update({ "parameter" : "mean : {0:.2f}, sigma : {1:.2f}".format( par[1], par[2] ) })
 
     if testType == "totscan" :
         jsonFile = JSON_DIR + "/{}_parameter.json".format(session.get('uuid'))
@@ -358,7 +365,7 @@ def countPix( testType, serialNumber ) :
                             h1d_bin, h1d_min, h1d_max )
             for word in entries[i] : 
                 h1.Fill( float(word) )
-            scorePar[i].update({ "parameter" : "average : {0}, rms : {1}".format( h1.GetMean(), h1.GetRMS() ) })
+            scorePar[i].update({ "parameter" : "average : {0:.2f}, rms : {1:.2f}".format( h1.GetMean(), h1.GetRMS() ) })
 
     for i in entries :
         cnt = 0
@@ -369,14 +376,13 @@ def countPix( testType, serialNumber ) :
                 if scanList[testType]["threshold"] <= float(word) : cnt+=1
 
         pix_num = float(histoPar["xrange"][0]) * float(histoPar["yrange"][0])
-        scorePar[i].update({ "totPix" : pix_num, "countPix" : cnt, "criterion" : scanList[testType]["criterion"] })
+        scorePar[i].update({ "totPix" : int(pix_num), "countPix" : cnt, "criterion" : scanList[testType]["criterion"] })
         if cnt/pix_num > thr : scorePar[i].update({ "score" : 1 })
         else :                 scorePar[i].update({ "score" : 0 })
         module_cnt += cnt
-        #print("{0} ->  chipId{1} ... pix_num : {2}, count_pix : {3}, rate : {4}, score : {5}".format( serialNumber, i, pix_num, cnt, cnt/pix_num, counts[i+1] ))
 
     pix_num = float(histoPar["xrange"][0]) * float(histoPar["yrange"][0]) * float(session['plotList'][scanList[testType]["mapType"]]["chips"])
-    scorePar["module"].update({ "totPix" : pix_num, "countPix" : module_cnt })
+    scorePar["module"].update({ "totPix" : int(pix_num), "countPix" : module_cnt, "criterion" : scanList[testType]["criterion"] })
     if module_cnt/pix_num > thr : scorePar["module"].update({ "score" : 1 })
     else :                        scorePar["module"].update({ "score" : 0 })
     

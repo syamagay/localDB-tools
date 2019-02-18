@@ -499,14 +499,11 @@ def grade_module(moduleId):
     if entries == {}: return scoreIndex
 
     for scan in listset.scan:
-        if not scan in entries: continue
-
-        session['this'] = moduleId 
-        write_dat( entries[scan] )
-        if not scan == 'thresholdscan':
-            score = root.countPix( scan, thisModule['serialNumber'] )
-        else:
-            score = root.countPix( scan, thisModule['serialNumber'] )
+        score = {}
+        if scan in entries : 
+            session['this'] = moduleId 
+            write_dat( entries[scan] )
+            score = root.countPix( scan, thisModule["serialNumber"] )
 
         for component in scoreIndex:
             if component == 'stage': continue
@@ -585,7 +582,7 @@ def fill_results():
         thisRun = yarrdb.testRun.find_one(query)
 
         plots = []
-        config = []
+        config = {}
         if thisComponentTestRun:
             data_entries = thisRun['attachments']
             for data in data_entries:
@@ -595,11 +592,9 @@ def fill_results():
                     plots.append({'code': data['code'],
                                   'url': url,
                                   'filename': data['filename'].split('_',1)[1]})
-                #elif data['contentType'] == 'after':
-                #    filename = TMP_DIR + '/test.json'
-                #    #writeJson( filename, fs.get( ObjectId(data['code']) ).read().decode() )
-                #    with open( filename, 'bw' ) as f:
-                #        f.write( fs.get( ObjectId(data['code']) ).read() )
+                elif data['contentType'] == 'after' :
+                    config.update({ "filename" : data['filename'],
+                                    "code"     : data['code'] })
         else:
             query = {'testRun': session['runId']}
             thisComponentTestRun = yarrdb.componentTestRun.find_one(query)

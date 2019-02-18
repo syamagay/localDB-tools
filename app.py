@@ -16,7 +16,7 @@ import base64                          # Base64 encoding scheme
 import gridfs                          # gridfs system 
 import io
 
-from flask            import Flask, request, redirect, url_for, render_template, session
+from flask            import Flask, request, redirect, url_for, render_template, session, make_response, jsonify
 from flask_pymongo    import PyMongo
 from pymongo          import MongoClient
 from bson.objectid    import ObjectId 
@@ -60,7 +60,8 @@ app.register_blueprint(static.app)
 app.config['SECRET_KEY'] = os.urandom(24)
 
 # MongoDB settings
-print('Connecto to mongoDB server: ' + MONGO_URL + '/' + args.db)
+url = "mongodb://" + args.host + ":" + str(args.port)
+print("Connecto to mongoDB server: " + url + "/" + args.db)
 mongo     = PyMongo(app, uri=MONGO_URL+'/'+args.db)
 usermongo = PyMongo(app, uri=MONGO_URL+'/'+args.userdb)
 fs = gridfs.GridFS(mongo.db)
@@ -554,6 +555,15 @@ def show_summary_selected():
  
     return redirect( url )
 
+# download config file 
+@app.route('/download_config', methods=['GET'])
+def download_config() :
+    # get code of config file
+    code = request.args.get( 'code' )
+    json_data = jsonify( json.loads( fs.get( ObjectId(code)).read().decode('ascii') ) )
+    response = make_response( json_data )
+
+    return response
 
 # tag method
 @app.route('/tag', methods=['GET'])

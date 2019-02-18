@@ -78,7 +78,12 @@ table.toppage td.border_inner {
                   {% else %}
                   <td style="background: #ffc3b9; width:calc(100%/7);">
                   {% endif %}
-                  <a href="{{ url_for('show_component', id=module["_id"]) }}" title="the total : {{ module['grade']['totPix'] }}">{{ module["serialNumber"] }}</a></td>
+                  {% if not "total" in module['grade'] %}
+                  <a href="{{ url_for('show_component', id=module["_id"]) }}">{{ module["serialNumber"] }}</a></td>
+                  {% else %}
+                  <a href="{{ url_for('show_component', id=module["_id"]) }}" title="[dig] {{ module['grade']['digitalscan']['score'] }} ... {{ module['grade']['digitalscan']['criterion'] }} : {{ module['grade']['digitalscan']['countPix'] }}/{{ module['grade']['digitalscan']['totPix'] }}&#x0A;[ana] {{ module['grade']['analogscan']['score'] }} ... {{ module['grade']['analogscan']['criterion'] }} : {{ module['grade']['analogscan']['countPix'] }}/{{ module['grade']['analogscan']['totPix'] }}&#x0A;[tot] {{ module['grade']['totscan']['score'] }} ... {{ module['grade']['totscan']['criterion'] }} : {{ module['grade']['totscan']['countPix'] }}/{{ module['grade']['totscan']['totPix'] }}&#x0A;[thr] {{ module['grade']['thresholdscan']['score'] }} ... {{ module['grade']['thresholdscan']['criterion'] }} : {{ module['grade']['thresholdscan']['countPix'] }}/{{ module['grade']['thresholdscan']['totPix'] }}&#x0A;[noi] {{ module['grade']['noisescan']['score'] }} ... {{ module['grade']['noisescan']['criterion'] }} : {{ module['grade']['noisescan']['countPix'] }}/{{ module['grade']['noisescan']['totPix'] }}&#x0A;[sou] {{ module['grade']['selftrigger']['score'] }} ... {{ module['grade']['selftrigger']['criterion'] }} : {{ module['grade']['selftrigger']['countPix'] }}/{{ module['grade']['selftrigger']['totPix'] }}">{{ module["serialNumber"] }}</a></td>
+                  {% endif %}
+
                   {% for num in range(4) %}
                     {% if module["chips"][num] %}
                       {% if not "total" in module["chips"][num]['grade'] %}
@@ -90,7 +95,12 @@ table.toppage td.border_inner {
                       {% else %}
                       <td style="background: #ffe5e1; width:calc(100%/7);">
                       {% endif %}
-                      <a href="{{ url_for('show_component', id=module["chips"][num]["_id"]) }}">{{ module["chips"][num]["serialNumber"] }}</a></td>
+                      {% if not "total" in module["chips"][num]['grade'] %}
+                      <a href="{{ url_for('show_component', id=module["chips"][num]["_id"]) }}" >{{ module["chips"][num]["serialNumber"] }}</a></td>
+                      {% else %}
+                      <a href="{{ url_for('show_component', id=module["chips"][num]["_id"]) }}" title="[dig] {{ module['chips'][num]['grade']['digitalscan']['score'] }} ... {{ module['chips'][num]['grade']['digitalscan']['criterion'] }} : {{ module['chips'][num]['grade']['digitalscan']['countPix'] }}/{{ module['chips'][num]['grade']['digitalscan']['totPix'] }}&#x0A;[ana] {{ module['chips'][num]['grade']['analogscan']['score'] }} ... {{ module['chips'][num]['grade']['analogscan']['criterion'] }} : {{ module['chips'][num]['grade']['analogscan']['countPix'] }}/{{ module['chips'][num]['grade']['analogscan']['totPix'] }}&#x0A;[tot] {{ module['chips'][num]['grade']['totscan']['score'] }} ... {{ module['chips'][num]['grade']['totscan']['criterion'] }} : {{ module['chips'][num]['grade']['totscan']['countPix'] }}/{{ module['chips'][num]['grade']['totscan']['totPix'] }} ( {{ module['chips'][num]['grade']['totscan']['parameter'] }} )&#x0A;[thr] {{ module['chips'][num]['grade']['thresholdscan']['score'] }} ... {{ module['chips'][num]['grade']['thresholdscan']['criterion'] }} : {{ module['chips'][num]['grade']['thresholdscan']['countPix'] }}/{{ module['chips'][num]['grade']['thresholdscan']['totPix'] }} ( {{ module['chips'][num]['grade']['thresholdscan']['parameter'] }} )&#x0A;[noi] {{ module['chips'][num]['grade']['noisescan']['score'] }} ... {{ module['chips'][num]['grade']['noisescan']['criterion'] }} : {{ module['chips'][num]['grade']['noisescan']['countPix'] }}/{{ module['chips'][num]['grade']['noisescan']['totPix'] }}&#x0A;[sou] {{ module['chips'][num]['grade']['selftrigger']['score'] }} ... {{ module['chips'][num]['grade']['selftrigger']['criterion'] }} : {{ module['chips'][num]['grade']['selftrigger']['countPix'] }}/{{ module['chips'][num]['grade']['selftrigger']['totPix'] }}">{{ module["chips"][num]["serialNumber"] }}</a></td>
+                      {% endif %}
+
                     {% else %}
                       <td></td>
                     {% endif %}
