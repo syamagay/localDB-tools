@@ -17,8 +17,8 @@ flask:
 # For summary.py
 summary:
     serial: AA-11        # serial number of module to add summary
-    stage: encapsulation # stage to add summary
+    stage: empty         # stage to add summary
 
 # python version
 python: 2
-timezone: 0
+timezone: 0 # time zone difference

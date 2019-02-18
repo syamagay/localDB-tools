@@ -1,3 +1,6 @@
+status in 19.02.2019
+
+
 # Development Status
 
   This is the viewer for YARR-DB ( https://github.com/jlab-hep/Yarr/wiki )
@@ -9,12 +12,14 @@
   * Write which run is summary for the module into database and check them in the module page ( for FE-I4B )
   * Make the plot of scan for each module with adjusting parameters ( for FE-I4B and RD53A )
   * Write administrator account into userDB by script 
+  * Write user account into userDB in browser
+  * Check the config file ( for FE-I4B )
 
   Now implementing (comming soon) :
   
   * Write which run is summary for the module into database and check them in the module page ( for RD53A )
   * Request to create user account who can upload pictures into database 
-  * Write user account into userDB in browser
+  * Check the config file ( for RD53A )
 
 # Quick Tutorial
 
