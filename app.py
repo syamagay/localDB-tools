@@ -232,11 +232,6 @@ def show_component():
     photoIndex   = fill_photoIndex( thisComponent )
     photos       = fill_photos( thisComponent, session['code'] )
 
-    # fill results
-    resultIndex  = fill_resultIndex() 
-    results      = fill_results()
-    roots        = fill_roots()
-
     # fill summary 
     query = { '$or': chips }
     run_entries = mongo.db.componentTestRun.find( query )
@@ -246,6 +241,11 @@ def show_component():
             stages.append( run.get('stage') )
     stages = list(set(stages))
     summary = fill_summary( stages )
+
+    # fill results
+    resultIndex  = fill_resultIndex() 
+    results      = fill_results()
+    roots        = fill_roots()
 
     component.update({ '_id'         : session['this'],
                        'serialNumber': thisComponent['serialNumber'],

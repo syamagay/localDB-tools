@@ -11,8 +11,7 @@
             2, 
             2, 
             false
-        ], 
-        "Summary": false
+        ]
     }, 
     "noisescan": {
         "NoiseMask": [
@@ -26,11 +25,9 @@
             1, 
             100, 
             false
-        ], 
-        "Summary": false
+        ]
     }, 
     "selftrigger": {
-        "Summary": false, 
         "OccupancyMap": [
             0, 
             200, 
@@ -50,8 +47,7 @@
             14, 
             14, 
             false
-        ], 
-        "Summary": false
+        ]
     }, 
     "tune_pixelpreamp": {
         "SigmaTotMap": [
@@ -65,8 +61,7 @@
             14, 
             14, 
             false
-        ], 
-        "Summary": false
+        ]
     }, 
     "std_analogscan": {
         "OccupancyMap": [
@@ -74,11 +69,9 @@
             200, 
             200, 
             false
-        ], 
-        "Summary": false
+        ]
     }, 
     "tune_globalthreshold": {
-        "Summary": false, 
         "OccupancyMap": [
             0, 
             200, 
@@ -98,8 +91,7 @@
             14, 
             14, 
             false
-        ], 
-        "Summary": false
+        ]
     }, 
     "pixelthreshold": {
         "OccupancyMap": [
@@ -107,8 +99,7 @@
             200, 
             200, 
             false
-        ], 
-        "Summary": false
+        ]
     }, 
     "digitalscan": {
         "OccupancyMap": [
@@ -122,8 +113,7 @@
             2, 
             2, 
             false
-        ], 
-        "Summary": false
+        ]
     }, 
     "globalthreshold": {
         "OccupancyMap": [
@@ -131,8 +121,7 @@
             200, 
             200, 
             false
-        ], 
-        "Summary": false
+        ]
     }, 
     "thresholdscan": {
         "NoiseMap": [
@@ -146,8 +135,7 @@
             4000, 
             4000, 
             false
-        ], 
-        "Summary": false
+        ]
     }, 
     "pixelpreamp": {
         "SigmaTotMap": [
@@ -161,8 +149,7 @@
             14, 
             14, 
             false
-        ], 
-        "Summary": false
+        ]
     }, 
     "totscan": {
         "SigmaTotMap": [
@@ -176,11 +163,9 @@
             14, 
             14, 
             false
-        ], 
-        "Summary": false
+        ]
     }, 
     "tune_pixelthreshold": {
-        "Summary": false, 
         "OccupancyMap": [
             0, 
             200, 

@@ -26,8 +26,9 @@
         <thead class="table-dark" style="background: #222222;">
           <tr>
             <th scope="col" width="40" class="text-center">Run<br>number</th>
-            <th scope="col" width="150" class="text-center">Date</th>
-            <th scope="col" width="150" class="text-center">Stage</th>
+            <th scope="col" width="100" class="text-center">Date</th>
+            <th scope="col" width="100" class="text-center">Stage</th>
+            <th scope="col" width="100" class="text-center">Score</th>
           </tr>
         </thead>
         <tbody>
@@ -40,10 +41,19 @@
               <tr style="background: #AABBCC;">
             {% endif %}
                 <td align="center">
-                  <a href="{{ url_for('show_component', id=component['_id'], runId=run['_id']) }}">{{ run['runNumber'] }}</a>
+                  <a href="{{ url_for('show_component', id=component['_id'], runId=run['_id']) }}" target="_brank" rel="noopener noreferrer">{{ run['runNumber'] }}</a>
                 </td>
                 <td align="center">{{ run['datetime'] }}</td>
                 <td align="center">{{ run['stage'] }}</td>
+                {% if run['score'] == 1 %}
+                <td align="center" style="background: #e2ffd8;">
+                {% elif run['score'] == 0 %}
+                <td align="center" style="background: #ffe5e1;">
+                {% else %}
+                <td align="center">
+                {% endif %}
+                  {{ run['rate'] }}
+                </td>
               </tr>
             {% endfor %}
         </tbody>

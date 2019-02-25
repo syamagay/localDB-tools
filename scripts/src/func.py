@@ -293,10 +293,17 @@ def fill_summary(stages):
 
                     mapList.append(mapDict)
 
+                write_dat(entries[stage][scan])
+                count = {}
+                if DOROOT:
+                    root.uuid = str(session.get('uuid'))
+                    count = root.countPix( scan, session['plotList'] )
+
                 scandict[scan].update({'runNumber': thisRun['runNumber'],
                                        'environment': env_dict,
                                        'institution': thisRun['institution'],
-                                       'userIdentity': thisRun['userIdentity']})
+                                       'userIdentity': thisRun['userIdentity'], 
+                                       'total': count.get('module',{}).get('score',None)})
 
             scandict[scan].update({'map': mapList,
                                    'num': len(mapList)})
@@ -498,16 +505,19 @@ def grade_module(moduleId):
     if entries == {}: return scoreIndex
 
     for scan in listset.scan:
-        score = {}
+        count = {}
         if scan in entries : 
             session['this'] = moduleId 
             write_dat( entries[scan] )
-            score = root.countPix( scan, thisModule["serialNumber"] )
+            count = {}
+            if DOROOT:
+                root.uuid = str(session.get('uuid'))
+                count = root.countPix( scan, session['plotList'] )
 
         for component in scoreIndex:
             if component == 'stage': continue
-            scoreIndex[component].update({ scan: score.get(component,0) })
-            scoreIndex[component].update({ 'total': scoreIndex[component].get('total',0) + score.get(component,{'score':0})['score'] })
+            scoreIndex[component].update({ scan: count.get(component,0) })
+            scoreIndex[component].update({ 'total': scoreIndex[component].get('total',0) + count.get(component,{}).get('score',0) })
 
     return scoreIndex
 
@@ -557,11 +567,18 @@ def fill_resultIndex():
         if not run.get('testType') in resultIndex: 
             resultIndex.update({run.get('testType'): {'run': []}})
 
+        write_dat(str(thisRun['_id'])) 
+        count = {}
+        if DOROOT:
+            root.uuid = str(session.get('uuid'))
+            count = root.countPix( run.get('testType'), session['plotList'] )
         resultIndex[run.get('testType')]['run'].append({'_id': str(thisRun['_id']),
                                                         'runNumber': thisRun['runNumber'],
                                                         'datetime': set_time(thisRun['date']),
                                                         'result': result,
                                                         'stage': stage,
+                                                        'rate': count.get('module',{}).get('rate','-'),
+                                                        'score': count.get('module',{}).get('score',None),
                                                         'summary': thisRun.get('display')})
     for scan in resultIndex:
         runInd = sorted(resultIndex[scan]['run'], key=lambda x:x['datetime'], reverse=True)
@@ -634,6 +651,7 @@ def write_dat(runId):
     thisComponentTestRun = yarrdb.componentTestRun.find_one({'testRun': str(thisRun['_id'])})
 
     chipIds = {}
+    chipIdNums = []
 
     chips = []
     query = [{'parent': session['this']},{'child': session['this']}]
@@ -643,9 +661,13 @@ def write_dat(runId):
         query = { '_id': ObjectId(child['child']) }
         thisChip = yarrdb.component.find_one( query )
         if 'chipId' in thisChip['serialNumber']:
-            chipIds.update({ child['child']: int(thisChip['serialNumber'].split('chipId')[1]) })
+            chipIds.update({ child['child']: { 'chipId': int(thisChip['serialNumber'].split('chipId')[1]),
+                                               'name': thisChip['name'] }})
+            chipIdNums.append(int(thisChip['serialNumber'].split('chipId')[1]))
         else:
-            chipIds.update({ child['child']: 1 })
+            chipIds.update({ child['child']: { "chipId": 1,
+                                               "name": thisChip['name'] }})
+            chipIdNums.append(1)
 
     query = { '$or': chips, 'runNumber': thisRun['runNumber'], 'testType': thisRun['testType'], 'stage': thisComponentTestRun['stage'] }
     run_entries = yarrdb.componentTestRun.find(query)
@@ -660,35 +682,38 @@ def write_dat(runId):
             for data in data_entries:
                 if data['contentType'] == 'dat':
 
-                    f = open( '{0}/{1}/dat/{2}_{3}.dat'.format( TMP_DIR, session.get('uuid'), data['filename'].rsplit('_',1)[1], 'chipId{}'.format(chipIds[run['component']]) ), 'wb' )
+                    mapType = data['filename'][len(chipIds[run['component']]['name'])+1:]
+                    f = open( '{0}/{1}/dat/{2}_chipId{3}.dat'.format( TMP_DIR, session.get('uuid'), mapType, chipIds[run['component']]['chipId'] ), 'wb' )
                     f.write(fs.get(ObjectId(data['code'])).read())
                     f.close()
-                    mapType = data['filename'].rsplit('_',1)[1]
-                    session['plotList'].update({mapType: {'draw': True, 'chips': len(chipIds)}})
+                    session['plotList'].update({mapType: {'draw': True, 'chips': chipIdNums}})
 
 # make plot using PyROOT
 def make_plot(runId):
     query = {'_id': ObjectId(runId)}
     thisRun = yarrdb.testRun.find_one( query )
 
-    if session.get('rootType'):
-        mapType = session['mapType']
+    if DOROOT:
+        root.uuid = str(session.get('uuid'))
 
-        if session['rootType'] == 'set': 
-            root.setParameter(thisRun['testType'], mapType)
-            for mapType in session['plotList']: session['plotList'][mapType].update({'draw': True, 'parameter': {}})
+        if session.get('rootType'):
+            mapType = session['mapType']
 
-        elif session['rootType'] == 'make':
-            session['plotList'][mapType].update({'draw': True, 'parameter': session['parameter']})
+            if session['rootType'] == 'set': 
+                root.setParameter(thisRun['testType'], mapType, session['plotList'])
+                for mapType in session['plotList']: session['plotList'][mapType].update({'draw': True, 'parameter': {}})
 
-    else:
-        write_dat(runId)
+            elif session['rootType'] == 'make':
+                session['plotList'][mapType].update({'draw': True, 'parameter': session['parameter']})
 
-    root.drawScan(thisRun['testType'])
+        else:
+            write_dat(runId)
 
-    session.pop('rootType', None)
-    session.pop('mapType', None)
-    session.pop('parameter', None)
+        session['plotList'] = root.drawScan(thisRun['testType'], session['plotList'])
+
+        session.pop('rootType', None)
+        session.pop('mapType', None)
+        session.pop('parameter', None)
  
 # list plot created by 'make_plot' using PyROOT
 def fill_roots():
@@ -735,4 +760,3 @@ def fill_roots():
                   'results': results})
 
     return roots
-

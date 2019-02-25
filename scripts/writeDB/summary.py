@@ -361,13 +361,13 @@ for scan in scanList :
             data_entries = chiprun['attachments']
             for data in data_entries :
                 if data['contentType'] == "dat" :
-                    f = open( '{0}/localuser/dat/{1}_{2}.dat'.format( TMP_DIR, 'chipId{}'.format(chipIds[run['component']]), data['filename'].rsplit("_",1)[1] ), 'wb' )
+                    f = open( '{0}/localuser/dat/{1}_{2}.dat'.format( TMP_DIR, data['filename'].rsplit("_",1)[1], 'chipId{}'.format(chipIds[run['component']]) ), 'wb' )
                     f.write( fs.get(ObjectId(data['code']) ).read())
                     f.close()
                     mapType = data['filename'].rsplit("_",1)[1]
                     plotList[scan].update({ mapType : { "draw" : True, "chips" : len(chipIds) } })
 
-    root.localDrawScan( scan, plotList[scan] )
+    root.drawScan(scan, plotList[scan])
     print( "--------------- done ---------------" )
 
 print( "%%% Finish to make histograms of all scans %%%" )
