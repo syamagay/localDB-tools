@@ -293,11 +293,19 @@ def fill_summary(stages):
 
                     mapList.append(mapDict)
 
-                write_dat(entries[stage][scan])
-                count = {}
-                if DOROOT:
-                    root.uuid = str(session.get('uuid'))
-                    count = root.countPix( scan, session['plotList'] )
+                query = { 'resultId': str(entries[stage][scan]) }
+                thisRunInLocal = userdb.localdb.find_one( query )
+                if thisRunInLocal:
+                    count = thisRunInLocal['count']
+                else:
+                    write_dat(entries[stage][scan])
+                    count = {}
+                    if DOROOT:
+                        root.uuid = str(session.get('uuid'))
+                        count = root.countPix( scan, session['plotList'] )
+                    document = { 'resultId': str(entries[stage][scan]),
+                                 'count': count }
+                    userdb.localdb.insert( document )
 
                 scandict[scan].update({'runNumber': thisRun['runNumber'],
                                        'environment': env_dict,
@@ -484,8 +492,13 @@ def grade_module(moduleId):
 
     query = { 'parent': moduleId }
     child_entries = yarrdb.childParentRelation.find( query )
-    for i,child in enumerate(child_entries):
-        scoreIndex.update({ i+1: {} })
+    for child in child_entries:
+        query = { '_id': ObjectId(child['child']) }
+        thisChip = yarrdb.component.find_one( query )
+        if 'chipId' in thisChip['serialNumber']:
+            scoreIndex.update({ str(thisChip['serialNumber'].split('chipId')[1]): {} })
+        else:
+            scoreIndex.update({ '1': {} })
 
     entries = {}
     for stage in listset.stage:
@@ -508,11 +521,20 @@ def grade_module(moduleId):
         count = {}
         if scan in entries : 
             session['this'] = moduleId 
-            write_dat( entries[scan] )
-            count = {}
-            if DOROOT:
-                root.uuid = str(session.get('uuid'))
-                count = root.countPix( scan, session['plotList'] )
+
+            query = { 'resultId': str(entries[scan]) }
+            thisRunInLocal = userdb.localdb.find_one( query )
+            if thisRunInLocal:
+                count = thisRunInLocal['count']
+            else:
+                write_dat( entries[scan] )
+                count = {}
+                if DOROOT:
+                    root.uuid = str(session.get('uuid'))
+                    count = root.countPix( scan, session['plotList'] )
+                document = { 'resultId': str(entries[scan]),
+                             'count': count }
+                userdb.localdb.insert( document )
 
         for component in scoreIndex:
             if component == 'stage': continue
@@ -567,11 +589,20 @@ def fill_resultIndex():
         if not run.get('testType') in resultIndex: 
             resultIndex.update({run.get('testType'): {'run': []}})
 
-        write_dat(str(thisRun['_id'])) 
-        count = {}
-        if DOROOT:
-            root.uuid = str(session.get('uuid'))
-            count = root.countPix( run.get('testType'), session['plotList'] )
+        query = { 'resultId': str(thisRun['_id']) }
+        thisRunInLocal = userdb.localdb.find_one( query )
+        if thisRunInLocal:
+            count = thisRunInLocal['count']
+        else:
+            write_dat(str(thisRun['_id'])) 
+            count = {}
+            if DOROOT:
+                root.uuid = str(session.get('uuid'))
+                count = root.countPix( run.get('testType'), session['plotList'] )
+            document = { 'resultId': str(thisRun['_id']),
+                         'count': count }
+            userdb.localdb.insert( document )
+
         resultIndex[run.get('testType')]['run'].append({'_id': str(thisRun['_id']),
                                                         'runNumber': thisRun['runNumber'],
                                                         'datetime': set_time(thisRun['date']),
@@ -661,13 +692,13 @@ def write_dat(runId):
         query = { '_id': ObjectId(child['child']) }
         thisChip = yarrdb.component.find_one( query )
         if 'chipId' in thisChip['serialNumber']:
-            chipIds.update({ child['child']: { 'chipId': int(thisChip['serialNumber'].split('chipId')[1]),
+            chipIds.update({ child['child']: { 'chipId': str(thisChip['serialNumber'].split('chipId')[1]),
                                                'name': thisChip['name'] }})
-            chipIdNums.append(int(thisChip['serialNumber'].split('chipId')[1]))
+            chipIdNums.append(str(thisChip['serialNumber'].split('chipId')[1]))
         else:
-            chipIds.update({ child['child']: { "chipId": 1,
+            chipIds.update({ child['child']: { "chipId": '1',
                                                "name": thisChip['name'] }})
-            chipIdNums.append(1)
+            chipIdNums.append('1')
 
     query = { '$or': chips, 'runNumber': thisRun['runNumber'], 'testType': thisRun['testType'], 'stage': thisComponentTestRun['stage'] }
     run_entries = yarrdb.componentTestRun.find(query)
@@ -704,6 +735,7 @@ def make_plot(runId):
                 for mapType in session['plotList']: session['plotList'][mapType].update({'draw': True, 'parameter': {}})
 
             elif session['rootType'] == 'make':
+                print(session['plotList'])
                 session['plotList'][mapType].update({'draw': True, 'parameter': session['parameter']})
 
         else:

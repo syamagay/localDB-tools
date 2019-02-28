@@ -68,6 +68,7 @@ url = "mongodb://" + args.host + ":" + str(args.port)
 print("Connecto to mongoDB server: " + url + "/" + args.db)
 mongo     = PyMongo(app, uri=MONGO_URL+'/'+args.db)
 usermongo = PyMongo(app, uri=MONGO_URL+'/'+args.userdb)
+usermongo.db.localdb.drop()
 fs = gridfs.GridFS(mongo.db)
 
 # top page 
@@ -151,9 +152,9 @@ def show_modules_and_chips_develop():
             query = { '_id': ObjectId(child['child']) }
             thisChip = mongo.db.component.find_one( query )
             if 'chipId' in thisChip['serialNumber']:
-                chipId = int(thisChip['serialNumber'].split('chipId')[1]) 
+                chipId = thisChip['serialNumber'].split('chipId')[1]
             else:
-                chipId = 1 
+                chipId = '1' 
             chips.append({ '_id'          : str(thisChip['_id']),
                            'serialNumber' : thisChip['serialNumber'],
                            'datetime'     : set_time(thisChip['sys']['cts']),

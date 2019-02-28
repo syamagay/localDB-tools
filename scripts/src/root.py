@@ -74,16 +74,18 @@ def drawScan(testType, plotList):
             if not os.path.isfile(filename): continue
             with open(filename) as f:
                 for line, readline in enumerate(f.readlines()):
-
-                    # histo 1D
-                    if readline.split()[0]=='Histo1d':
-                        plotList[mapType].update({'HistoType': 1, 'draw': False})
-                        break
-
-                    # histo 3D
-                    elif readline.split()[0]=='Histo3d':
-                        plotList[mapType].update({'HistoType': 3, 'draw': False})
-                        break
+                    if line == 0:
+                        # histo 1D
+                        if readline.split()[0]=='Histo1d':
+                            plotList[mapType].update({'HistoType': 1, 'draw': False})
+                            break
+                        # histo 3D
+                        elif readline.split()[0]=='Histo3d':
+                            plotList[mapType].update({'HistoType': 3, 'draw': False})
+                            break
+                        elif not 'Histo' in readline.split()[0]:
+                            plotList[mapType].update({'HistoType': None, 'draw': False})
+                            break
 
                     # histo 2D
                     if line<len(_par2d) and not 'h2' in locals(): 
@@ -100,20 +102,20 @@ def drawScan(testType, plotList):
 
                         # row
                         if   len(chips) ==1: row = 0 
-                        elif chipId==1: row = int(histo_par2d['yrange'][0])-1 
-                        elif chipId==2: row = int(histo_par2d['yrange'][0])-1
-                        elif chipId==3: row = int(histo_par2d['yrange'][0])
-                        elif chipId==4: row = int(histo_par2d['yrange'][0])
+                        elif chipId=='1': row = int(histo_par2d['yrange'][0])-1 
+                        elif chipId=='2': row = int(histo_par2d['yrange'][0])-1
+                        elif chipId=='3': row = int(histo_par2d['yrange'][0])
+                        elif chipId=='4': row = int(histo_par2d['yrange'][0])
 
                     if not line<len(_par2d):
                         data = readline.split()
 
                         # col
                         if   len(chips) ==1: col = 0
-                        elif chipId==1: col = int(histo_par2d['xrange'][0])-1
-                        elif chipId==2: col = int(histo_par2d['xrange'][0])*2-1
-                        elif chipId==3: col = 0
-                        elif chipId==4: col = int(histo_par2d['xrange'][0])
+                        elif chipId=='1': col = int(histo_par2d['xrange'][0])-1
+                        elif chipId=='2': col = int(histo_par2d['xrange'][0])*2-1
+                        elif chipId=='3': col = 0
+                        elif chipId=='4': col = int(histo_par2d['xrange'][0])
 
                         for value in data:
                             values.append(value)
@@ -122,17 +124,17 @@ def drawScan(testType, plotList):
 
                             # col
                             if   len(chips) ==1: col = col + 1
-                            elif chipId==1: col = col - 1 
-                            elif chipId==2: col = col - 1
-                            elif chipId==3: col = col + 1 
-                            elif chipId==4: col = col + 1
+                            elif chipId=='1': col = col - 1 
+                            elif chipId=='2': col = col - 1
+                            elif chipId=='3': col = col + 1 
+                            elif chipId=='4': col = col + 1
        
                         # row
                         if   len(chips) ==1: row = row + 1
-                        elif chipId==1: row = row - 1 
-                        elif chipId==2: row = row - 1
-                        elif chipId==3: row = row + 1 
-                        elif chipId==4: row = row + 1
+                        elif chipId=='1': row = row - 1 
+                        elif chipId=='2': row = row - 1
+                        elif chipId=='3': row = row + 1 
+                        elif chipId=='4': row = row + 1
 
 
         if 'h2' in locals():
@@ -254,24 +256,24 @@ _scanList = {
                 'mapType':   'MeanTotMap',   
                 'distType':  'MeanTotDist',   
                 'criterion': '8 < mean tot < 11', 
-                'mean':  { 1:9.5, 2:9.5, 3:9.5, 4:9.5 },
-                'sigma': { 1:1.5, 2:1.5, 3:1.5, 4:1.5 }, 
+                'mean':  { '1':9.5, '2':9.5, '3':9.5, '4':9.5 },
+                'sigma': { '1':1.5, '2':1.5, '3':1.5, '4':1.5 }, 
                 'standard': 98
             },
             'std_totscan': { 
                 'mapType':   'MeanTotMap',   
                 'distType':  'MeanTotDist',   
                 'criterion': '8 < mean tot < 11', 
-                'mean':  { 1:9.5, 2:9.5, 3:9.5, 4:9.5 },
-                'sigma': { 1:1.5, 2:1.5, 3:1.5, 4:1.5 }, 
+                'mean':  { '1':9.5, '2':9.5, '3':9.5, '4':9.5 },
+                'sigma': { '1':1.5, '2':1.5, '3':1.5, '4':1.5 }, 
                 'standard': 98
             },
             'thresholdscan': { 
                 'mapType':   'ThresholdMap', 
                 'distType':  'ThresholdDist', 
                 'criterion': 'within 5 sigma',
-                'mean':  { 1:0,   2:0,   3:0,   4:0   },
-                'sigma': { 1:0,   2:0,   3:0,   4:0   }, 
+                'mean':  { '1':0,   '2':0,   '3':0,   '4':0   },
+                'sigma': { '1':0,   '2':0,   '3':0,   '4':0   }, 
                 'standard': 98,
                 'scalesigma': 5
             },
@@ -279,8 +281,8 @@ _scanList = {
                 'mapType':   'ThresholdMap', 
                 'distType':  'ThresholdDist', 
                 'criterion': 'within 5 sigma',
-                'mean':  { 1:0,   2:0,   3:0,   4:0   },
-                'sigma': { 1:0,   2:0,   3:0,   4:0   }, 
+                'mean':  { '1':0,   '2':0,   '3':0,   '4':0   },
+                'sigma': { '1':0,   '2':0,   '3':0,   '4':0   }, 
                 'standard': 98,
                 'scalesigma': 5
             },
@@ -312,8 +314,12 @@ _scanList = {
 
 def makeDistFromDat(filename):
     histo_par1d = {}
+    h1 = None
     with open(filename) as f:      
         for line, readline in enumerate(f.readlines()):
+            if line == 0:
+                if not 'Histo' in readline.split()[0]:
+                    break
             if line<len(_par1d): 
                 histo_par1d.update({ _par1d[line]: readline.split() }) 
             if line==len(_par1d): 
@@ -358,6 +364,9 @@ def countPix(testType, plotList):
         # map
         with open(filename) as f:      
             for line, readline in enumerate(f.readlines()):
+                if line == 0:
+                    if not 'Histo' in readline.split()[0]:
+                        break
                 if line<len(_par2d): 
                     if _par2d[line]=='xrange': 
                         Col = float(readline.split()[0])
@@ -373,10 +382,13 @@ def countPix(testType, plotList):
                     else:
                         cnt+=data.count('1')
 
+        if not 'Col' in locals() or not 'Row' in locals(): break
+
         # threshold scan
         if 'thresholdscan' in testType:
             distfilename = '{0}/{1}/dat/{2}_chipId{3}.dat'.format(TMP_DIR, uuid, distType, chipId)
             h1 = makeDistFromDat(distfilename)
+            if not h1: break
             f1 = ROOT.TF1('f1', 'gaus', h1.GetXaxis().GetXmin(), h1.GetXaxis().GetXmax())
             h1.Fit(f1)
             par = f1.GetParameters() 
@@ -395,6 +407,7 @@ def countPix(testType, plotList):
         elif 'totscan' in testType:
             distfilename = '{0}/{1}/dat/{2}_chipId{3}.dat'.format( TMP_DIR, uuid, distType, chipId )
             h1 = makeDistFromDat(distfilename)
+            if not h1: break
 
             parameters.update({ chipId: {'mean': h1.GetMean(), 'rms': h1.GetRMS()} })
             parameter = 'average: {0:.2f}, rms: {1:.2f}'.format(h1.GetMean(), h1.GetRMS())
@@ -408,6 +421,8 @@ def countPix(testType, plotList):
         pix_chip = Col*Row
         countList.update({ chipId: {'totPix': int(pix_chip), 'countPix': cnt, 'parameter': parameter, 'parameters': parameters} })
  
+    if not 'pix_chip' in locals(): return scoreList
+
     # grade the test for each chip and module 
     pix_mod = 0
     for chipId in chips:
