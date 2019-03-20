@@ -37,6 +37,27 @@ _par1d = [ 'histoType',
            'xrange', 
            'outrange' ]
 
+_FE = { 'syn': 0,
+        'lin': 1,
+        'diff': 2 }
+
+_feCol = { 'syn': 128,
+           'lin': 136,
+           'diff': 136 }
+
+# for RD53A
+def whichFE(col): 
+    division1 = 128
+    division2 = 264
+    which_fe = 10
+    if col<division1:
+        which_fe = 0
+    elif col>=division1 and col<division2:
+        which_fe = 1
+    elif col>=division2:
+        which_fe = 2
+    return which_fe
+
 # draw map plots for the test 
 def drawScan(testType, plotList):
 
@@ -274,7 +295,7 @@ _scanList = {
                 'criterion': 'within 5 sigma',
                 'mean':  { '1':0,   '2':0,   '3':0,   '4':0   },
                 'sigma': { '1':0,   '2':0,   '3':0,   '4':0   }, 
-                'standard': 98,
+                'standard': 97,
                 'scalesigma': 5
             },
             'std_thresholdscan': { 
@@ -283,7 +304,7 @@ _scanList = {
                 'criterion': 'within 5 sigma',
                 'mean':  { '1':0,   '2':0,   '3':0,   '4':0   },
                 'sigma': { '1':0,   '2':0,   '3':0,   '4':0   }, 
-                'standard': 98,
+                'standard': 97,
                 'scalesigma': 5
             },
             'digitalscan': { 
@@ -333,7 +354,7 @@ def makeDistFromDat(filename):
                     h1.SetBinContent( bin_+1, float(value) )
     return h1
 
-def countPix(testType, plotList):
+def countPix(scanType, plotList):
 
     ROOT.gROOT.SetBatch()
     
@@ -341,8 +362,17 @@ def countPix(testType, plotList):
     scoreList = {}
     parameters = {}
     parameter = ''
+    feType = None
     
-    if not testType in _scanList.keys(): return scoreList
+    for scanKey in _scanList:
+        if scanKey in scanType:
+            testType = scanKey
+  
+    if not 'testType' in locals(): return scoreList
+
+    for fe in _FE:
+        if fe in scanType:
+            feType = fe
 
     for type_ in plotList:
         if _scanList[testType]['mapType'] in type_: 
@@ -359,7 +389,9 @@ def countPix(testType, plotList):
     for chipId in chips:
         cnt=0
         filename = '{0}/{1}/dat/{2}_chipId{3}.dat'.format( TMP_DIR, uuid, mapType, chipId )
-        if not os.path.isfile(filename): continue
+        if not os.path.isfile(filename): 
+            parameters.update({ chipId: {'parameter': parameter} })
+            continue
 
         # map
         with open(filename) as f:      
@@ -376,13 +408,21 @@ def countPix(testType, plotList):
                 else:
                     data = readline.split()
                     if 'selftrigger' in testType or 'std_exttrigger' in testType:
-                        for value in data:
-                            if _scanList[testType]['threshold'] <= float(value):
-                                cnt+=1
+                        for col, value in enumerate(data):
+                            if whichFE(col) == _FE.get(feType, whichFE(col)): 
+                                if _scanList[testType]['threshold'] <= float(value):
+                                    cnt+=1
                     else:
-                        cnt+=data.count('1')
+                        for col, value in enumerate(data):
+                            if whichFE(col) == _FE.get(feType, whichFE(col)): 
+                                if _scanList[testType]['threshold'] <= float(value):
+                                    cnt+=1
+                                    #cnt+=data.count('1')
 
         if not 'Col' in locals() or not 'Row' in locals(): break
+        if feType:
+            Col = _feCol[feType]
+        pix_chip = Col*Row
 
         # threshold scan
         if 'thresholdscan' in testType:
@@ -392,8 +432,8 @@ def countPix(testType, plotList):
             f1 = ROOT.TF1('f1', 'gaus', h1.GetXaxis().GetXmin(), h1.GetXaxis().GetXmax())
             h1.Fit(f1)
             par = f1.GetParameters() 
-            parameters.update({ chipId: {'mean': par[1], 'sigma': par[2]}, 'parameter': '' })
             parameter = 'mean: {0:.2f}, sigma: {1:.2f}'.format(par[1], par[2])
+            parameters.update({ chipId: {'mean': par[1], 'sigma': par[2], 'parameter': parameter} })
 
             cnt = h1.Integral(
                 h1.FindBin(parameters[chipId]['mean'] - parameters[chipId]['sigma']*_scanList[testType]['scalesigma']), 
@@ -409,17 +449,19 @@ def countPix(testType, plotList):
             h1 = makeDistFromDat(distfilename)
             if not h1: break
 
-            parameters.update({ chipId: {'mean': h1.GetMean(), 'rms': h1.GetRMS()} })
             parameter = 'average: {0:.2f}, rms: {1:.2f}'.format(h1.GetMean(), h1.GetRMS())
+            parameters.update({ chipId: {'mean': h1.GetMean(), 'rms': h1.GetRMS(), 'parameter': parameter} })
 
             cnt = h1.Integral(
                 h1.FindBin(_scanList[testType]['mean'][chipId] - _scanList[testType]['sigma'][chipId]), 
                 h1.FindBin(_scanList[testType]['mean'][chipId] + _scanList[testType]['sigma'][chipId])
             )
             del h1
+        else:
+            parameter = 'good: {0}, bad: {1}'.format(int(cnt), int(pix_chip-cnt))
+            parameters.update({ chipId: {'parameter': parameter} })
 
-        pix_chip = Col*Row
-        countList.update({ chipId: {'totPix': int(pix_chip), 'countPix': cnt, 'parameter': parameter, 'parameters': parameters} })
+        countList.update({ chipId: {'totPix': int(pix_chip), 'countPix': cnt, 'parameter': parameter} })
  
     if not 'pix_chip' in locals(): return scoreList
 
@@ -452,7 +494,7 @@ def countPix(testType, plotList):
                                    'countPix': module_cnt, 
                                    'rate': '{:.2f}'.format(rate), 
                                    'score': score, 
+                                   'parameters': parameters,
                                    'criterion': _scanList[testType]['criterion']
                                  }})
-
     return scoreList

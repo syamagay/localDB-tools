@@ -550,6 +550,7 @@ def grade_module(moduleId):
 def fill_resultIndex():
 
     resultIndex = {}
+    testIndex = []
 
     keys = ['runNumber', 'institution', 'userIdentity']
     runs = []
@@ -607,14 +608,19 @@ def fill_resultIndex():
                                                         'runNumber': thisRun['runNumber'],
                                                         'datetime': set_time(thisRun['date']),
                                                         'result': result,
+                                                        'chips': len(chips),
                                                         'stage': stage,
                                                         'rate': count.get('module',{}).get('rate','-'),
                                                         'score': count.get('module',{}).get('score',None),
+                                                        'values': count.get('module',{}).get('parameters',{}),
                                                         'summary': thisRun.get('display')})
     for scan in resultIndex:
         runInd = sorted(resultIndex[scan]['run'], key=lambda x:x['datetime'], reverse=True)
         resultIndex.update({scan: {'num': len(runInd),
                                    'run': runInd}})
+        testIndex.append( scan )
+    testIndex.sort()
+    resultIndex.update({ "index": testIndex })
     return resultIndex
 
 # make result plot in component page for the run

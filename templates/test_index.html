@@ -7,6 +7,7 @@
 {% set _=order.append( "selftrigger" ) %}
 {% set _=order.append( "global" ) %}
 {% set _=order.append( "pixel" ) %}
+{% set _=order.append( "diff" ) %}
 {% set index = [] %}
 {% for orderedscan in order %}
   {% for scan in component['resultIndex'] %}
@@ -18,48 +19,53 @@
 
 <h4 style="font-size: 13pt;"><i class="fa fa-cog"></i> Test index</h4>
 <div class="row align-items-top">
-{% for scan in index %}
-  {% if scan in component['resultIndex'] %}
-    <div class="col-md-4">
-     <a data-toggle="collapse" href='#{{ scan }}' aria-controls="testindex" style="color: black;"><h4 style="font-size: 10pt;"><i class="fa fa-chevron-right"></i> {{ scan }} ( {{ component['resultIndex'][scan]['num'] }} )</h4></a>
-      <table class="table table-sm table-hover table-bordered collapse" id={{ scan }}  style="font-size: 7pt;">
-        <thead class="table-dark" style="background: #222222;">
-          <tr>
-            <th scope="col" width="40" class="text-center">Run<br>number</th>
-            <th scope="col" width="100" class="text-center">Date</th>
-            <th scope="col" width="100" class="text-center">Stage</th>
-            <th scope="col" width="100" class="text-center">Score</th>
-          </tr>
-        </thead>
-        <tbody>
-            {% for run in component['resultIndex'][scan]['run'] %}
-            {% if run['summary'] %}
-              <tr style="background: #FFEEAA;">
-            {% elif run['result'] %}
-              <tr>
-            {% else %}
-              <tr style="background: #AABBCC;">
-            {% endif %}
-                <td align="center">
-                  <a href="{{ url_for('show_component', id=component['_id'], runId=run['_id']) }}" target="_brank" rel="noopener noreferrer">{{ run['runNumber'] }}</a>
-                </td>
-                <td align="center">{{ run['datetime'] }}</td>
-                <td align="center">{{ run['stage'] }}</td>
-                {% if run['score'] == 1 %}
-                <td align="center" style="background: #e2ffd8;">
-                {% elif run['score'] == 0 %}
-                <td align="center" style="background: #ffe5e1;">
-                {% else %}
-                <td align="center">
-                {% endif %}
-                  {{ run['rate'] }}
-                </td>
-              </tr>
-            {% endfor %}
-        </tbody>
-      </table>
-    </div>
-  {% endif %}
+{% for scan in component['resultIndex']['index'] %}
+  <div class="col-md-6">
+   <a data-toggle="collapse" href='#{{ scan }}' aria-controls="testindex" style="color: black;"><h4 style="font-size: 10pt;"><i class="fa fa-chevron-right"></i> {{ scan }} ( {{ component['resultIndex'][scan]['num'] }} )</h4></a>
+    <table class="table table-sm table-hover table-bordered collapse" id={{ scan }}  style="font-size: 7pt;">
+      <thead class="table-dark" style="background: #222222;">
+        <tr>
+          <th scope="col" width="40" class="text-center">Run<br>number</th>
+          <th scope="col" width="100" class="text-center">Date</th>
+          <th scope="col" width="80" class="text-center">Stage</th>
+          <th scope="col" width="50" class="text-center">Score</th>
+          <th scope="col" width="200" class="text-center">Values</th>
+        </tr>
+      </thead>
+      <tbody>
+          {% for run in component['resultIndex'][scan]['run'] %}
+          {% if run['summary'] %}
+            <tr style="background: #FFEEAA;">
+          {% elif run['result'] %}
+            <tr>
+          {% else %}
+            <tr style="background: #AABBCC;">
+          {% endif %}
+              <td align="center">
+                <a href="{{ url_for('show_component', id=component['_id'], runId=run['_id']) }}">{{ run['runNumber'] }}</a>
+              </td>
+              <td align="center">{{ run['datetime'] }}</td>
+              <td align="center">{{ run['stage'] }}</td>
+              {% if run['score'] == 1 %}
+              <td align="center" style="background: #e2ffd8;">
+              {% elif run['score'] == 0 %}
+              <td align="center" style="background: #ffe5e1;">
+              {% else %}
+              <td align="center">
+              {% endif %}
+                {{ run['rate'] }}
+              </td>
+              <td align="center">
+              {% for chip in run['values'] %}
+                  {{ run['values'][chip]['parameter'] }}
+                <br>
+              {% endfor %}
+              </td>
+            </tr>
+          {% endfor %}
+      </tbody>
+    </table>
+  </div>
 {% endfor %}
 </div>
 
