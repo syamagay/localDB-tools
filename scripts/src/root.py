@@ -70,7 +70,7 @@ def whichFE(col):
 #    10, 0, 10 
 #)
 
-def fillHisto(testType, mapType, chipNum, chipId, dataDat, isFirst):
+def fillHisto(testType, mapType, chipId, plotList):
 
     ROOT.gROOT.SetBatch()
     # scale: { chips: [ xrange, yrange ] }
@@ -88,59 +88,88 @@ def fillHisto(testType, mapType, chipNum, chipId, dataDat, isFirst):
     with open(jFile, 'r') as f: jData = json.load(f)
     jPar = jData.get(testType, {})
 
-    global histo1
-    global histo2
-
-    HistoType = dataDat['data']['type']
-
-    if HistoType != 'Histo2d':
-        return
-
-    if isFirst and HistoType == 'Histo2d':
-        histo2 = ROOT.TH2D(
-            dataDat['data']['name'],
-            '{0};{1};{2};{3}'.format( dataDat['data']['name'], dataDat['data']['xaxisTitle'], dataDat['data']['yaxisTitle'], dataDat['data']['zaxisTitle'] ),
-            int(dataDat['data']['xbins'])*scale[chipNum][0], dataDat['data']['xlow'], dataDat['data']['xhigh']*scale[chipNum][0]+0.5,
-            int(dataDat['data']['ybins'])*scale[chipNum][1], dataDat['data']['ylow'], dataDat['data']['yhigh']*scale[chipNum][1]+0.5 )
-
+    filename = '{0}/{1}/dat/{2}-{3}.dat'.format( TMP_DIR, uuid, chipId, mapType )
+    f = open(filename, 'r')
+    histo_par2d={}
     zMax   = 0
+    values = []
+    chipNum = len(plotList[mapType]['chipIds'])
+    filled = plotList[mapType]['filled']
 
-    # row
-    if   chipNum==1 : row = 0 
-    elif chipId=='1': row = int(dataDat['data']['ybins'])-1 
-    elif chipId=='2': row = int(dataDat['data']['ybins'])-1
-    elif chipId=='3': row = int(dataDat['data']['ybins'])
-    elif chipId=='4': row = int(dataDat['data']['ybins'])
+    if not os.path.isfile( filename ): return plotList
 
-    for line in dataDat['data']['dat']: 
-        # col
-        if   chipNum==1 : col = 0
-        elif chipId=='1': col = int(dataDat['data']['xbins'])-1
-        elif chipId=='2': col = int(dataDat['data']['xbins'])*2-1
-        elif chipId=='3': col = 0
-        elif chipId=='4': col = int(dataDat['data']['xbins'])
+    for line, readline in enumerate(f.readlines()):
+        if line == 0:
+            # histo 1D
+            if readline.split()[0]=='Histo1d':
+                plotList[mapType].update({'HistoType': 1, 'draw': False})
+                return plotList
+            # histo 3D
+            elif readline.split()[0]=='Histo3d':
+                plotList[mapType].update({'HistoType': 3, 'draw': False})
+                return plotList
+            # unknown histo
+            elif not 'Histo' in readline.split()[0]:
+                plotList[mapType].update({'HistoType': None, 'draw': False})
+                return plotList
+        if line<len(_par2d): 
+            histo_par2d.update({_par2d[line]: readline.split()}) 
+        if line==len(_par2d): 
+            if not filled:
+                global histo2
+                histo2 = ROOT.TH2D( 
+                    mapType,
+                    '{0};{1};{2};{3}'.format( mapType, ' '.join(histo_par2d['xaxis']), ' '.join(histo_par2d['yaxis']), ' '.join(histo_par2d['zaxis']) ),
+                    int(histo_par2d['xrange'][0])*scale[chipNum][0], float(histo_par2d['xrange'][1]), float(histo_par2d['xrange'][0])*scale[chipNum][0]+0.5,
+                    int(histo_par2d['yrange'][0])*scale[chipNum][1], float(histo_par2d['yrange'][1]), float(histo_par2d['yrange'][0])*scale[chipNum][1]+0.5 
+                )
+                global zaxisTitle
+                zaxisTitle = ' '.join(histo_par2d['zaxis'])
+            # row
+            if   chipNum==1 : row = 0 
+            elif chipId==1: row = int(histo_par2d['yrange'][0])-1 
+            elif chipId==2: row = int(histo_par2d['yrange'][0])-1
+            elif chipId==3: row = int(histo_par2d['yrange'][0])
+            elif chipId==4: row = int(histo_par2d['yrange'][0])
 
-        for value in line:
-            histo2.SetBinContent(col+1, row+1, float(value))
-            if zMax<float(value): zMax = float(value)
+        if not line<len(_par2d):
+            data = readline.split()
+
             # col
-            if   chipNum==1 : col = col+1
-            elif chipId=='1': col = col-1
-            elif chipId=='2': col = col-1
-            elif chipId=='3': col = col+1
-            elif chipId=='4': col = col+1
+            if   chipNum==1 : col = 0
+            elif chipId==1: col = int(histo_par2d['xrange'][0])-1
+            elif chipId==2: col = int(histo_par2d['xrange'][0])*2-1
+            elif chipId==3: col = 0
+            elif chipId==4: col = int(histo_par2d['xrange'][0])
 
-        # row
-        if   chipNum==1 : row = row + 1
-        elif chipId=='1': row = row - 1 
-        elif chipId=='2': row = row - 1
-        elif chipId=='3': row = row + 1 
-        elif chipId=='4': row = row + 1
+            for value in data:
+                values.append(value)
+                histo2.SetBinContent(col+1, row+1, float(value))
+                if zMax<float(value): zMax = float(value)
 
-    if isFirst:
+                # col
+                if   chipNum==1 : col = col+1
+                elif chipId==1: col = col - 1 
+                elif chipId==2: col = col - 1
+                elif chipId==3: col = col + 1 
+                elif chipId==4: col = col + 1
+
+            # row
+            if   chipNum==1 : row = row + 1
+            elif chipId==1: row = row - 1 
+            elif chipId==2: row = row - 1
+            elif chipId==3: row = row + 1 
+            elif chipId==4: row = row + 1
+
+    if not filled:
         parameter = jPar.get(mapType.split('-')[0], [])
 
-        if len(parameter)==4:
+        if plotList[mapType].get('parameter'):
+            min_ =  int(plotList[mapType]['parameter']['min'])
+            max_ =  int(plotList[mapType]['parameter']['max'])
+            bin_ =  int(plotList[mapType]['parameter']['bin'])
+            log_ = bool(plotList[mapType]['parameter']['log'])
+        elif len(parameter)==4:
             min_ =  int(parameter[0])
             max_ =  int(parameter[1])
             bin_ =  int(parameter[2])
@@ -151,43 +180,55 @@ def fillHisto(testType, mapType, chipNum, chipId, dataDat, isFirst):
             bin_ = int(max_)
             log_ = False 
 
+        global histo1
         histo1 = ROOT.TH1D( 
             mapType+'_Dist',
-            '{0}_Dist;{1};#Ch'.format(mapType, dataDat['data']['zaxisTitle']),
+            '{0}_Dist;{1};#Ch'.format(mapType, zaxisTitle),
             bin_, min_, max_ 
         )
+    for value in values: 
+        histo1.Fill(float(value))
 
-    for line in dataDat['data']['dat']: 
-        for value in line:
-            histo1.Fill(float(value))
+    plotList[mapType].update({ 'parameter': { 
+                                   'min': min_, 
+                                   'max': max_, 
+                                   'bin': bin_, 
+                                   'log': log_ }, 
+                               'filled': True,
+                               'HistoType': 2 })
 
-def outHisto(testType, mapType, zaxisTitle):
+    return plotList
+def outHisto(testType, mapType, plotList):
+
+    if not 'histo2' in globals(): return
+
     global histo1
     global histo2
+    global zaxisTitle
 
     PH.outDir = '{0}/{1}/plot'.format(TMP_DIR, uuid)
     path_plot = '{0}_{1}'.format(testType, mapType)
-    max_ = histo2.GetMaximum() 
     Plot.Plot1D_fromHistos( 
         histo1,
-        False,
+        plotList[mapType]['parameter']['log'],
         path_plot+'_1',
         '#Ch.',
         'histo',
-        0,
-        2*max_
+        plotList[mapType]['parameter']['min'],
+        plotList[mapType]['parameter']['max']
     )
     Plot.Plot2D_fromHistos( 
         histo2, 
-        False, 
+        plotList[mapType]['parameter']['log'],
         path_plot+'_2', 
         zaxisTitle, 
-        0, 
-        2*max_ 
+        plotList[mapType]['parameter']['min'],
+        plotList[mapType]['parameter']['max']
     )
     # delete 
     del histo1
     del histo2
+    del zaxisTitle
 
 # draw map plots for the test 
 def drawScan(testType, plotList):

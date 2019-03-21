@@ -9,13 +9,24 @@
 {% endif %}
 
 <div class="row align-items-top">
-{% set index = [] %}
-{% set _=index.append("digitalscan") %}
-{% set _=index.append("analogscan") %}
-{% set _=index.append("thresholdscan") %}
-{% set _=index.append("totscan") %}
-{% set _=index.append("noisescan") %}
-{% set _=index.append("selftrigger") %}
+{% if component['chipType'] == 'FE-I4B' %}
+    {% set index = [] %}
+    {% set _=index.append("digitalscan") %}
+    {% set _=index.append("analogscan") %}
+    {% set _=index.append("thresholdscan") %}
+    {% set _=index.append("totscan") %}
+    {% set _=index.append("noisescan") %}
+    {% set _=index.append("selftrigger") %}
+{% endif %}
+{% if component['chipType'] == 'RD53A' %}
+    {% set index = [] %}
+    {% set _=index.append("std_digitalscan") %}
+    {% set _=index.append("std_analogscan") %}
+    {% set _=index.append("std_thresholdscan") %}
+    {% set _=index.append("std_totscan") %}
+    {% set _=index.append("std_noisescan") %}
+    {% set _=index.append("std_exttrigger") %}
+{% endif %}
   <div class="col">
 {% for stage_results in component['summary'] %}
     <table class="table table-sm table-bordered" style="font-size: 7pt;">

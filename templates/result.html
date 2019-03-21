@@ -7,15 +7,9 @@
           <th scope="col" class="text-center" rowspan="2">Run Number</th>
           <th scope="col" class="text-center" rowspan="2">Test Type</th>
           <th scope="col" class="text-center" rowspan="2">Stage</th>
-          {% if not component['results']['environment']['num'] == 0 %}
-            <th scope="col" class="text-center" colspan={{ component['results']['environment']['num'] }}>Environment</th>
-          {% endif %}
           <th scope="col" class="text-center" colspan="2">Runner</th>
         </tr>
         <tr>
-          {% for env in component['results']['environment']['list'] %}
-            <th scope="col" class="text-center" width="200">{{ env['description'] }}</th>
-          {% endfor %}
           <th scope="col" class="text-center" width="200">Institution</th>
           <th scope="col" class="text-center" width="200">UserIdentity</th>
         </tr>
@@ -25,9 +19,6 @@
           <td scope="col" align="center" >{{ component['results']['runNumber'] }}</td>
           <td scope="col" align="center" >{{ component['results']['testType'] }}</td>
           <td scope="col" align="center" >{{ component['results']['stage'] }}</td>
-          {% for env in component['results']['environment']['list'] %}
-            <th scope="col" class="text-center" width="200">{{ env['value'] }}</th>
-          {% endfor %}
           <td scope="col" align="center" >{{ component['results']['institution'] }}</td>
           <td scope="col" align="center" >{{ component['results']['userIdentity'] }}</td>
         </tr>
