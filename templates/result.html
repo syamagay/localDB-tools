@@ -7,7 +7,9 @@
           <th scope="col" class="text-center" rowspan="2">Run Number</th>
           <th scope="col" class="text-center" rowspan="2">Test Type</th>
           <th scope="col" class="text-center" rowspan="2">Stage</th>
-          <th scope="col" class="text-center" colspan={{ component['results']['environment']['num'] }}>Environment</th>
+          {% if not component['results']['environment']['num'] == 0 %}
+            <th scope="col" class="text-center" colspan={{ component['results']['environment']['num'] }}>Environment</th>
+          {% endif %}
           <th scope="col" class="text-center" colspan="2">Runner</th>
         </tr>
         <tr>

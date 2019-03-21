@@ -89,12 +89,6 @@ def bin_to_image( typ, binary ):
 
 
 #####
-def set_time(date):
-    DIFF_FROM_UTC = args.timezone 
-    time = (date+datetime.timedelta(hours=DIFF_FROM_UTC)).strftime('%Y/%m/%d %H:%M:%S')
-    return time
-
-#####
 # user funtion
 def add_request(userinfo):
     password = hashlib.md5(userinfo[5].encode('utf-8')).hexdigest()
@@ -169,10 +163,10 @@ def allowed_file(filename):
     return '.' in filename and \
         filename.rsplit('.', 1)[1] in ALLOWED_EXTENSIONS
 
-def fill_env(thisComponentTestRun):
-    env_list = thisComponentTestRun.get('environments',[])
-    env_dict = {'list': env_list,
-                'num': len(env_list)}
+def fill_env(thisTestRun):
+    env_list = thisTestRun.get('environments',[])
+    env_dict = { 'list': env_list,
+                 'num' : len(env_list) }
     return env_dict
 
 ######################################################################
@@ -551,73 +545,64 @@ def fill_resultIndex():
 
     resultIndex = {}
     testIndex = []
-
-    keys = ['runNumber', 'institution', 'userIdentity']
     runs = []
 
     chips = []
-    query = [{'parent': session['this'] }, {'child': session['this']}]
-    child_entries = yarrdb.childParentRelation.find({'$or': query})
+    query = { 'parent': session['this'] }
+    child_entries = yarrdb.childParentRelation.find( query )
     for child in child_entries:
-        chips.append({'component': child['child']})
+        chips.append({ 'component': child['child'] })
 
-    if session.get('stage'): 
-        query = {'$or': chips+[{'component': session.get('this')}], 
-                 'stage': session.get('stage')}
-    else:
-        query = {'$or': chips+[{'component': session.get('this')}]}
-
-    # list run number and information of the run for each test type
-    run_entries = yarrdb.componentTestRun.find(query).sort('component', DESCENDING)
+    query = { 'component': session['this'] }
+    run_entries = yarrdb.componentTestRun.find( query )
     for run in run_entries:
-        query = {'_id': ObjectId(run['testRun'])}
+        query = { '_id': ObjectId(run['testRun']) }
         thisRun = yarrdb.testRun.find_one(query)
-        query_id = dict([(key, thisRun[key]) for key in keys])
 
-        if query_id in runs: continue
-
-        runs.append(query_id) 
-        result = ('png' or 'pdf') in [data.get('contentType') for data in thisRun.get('attachments')]
-        stage = run['stage']
-
-        idRun_entries = yarrdb.testRun.find(query_id)
-        for idRun in idRun_entries:        
-            query = {'component': session['this'], 'testRun': str(idRun['_id'])}
-            if yarrdb.componentTestRun.find_one(query): 
-                thisRun =idRun 
-            if not result: 
-                result = ('png' or 'pdf') in [data.get('contentType') for data in idRun.get('attachments')]
-        if not run.get('testType') in resultIndex: 
-            resultIndex.update({run.get('testType'): {'run': []}})
-
-        query = { 'resultId': str(thisRun['_id']) }
-        thisRunInLocal = userdb.localdb.find_one( query )
-        if thisRunInLocal:
-            count = thisRunInLocal['count']
+        if chips == []:
+            result = 'attachments' in run
         else:
-            write_dat(str(thisRun['_id'])) 
-            count = {}
-            if DOROOT:
-                root.uuid = str(session.get('uuid'))
-                count = root.countPix( run.get('testType'), session['plotList'] )
-            document = { 'resultId': str(thisRun['_id']),
-                         'count': count }
-            userdb.localdb.insert( document )
+            query = { '$or': chips }
+            chip_run_entries = yarrdb.componentTestRun.find( query )
+            result = True in [ 'attachments' in chip_run for chip_run in chip_run_entries ]
 
-        resultIndex[run.get('testType')]['run'].append({'_id': str(thisRun['_id']),
-                                                        'runNumber': thisRun['runNumber'],
-                                                        'datetime': set_time(thisRun['date']),
-                                                        'result': result,
-                                                        'chips': len(chips),
-                                                        'stage': stage,
-                                                        'rate': count.get('module',{}).get('rate','-'),
-                                                        'score': count.get('module',{}).get('score',None),
-                                                        'values': count.get('module',{}).get('parameters',{}),
-                                                        'summary': thisRun.get('display')})
+        stage = thisRun['stage']
+        testType = thisRun.get('testType')
+
+        if not testType in resultIndex: 
+            resultIndex.update({ testType: { 'run': [] } })
+
+        count = {}
+        #TODO
+        #query = { 'resultId': str(thisRun['_id']) }
+        #thisRunInLocal = userdb.localdb.find_one( query )
+        #if thisRunInLocal:
+        #    count = thisRunInLocal['count']
+        #else:
+        #    write_dat(str(thisRun['_id'])) 
+        #    count = {}
+        #    if DOROOT:
+        #        root.uuid = str(session.get('uuid'))
+        #        count = root.countPix( run.get('testType'), session['plotList'] )
+        #    document = { 'resultId': str(thisRun['_id']),
+        #                 'count': count }
+        #    userdb.localdb.insert( document )
+        #TODO
+
+        resultIndex[testType]['run'].append({ '_id'      : str(thisRun['_id']),
+                                              'runNumber': thisRun['runNumber'],
+                                              'datetime' : set_time(thisRun['startTime']),
+                                              'result'   : result,
+                                              'chips'    : len(chips),
+                                              'stage'    : stage,
+                                              'rate'     : count.get('module',{}).get('rate','-'),
+                                              'score'    : count.get('module',{}).get('score',None),
+                                              'values'   : count.get('module',{}).get('parameters',{}),
+                                              'summary'  : thisRun.get('display') })
     for scan in resultIndex:
         runInd = sorted(resultIndex[scan]['run'], key=lambda x:x['datetime'], reverse=True)
-        resultIndex.update({scan: {'num': len(runInd),
-                                   'run': runInd}})
+        resultIndex.update({ scan: { 'num': len(runInd),
+                                     'run': runInd } })
         testIndex.append( scan )
     testIndex.sort()
     resultIndex.update({ "index": testIndex })
@@ -629,40 +614,43 @@ def fill_results():
     results = {}
 
     if session.get('runId'):
-        query = {'component': session['this'], 'testRun': session['runId']}
+        query = { 'component': session['this'], 
+                  'testRun'  : session['runId'] }
         thisComponentTestRun = yarrdb.componentTestRun.find_one(query)
-        query = {'_id': ObjectId(session['runId'])}
+        query = { '_id': ObjectId(session['runId']) }
         thisRun = yarrdb.testRun.find_one(query)
 
         plots = []
         config = {}
         if thisComponentTestRun:
-            data_entries = thisRun['attachments']
+            data_entries = thisComponentTestRun.get('attachments', [])
             for data in data_entries:
                 if data['contentType'] == 'pdf' or data['contentType'] == 'png':
                     binary = base64.b64encode(fs.get(ObjectId(data['code'])).read()).decode()
                     url = bin_to_image(data['contentType'], binary)
-                    plots.append({'code': data['code'],
-                                  'url': url,
-                                  'filename': data['filename'].split('_',1)[1]})
+                    plots.append({ 'code'    : data['code'],
+                                   'url'     : url,
+                                   'filename': data['title'] })
                 elif data['contentType'] == 'after' :
                     config.update({ "filename" : data['filename'],
                                     "code"     : data['code'] })
-        else:
-            query = {'testRun': session['runId']}
-            thisComponentTestRun = yarrdb.componentTestRun.find_one(query)
+        #else:
+        #    query = { 'testRun': session['runId'] }
+        #    thisComponentTestRun = yarrdb.componentTestRun.find_one(query)
 
-        env_dict = fill_env(thisComponentTestRun) 
-
-        results.update({'testType': thisRun['testType'],
-                        'runNumber': thisRun['runNumber'],
-                        'comments': list(thisRun['comments']),
-                        'stage': thisComponentTestRun['stage'],
-                        'institution': thisRun['institution'],
-                        'userIdentity': thisRun['userIdentity'],
-                        'environment': env_dict,
-                        'plots': plots,
-                        'config': config}) 
+        env_dict = fill_env(thisRun) 
+        query = { '_id': ObjectId(thisRun['user_id']) }
+        user = yarrdb.user.find_one( query )
+        results.update({ 'testType'    : thisRun['testType'],
+                         'runNumber'   : thisRun['runNumber'],
+                         'comments'    : list(thisRun['comments']),
+                         'stage'       : thisRun['stage'],
+                         'cite'        : thisRun.get('cite','null'),
+                         'institution' : user['institution'],
+                         'userIdentity': user['userName'],
+                         'environment' : env_dict,
+                         'plots'       : plots,
+                         'config'      : config}) 
 
     return results
 
@@ -683,51 +671,43 @@ def write_dat(runId):
         with open(jsonFile_default, 'r') as f: jsonData_default = json.load(f)
         with open(jsonFile,         'w') as f: json.dump(jsonData_default, f, indent=4)
  
-    query = {'_id': ObjectId(runId)}
+    query = { '_id': ObjectId(runId) }
     thisRun = yarrdb.testRun.find_one(query)
-    thisComponentTestRun = yarrdb.componentTestRun.find_one({'testRun': str(thisRun['_id'])})
 
     chipIds = {}
     chipIdNums = []
 
     chips = []
-    query = [{'parent': session['this']},{'child': session['this']}]
+    query = [{ 'parent': session['this'] }, { 'child': session['this'] }]
     child_entries = yarrdb.childParentRelation.find({'$or': query})
     for child in child_entries:
-        chips.append({'component': child['child']})
+        chips.append({ 'component': child['child'] })
         query = { '_id': ObjectId(child['child']) }
         thisChip = yarrdb.component.find_one( query )
-        if 'chipId' in thisChip['serialNumber']:
-            chipIds.update({ child['child']: { 'chipId': str(thisChip['serialNumber'].split('chipId')[1]),
-                                               'name': thisChip['name'] }})
-            chipIdNums.append(str(thisChip['serialNumber'].split('chipId')[1]))
-        else:
-            chipIds.update({ child['child']: { "chipId": '1',
-                                               "name": thisChip['name'] }})
-            chipIdNums.append('1')
+        chipIds.update({ child['child']: { 'chipId': str(thisChip['chipId']),
+                                           'name':   thisChip['name'] }})
+        chipIdNums.append( str(thisChip['chipId']) )
 
-    query = { '$or': chips, 'runNumber': thisRun['runNumber'], 'testType': thisRun['testType'], 'stage': thisComponentTestRun['stage'] }
+    query = { 'testRun': str(thisRun['_id']) }
     run_entries = yarrdb.componentTestRun.find(query)
 
     for run in run_entries:
-        query = {'_id': ObjectId(run['testRun']), 'institution': thisRun['institution'], 'userIdentity': thisRun['userIdentity']}
+        query = { '_id': ObjectId(run['testRun']) }
         chiprun = yarrdb.testRun.find_one(query)
 
-        if chiprun:
+        data_entries = chiprun.get('attachments')
+        for data in data_entries:
+            if data['contentType'] == 'dat':
 
-            data_entries = chiprun['attachments']
-            for data in data_entries:
-                if data['contentType'] == 'dat':
-
-                    mapType = data['filename'][len(chipIds[run['component']]['name'])+1:]
-                    f = open( '{0}/{1}/dat/{2}_chipId{3}.dat'.format( TMP_DIR, session.get('uuid'), mapType, chipIds[run['component']]['chipId'] ), 'wb' )
-                    f.write(fs.get(ObjectId(data['code'])).read())
-                    f.close()
-                    session['plotList'].update({mapType: {'draw': True, 'chips': chipIdNums}})
+                mapType = data['title']
+                f = open( '{0}/{1}/dat/{2}_chipId{3}.dat'.format( TMP_DIR, session.get('uuid'), mapType, chipIds[run['component']]['chipId'] ), 'wb' )
+                f.write(fs.get(ObjectId(data['code'])).read())
+                f.close()
+                session['plotList'].update({mapType: {'draw': True, 'chips': chipIdNums}})
 
 # make plot using PyROOT
 def make_plot(runId):
-    query = {'_id': ObjectId(runId)}
+    query = { '_id': ObjectId(runId) }
     thisRun = yarrdb.testRun.find_one( query )
 
     if DOROOT:
@@ -741,7 +721,6 @@ def make_plot(runId):
                 for mapType in session['plotList']: session['plotList'][mapType].update({'draw': True, 'parameter': {}})
 
             elif session['rootType'] == 'make':
-                print(session['plotList'])
                 session['plotList'][mapType].update({'draw': True, 'parameter': session['parameter']})
 
         else:
@@ -764,37 +743,62 @@ def fill_roots():
         roots.update({'rootsw': False})
         return roots
 
-    make_plot(session['runId'])
-
-    query = {'_id': ObjectId(session['runId'])}
+    root.uuid = str(session.get('uuid'))
+    query = { '_id': ObjectId(session['runId']) }
     thisRun = yarrdb.testRun.find_one(query)
 
     results = []
 
-    for mapType in session.get('plotList'):
-        if session['plotList'][mapType]['HistoType'] == 1: continue
-        url = {} 
-        for i in ['1', '2']:
-            filename = TMP_DIR + '/' + str(session.get('uuid')) + '/plot/' + str(thisRun['testType']) + '_' + str(mapType) + '_{}.png'.format(i)
-            if os.path.isfile(filename):
-                binary_image = open(filename, 'rb')
-                code_base64 = base64.b64encode(binary_image.read()).decode()
-                binary_image.close()
-                url.update({i: bin_to_image('png', code_base64)}) 
+    chips = []
+    query = [{ 'parent': session['this'] }, { 'child': session['this'] }]
+    child_entries = yarrdb.childParentRelation.find({'$or': query})
+    for child in child_entries:
+        chips.append({ 'component': child['child'] })
 
-        results.append({'mapType': mapType, 
-                        'sortkey': '{}0'.format(mapType), 
-                        'runId': session['runId'],
-                        'urlDist': url.get('1'), 
-                        'urlMap': url.get('2'), 
-                        'setLog': session['plotList'][mapType]['parameter']['log'], 
-                        'minValue': session['plotList'][mapType]['parameter']['min'],
-                        'maxValue': session['plotList'][mapType]['parameter']['max'],
-                        'binValue': session['plotList'][mapType]['parameter']['bin']})
+    for mapType in thisRun.get('plots',[]):
+        query = { 'testRun': session['runId'], '$or': chips }
+        component_entries = yarrdb.componentTestRun.find( query )
+        first = True
+        output = False
+        zaxisTitle = ""
+        for component in component_entries:
+             query = { '_id': ObjectId(component['component']) }
+             thisComponent = yarrdb.component.find_one( query )
+             chipId = thisComponent['chipId']
+             for data in component.get('attachments'):
+                 if data['title'] == mapType and data['contentType'] == 'dat':
+                     query = { '_id': ObjectId(data['code']) }
+                     dataDat = yarrdb.dat.find_one( query )
+                     zaxisTitle = dataDat['data']['zaxisTitle']
+                     if dataDat['data']['type'] != 'Histo2d': break
+                     root.fillHisto(thisRun['testType'], mapType, len(chips), str(chipId), dataDat, first)
+                     first = False
+                     output = True
+        url = {} 
+        if output:
+            root.outHisto(thisRun['testType'], mapType, zaxisTitle)
+
+            for i in ['1', '2']:
+                filename = TMP_DIR + '/' + str(session.get('uuid')) + '/plot/' + str(thisRun['testType']) + '_' + str(mapType) + '_{}.png'.format(i)
+                if os.path.isfile(filename):
+                    binary_image = open(filename, 'rb')
+                    code_base64 = base64.b64encode(binary_image.read()).decode()
+                    binary_image.close()
+                    url.update({i: bin_to_image('png', code_base64)}) 
+
+        results.append({ 'mapType' : mapType, 
+                         'sortkey' : '{}0'.format(mapType), 
+                         'runId'   : session['runId'],
+                         'urlDist' : url.get('1'), 
+                         'urlMap'  : url.get('2'), 
+                         'setLog'  : False, 
+                         'minValue': 0,
+                         'maxValue': 10,
+                         'binValue': 10})
 
     results = sorted(results, key=lambda x:int((re.search(r'[0-9]+',x['sortkey'])).group(0)), reverse=True)
 
-    roots.update({'rootsw': True,
-                  'results': results})
+    roots.update({ 'rootsw' : True,
+                   'results': results})
 
     return roots

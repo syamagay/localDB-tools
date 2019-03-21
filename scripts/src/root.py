@@ -58,6 +58,137 @@ def whichFE(col):
         which_fe = 2
     return which_fe
 
+#g_h1 = ROOT.TH1D( 
+#    'Name',
+#    'Title;Xtitle;Ytitle',
+#    10, 0, 10 
+#)
+#g_h2 = ROOT.TH2D( 
+#    'Name',
+#    'Title;Xtitle;Ytitle;Ztitle',
+#    10, 0, 10,
+#    10, 0, 10 
+#)
+
+def fillHisto(testType, mapType, chipNum, chipId, dataDat, isFirst):
+
+    ROOT.gROOT.SetBatch()
+    # scale: { chips: [ xrange, yrange ] }
+    scale = { 1: [ 1, 1 ],
+              2: [ 2, 1 ],
+              3: [ 2, 2 ],
+              4: [ 2, 2 ] }
+
+    # get parameters from json
+    jFile = '{0}/{1}_parameter.json'.format( JSON_DIR, uuid )
+    if not os.path.isfile( jFile ):
+        jFile_default = '{}/json/parameter_default.json'.format( os.path.dirname(os.path.dirname(os.path.abspath(__file__))) )
+        with open(jFile_default, 'r') as f: jData_default = json.load(f)
+        with open(jFile,         'w') as f: json.dump( jData_default, f, indent=4 )
+    with open(jFile, 'r') as f: jData = json.load(f)
+    jPar = jData.get(testType, {})
+
+    global histo1
+    global histo2
+
+    HistoType = dataDat['data']['type']
+
+    if HistoType != 'Histo2d':
+        return
+
+    if isFirst and HistoType == 'Histo2d':
+        histo2 = ROOT.TH2D(
+            dataDat['data']['name'],
+            '{0};{1};{2};{3}'.format( dataDat['data']['name'], dataDat['data']['xaxisTitle'], dataDat['data']['yaxisTitle'], dataDat['data']['zaxisTitle'] ),
+            int(dataDat['data']['xbins'])*scale[chipNum][0], dataDat['data']['xlow'], dataDat['data']['xhigh']*scale[chipNum][0]+0.5,
+            int(dataDat['data']['ybins'])*scale[chipNum][1], dataDat['data']['ylow'], dataDat['data']['yhigh']*scale[chipNum][1]+0.5 )
+
+    zMax   = 0
+
+    # row
+    if   chipNum==1 : row = 0 
+    elif chipId=='1': row = int(dataDat['data']['ybins'])-1 
+    elif chipId=='2': row = int(dataDat['data']['ybins'])-1
+    elif chipId=='3': row = int(dataDat['data']['ybins'])
+    elif chipId=='4': row = int(dataDat['data']['ybins'])
+
+    for line in dataDat['data']['dat']: 
+        # col
+        if   chipNum==1 : col = 0
+        elif chipId=='1': col = int(dataDat['data']['xbins'])-1
+        elif chipId=='2': col = int(dataDat['data']['xbins'])*2-1
+        elif chipId=='3': col = 0
+        elif chipId=='4': col = int(dataDat['data']['xbins'])
+
+        for value in line:
+            histo2.SetBinContent(col+1, row+1, float(value))
+            if zMax<float(value): zMax = float(value)
+            # col
+            if   chipNum==1 : col = col+1
+            elif chipId=='1': col = col-1
+            elif chipId=='2': col = col-1
+            elif chipId=='3': col = col+1
+            elif chipId=='4': col = col+1
+
+        # row
+        if   chipNum==1 : row = row + 1
+        elif chipId=='1': row = row - 1 
+        elif chipId=='2': row = row - 1
+        elif chipId=='3': row = row + 1 
+        elif chipId=='4': row = row + 1
+
+    if isFirst:
+        parameter = jPar.get(mapType.split('-')[0], [])
+
+        if len(parameter)==4:
+            min_ =  int(parameter[0])
+            max_ =  int(parameter[1])
+            bin_ =  int(parameter[2])
+            log_ = bool(parameter[3])
+        else:
+            min_ = int(0)
+            max_ = int(2*zMax)
+            bin_ = int(max_)
+            log_ = False 
+
+        histo1 = ROOT.TH1D( 
+            mapType+'_Dist',
+            '{0}_Dist;{1};#Ch'.format(mapType, dataDat['data']['zaxisTitle']),
+            bin_, min_, max_ 
+        )
+
+    for line in dataDat['data']['dat']: 
+        for value in line:
+            histo1.Fill(float(value))
+
+def outHisto(testType, mapType, zaxisTitle):
+    global histo1
+    global histo2
+
+    PH.outDir = '{0}/{1}/plot'.format(TMP_DIR, uuid)
+    path_plot = '{0}_{1}'.format(testType, mapType)
+    max_ = histo2.GetMaximum() 
+    Plot.Plot1D_fromHistos( 
+        histo1,
+        False,
+        path_plot+'_1',
+        '#Ch.',
+        'histo',
+        0,
+        2*max_
+    )
+    Plot.Plot2D_fromHistos( 
+        histo2, 
+        False, 
+        path_plot+'_2', 
+        zaxisTitle, 
+        0, 
+        2*max_ 
+    )
+    # delete 
+    del histo1
+    del histo2
+
 # draw map plots for the test 
 def drawScan(testType, plotList):
 

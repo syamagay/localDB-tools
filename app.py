@@ -85,7 +85,7 @@ def show_modules_and_chips():
     clean_dir( STATIC_DIR )
     session.pop( 'signup', None )
 
-    query = { 'componentType': 'Module' }
+    query = { 'componentType': 'Module', 'dbVersion': 2 }
     component_entries = mongo.db.component.find( query )
     modules = {}
 
@@ -93,32 +93,36 @@ def show_modules_and_chips():
         query = { 'parent': str(component['_id']) }
         child_entries = mongo.db.childParentRelation.find( query )
         chips = []
-        componentType = 'unknown'
 
-        for i, child in enumerate(child_entries):
+        # grade module
+        #score = grade_module(str(component['_id']))
+
+        for child in child_entries:
             query = { '_id': ObjectId(child['child']) }
             thisChip = mongo.db.component.find_one( query )
             chips.append({ '_id'          : str(thisChip['_id']),
                            'serialNumber' : thisChip['serialNumber'],
+                           'componentType': thisChip['componentType'],
+                           'chipId'       : thisChip['chipId'],
                            'datetime'     : set_time(thisChip['sys']['cts']),
                            'grade'        : {} }) 
-            componentType = thisChip['componentType']
+            chipType = thisChip['chipType']
 
-        if not componentType in modules:
-            modules.update({ componentType: { 'modules': [], 'num': '' } })
+        if not chipType in modules:
+            modules.update({ chipType: { 'modules': [], 'num': '' } })
 
-        modules[componentType]['modules'].append({ '_id'         : str(component['_id']),
-                                                   'serialNumber': component['serialNumber'],
-                                                   'chips'       : chips,
-                                                   'datetime'    : set_time(component['sys']['cts']),
-                                                   'grade'       : {},
-                                                   'stage'       : None })
+        modules[chipType]['modules'].append({ '_id'         : str(component['_id']),
+                                              'serialNumber': component['serialNumber'],
+                                              'chips'       : chips,
+                                              'datetime'    : set_time(component['sys']['cts']),
+                                              'grade'       : {},
+                                              'stage'       : None })
 
-    for componentType in modules:
-        modules[componentType].update({ 'num': len(modules[componentType]['modules']) })
+    for chipType in modules:
+        modules[chipType].update({ 'num': len(modules[chipType]['modules']) })
 
-    module = sorted( modules[componentType]['modules'], key=lambda x:x['serialNumber'], reverse=True)
-    modules[componentType]['modules'] = module
+    module = sorted( modules[chipType]['modules'], key=lambda x:x['serialNumber'], reverse=True)
+    modules[chipType]['modules'] = module
 
     return render_template( 'toppage.html', modules=modules )
 
@@ -143,7 +147,6 @@ def show_modules_and_chips_develop():
         query = { 'parent': str(component['_id']) }
         child_entries = mongo.db.childParentRelation.find( query )
         chips = []
-        componentType = 'unknown'
 
         # grade module
         score  = grade_module(str(component['_id'])) 
@@ -157,28 +160,28 @@ def show_modules_and_chips_develop():
                 chipId = '1' 
             chips.append({ '_id'          : str(thisChip['_id']),
                            'serialNumber' : thisChip['serialNumber'],
+                           'componentType': thisChip['componentType'],
+                           'chipId'       : thisChip['chipId'],
                            'datetime'     : set_time(thisChip['sys']['cts']),
-                           #'grade'        : score[chipId].get('total') }) 
                            'grade'        : score.get(chipId,{}) }) 
-            componentType = thisChip['componentType']
+            chipType = thisChip['chipType']
 
-        if not componentType in modules:
-            modules.update({ componentType: { 'modules': [], 'num': '' } })
+        if not chipType in modules:
+            modules.update({ chipType: { 'modules': [], 'num': '' } })
 
 
-        modules[componentType]['modules'].append({ '_id'         : str(component['_id']),
-                                                   'serialNumber': component['serialNumber'],
-                                                   'chips'       : chips,
-                                                   'datetime'    : set_time(component['sys']['cts']),
-                                                   #'grade'       : score['module'].get('total'),
-                                                   'grade'       : score['module'],
-                                                   'stage'       : score['stage'] })
+        modules[chipType]['modules'].append({ '_id'         : str(component['_id']),
+                                              'serialNumber': component['serialNumber'],
+                                              'chips'       : chips,
+                                              'datetime'    : set_time(component['sys']['cts']),
+                                              'grade'       : score['module'],
+                                              'stage'       : score['stage'] })
 
-    for componentType in modules:
-        modules[componentType].update({ 'num': len(modules[componentType]['modules']) })
+    for chipType in modules:
+        modules[chipType].update({ 'num': len(modules[chipType]['modules']) })
 
-    module = sorted( modules[componentType]['modules'], key=lambda x:x['serialNumber'], reverse=True)
-    modules[componentType]['modules'] = module
+    module = sorted( modules[chipType]['modules'], key=lambda x:x['serialNumber'], reverse=True)
+    modules[chipType]['modules'] = module
 
     return render_template( 'toppage.html', modules=modules )
 
@@ -196,12 +199,9 @@ def show_component():
     query = { '_id': ObjectId(session['this']) }
     thisComponent = mongo.db.component.find_one( query )
 
-    if thisComponent['componentType'] == 'Module': unit = 'module'
-    else:                                          unit = 'chip'
-
     # chips and parent
     chips = []
-    query = [{ 'parent': session['this'] },{ 'child': session['this'] }]
+    query = [{ 'parent': session['this'] }, { 'child': session['this'] }]
     child_entries = mongo.db.childParentRelation.find({ '$or': query })
     for child in child_entries:
         chips.append({ 'component': child['child'] })
@@ -221,38 +221,44 @@ def show_component():
     for child in child_entries:
         query = { '_id': ObjectId(child['child']) }
         thisChip = mongo.db.component.find_one( query )
-        component['componentType'] = thisChip['componentType']
-        component_chips.append({ '_id'        : child['child'],
+        component['chipType'] = thisChip['chipType']
+        component_chips.append({ '_id'         : child['child'],
                                  'serialNumber': thisChip['serialNumber'] })
 
     module = { '_id'         : ParentId,
                'serialNumber': thisModule['serialNumber'] }
     
     # fill photos
-    photoDisplay = fill_photoDisplay( thisComponent )
-    photoIndex   = fill_photoIndex( thisComponent )
-    photos       = fill_photos( thisComponent, session['code'] )
+    photoDisplay = []
+    photoIndex = []
+    photos = {}
+    #photoDisplay = fill_photoDisplay( thisComponent )            #TODO
+    #photoIndex   = fill_photoIndex( thisComponent )              #TODO
+    #photos       = fill_photos( thisComponent, session['code'] ) #TODO
 
     # fill summary 
-    query = { '$or': chips }
+    query = { 'component': session['this'] }
     run_entries = mongo.db.componentTestRun.find( query )
     stages = []
     for run in run_entries:
-        if not run.get('stage') == '':
-            stages.append( run.get('stage') )
+        query = { '_id': ObjectId(run['testRun']) }
+        thisRun = mongo.db.testRun.find_one( query )
+        if not thisRun.get('stage') == '':
+            stages.append( thisRun.get('stage') )
     stages = list(set(stages))
-    summary = fill_summary( stages )
+    summary = []
+    #summary = fill_summary( stages ) #TODO
 
     # fill results
     resultIndex  = fill_resultIndex() 
-    results      = fill_results()
-    roots        = fill_roots()
+    results      = fill_results()     
+    roots        = fill_roots()    
 
     component.update({ '_id'         : session['this'],
                        'serialNumber': thisComponent['serialNumber'],
                        'module'      : module,
                        'chips'       : component_chips,
-                       'unit'        : unit, 
+                       'unit'        : thisComponent['componentType'], 
                        'photoDisplay': photoDisplay,
                        'photoIndex'  : photoIndex,
                        'photos'      : photos,
