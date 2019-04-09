@@ -356,7 +356,7 @@ def fill_summary_test():
                     make_plot(str(thisRun['_id']))
 
                     for mapType in session.get('plotList'):
-                        if session['plotList'][mapType]['HistoType'] == 1: continue
+                        if not session['plotList'][mapType].get('HistoType') == 2: continue
                         url = {} 
                         path = {}
                         datadict = {'1': '_Dist', '2': ''}
@@ -391,7 +391,7 @@ def fill_summary_test():
                 make_plot(str(thisRun['_id']))
 
                 for mapType in session.get('plotList'):
-                    if session['plotList'][mapType]['HistoType'] == 1: continue
+                    if not session['plotList'][mapType].get('HistoType') == 2: continue
                     url = {} 
                     path = {}
                     datadict = {'1': '_Dist', '2': ''}
@@ -740,7 +740,7 @@ def write_dat_for_component(componentId, runId):
     query = { '_id': ObjectId(componentId) }
     thisComponent = yarrdb.component.find_one( query )
     chipId = thisComponent['chipId']
-    for data in thisComponentTestRun.get('attachments'):
+    for data in thisComponentTestRun.get('attachments', []):
         if data['contentType'] == 'dat':
             query = { '_id': ObjectId(data['code']) }
             filePath = '{0}/{1}/dat/{2}-{3}.dat'.format(TMP_DIR, session.get('uuid','localuser'), chipId, data['title'])
@@ -804,7 +804,8 @@ def fill_roots():
 
     results = []
     for mapType in thisRun.get('plots',[]):
-        if session['plotList'][mapType]['HistoType'] == 1: continue
+        print( session['plotList'] )
+        if not session['plotList'][mapType].get('HistoType') == 2: continue
         url = {} 
         for i in ['1', '2']:
             filename = TMP_DIR + '/' + str(session.get('uuid','localuser')) + '/plot/' + str(thisRun['testType']) + '_' + str(mapType) + '_{}.png'.format(i)

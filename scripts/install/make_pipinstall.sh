@@ -5,9 +5,9 @@ PYTHON_SCRIPT="pipinstall.py"
 MODULE_TEXT="install_list"
 LOG_TEXT="install_log"
 
-### COMMAND PATH
-PIPPATH="pip"
-#PIPPATH="pip3"
+### COMMAND PATH # Select python2 or python3
+PIPPATH="pip"    # python2
+#PIPPATH="pip3"   # python3
             
 PIP_PATH=`which ${PIPPATH}`
 if [ $? -ne 0 ]; then

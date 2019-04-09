@@ -186,16 +186,15 @@ def fillHisto(testType, mapType, chipId, plotList):
             '{0}_Dist;{1};#Ch'.format(mapType, zaxisTitle),
             bin_, min_, max_ 
         )
+        plotList[mapType].update({ 'parameter': { 
+                                       'min': min_, 
+                                       'max': max_, 
+                                       'bin': bin_, 
+                                       'log': log_ }, 
+                                   'filled': True,
+                                   'HistoType': 2 })
     for value in values: 
         histo1.Fill(float(value))
-
-    plotList[mapType].update({ 'parameter': { 
-                                   'min': min_, 
-                                   'max': max_, 
-                                   'bin': bin_, 
-                                   'log': log_ }, 
-                               'filled': True,
-                               'HistoType': 2 })
 
     return plotList
 def outHisto(testType, mapType, plotList):

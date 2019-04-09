@@ -27,6 +27,15 @@ yarrdb = client[args.db]
 userdb = client[args.userdb]
 fs = gridfs.GridFS( yarrdb )
 
+log_dir = './log'
+if not os.path.isdir(log_dir): 
+    os.mkdir(log_dir)
+now = datetime.datetime.now() 
+log_filename = now.strftime("{}/logCo_%m%d_%H%M.txt".format(log_dir))
+log_file = open( log_filename, 'w' )
+
+dbv = args.version
+
 ##### function #####
 def input_v( message ) :
     answer = ''
@@ -54,10 +63,6 @@ def is_pdf(b):
 
 #################################################################
 print( '# Confirm new database scheme' )
-now = datetime.datetime.now() 
-log_filename = now.strftime("logCo_%m%d_%H%M.txt")
-log_file = open( log_filename, 'w' )
-
 start_time = datetime.datetime.now() 
 
 if not os.path.isdir( './broken_files' ):
@@ -65,7 +70,7 @@ if not os.path.isdir( './broken_files' ):
 
 # check broken data
 print( '# Checking broken data ...' )
-query = { 'dbVersion': { '$ne': 2 } }
+query = { 'dbVersion': { '$ne': dbv } }
 run_entries = yarrdb.componentTestRun.find( query )
 log_file.write( '========================================\n' )
 log_file.write( '=== Broken files in componentTestRun ===\n' )
@@ -122,7 +127,7 @@ for run in run_entries:
         yarrdb.componentTestRun.update( query,
                                         { '$unset': { 'broken' : '' }} )
         yarrdb.componentTestRun.update( query,
-                                        { '$set': { 'dbVersion' : 2 }} )
+                                        { '$set': { 'dbVersion' : dbv }} )
         log_file.write( '[UPDATE] componentTestRun doc: ' + str(run['_id']) + '\n' )
     else:
         log_file.write( '[UNUPDATE] componentTestRun doc: ' + str(run['_id']) + '\n' )
@@ -130,7 +135,7 @@ for run in run_entries:
 
 # check fs.files
 print( '# Checking fs.files ...' )
-query = { 'dbVersion': { '$ne': 2 } }
+query = { 'dbVersion': { '$ne': dbv } }
 file_entries = yarrdb.fs.files.find( query )
 file_num = file_entries.count()
 num = 0
@@ -170,7 +175,7 @@ for thisFile in file_entries:
 
 # check fs.chunks
 print( '# Checking fs.chunks ...' )
-query = { 'dbVersion': { '$ne': 2 } }
+query = { 'dbVersion': { '$ne': dbv } }
 chunk_entries = yarrdb.fs.chunks.find( query )
 chunk_num = chunk_entries.count()
 num = 0
@@ -213,7 +218,7 @@ for chunks in chunk_entries:
 
 # check component
 print( '# Checking component ...' )
-query = { 'dbVersion': { '$ne': 2 }}
+query = { 'dbVersion': { '$ne': dbv }}
 component_entries = yarrdb.component.find( query )
 component_num = component_entries.count()
 log_file.write( '\n===========================\n' )
@@ -221,7 +226,7 @@ log_file.write( '=== Unupdated component ===\n' )
 log_file.write( '===========================\n' )
 log_file.write( '\tNumber Of Unupdated Data: {}\n'.format(component_num) )
 for component in component_entries:
-    query = { 'component': str(component['_id']), 'dbVersion': { '$ne': 2 } }
+    query = { 'component': str(component['_id']), 'dbVersion': { '$ne': dbv } }
     run_counts = yarrdb.testRun.find( query ).count()
     if not run_counts == 0: continue
   
@@ -242,7 +247,7 @@ log_file.write( '\n===========================\n' )
 log_file.write( '=== Unupdated documents ===\n' )
 log_file.write( '===========================\n' )
 for col in cols:
-    log_file.write( 'Collection: {0:25}---> Unupdated documents: {1}\n'.format(col, yarrdb[col].find({ 'dbVersion': { '$ne': 2 } }).count()) )
+    log_file.write( 'Collection: {0:25}---> Unupdated documents: {1}\n'.format(col, yarrdb[col].find({ 'dbVersion': { '$ne': dbv } }).count()) )
 
 finish_time = datetime.datetime.now() 
 log_file.write( '\n==== Operation Time ====\n' )

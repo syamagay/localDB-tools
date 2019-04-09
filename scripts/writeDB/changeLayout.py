@@ -1,7 +1,7 @@
 """
 script for convert databaase scheme
 
-log file ---> loCgCh_%m%d_%H%M.txt
+log file ---> log/loCgCh_%m%d_%H%M.txt
 replicated DB ---> <dbName>_copy
 """
 
@@ -26,9 +26,14 @@ yarrdb = client[args.db]
 userdb = client[args.userdb]
 fs = gridfs.GridFS( yarrdb )
 
+log_dir = './log'
+if not os.path.isdir(log_dir): 
+    os.mkdir(log_dir)
 now = datetime.datetime.now() 
-log_filename = now.strftime("logCh_%m%d_%H%M.txt")
+log_filename = now.strftime("{}/logCh_%m%d_%H%M.txt".format(log_dir))
 log_file = open( log_filename, 'w' )
+
+dbv = args.version
 
 ##### function #####
 def input_v( message ) :
@@ -41,12 +46,12 @@ def update_mod(collection, query):
     yarrdb[collection].update(query, 
                                 {'$set': { 'sys.rev'  : int(yarrdb[collection].find_one(query)['sys']['rev']+1), 
                                            'sys.mts'  : datetime.datetime.utcnow() }}, 
-                                multi=True)
+                                multi=True) #UPDATE
 
 def update_ver(collection, query, ver):
     yarrdb[collection].update(query, 
                                 {'$set': { 'dbVersion': ver }}, 
-                                multi=True)
+                                multi=True) #UPDATE
 
 def is_png(b):
     return bool(re.match(br"^\x89\x50\x4e\x47\x0d\x0a\x1a\x0a", b[:8]))
@@ -79,7 +84,7 @@ def get_user( doc ):
                               'rev': 0,
                               'cts': time_now,
                               'mts': time_now },
-                          'dbVersion': 2
+                          'dbVersion': dbv
                         })                       #UPDATE
         user_id = yarrdb.user.insert( user_doc ) #INSERT
         log_file.write( '[Insert] user doc: {}\n'.format(userName) )
@@ -91,40 +96,62 @@ def get_user( doc ):
 
     return user
 
-def insert_env( run, tr_id ):
-    query = { '_id': ObjectId(tr_id) }
-    thisRun = yarrdb.testRun.find_one( query )
+def insert_env( ctr, tr_id ):
+    tr_query = { '_id': ObjectId(tr_id) }
+    thisRun = yarrdb.testRun.find_one( tr_query )
     date = thisRun['startTime']
-    cite = thisRun['cite']
-    for env in run.get('environments', []):
-        env_doc = env
-        env_doc.update({ 'date': date, 'cite': cite })
-        thisEnv = yarrdb.environment.find_one( env_doc )
-        if thisEnv:
-            env_id = thisEnv['_id']
+    address = thisRun['address']
+    time_now = datetime.datetime.utcnow()
+    env_doc = { 'sys': {
+                    'rev': 0,
+                    'cts': time_now,
+                    'mts': time_now },
+                'type': 'data' }
+    if not 'environments' in ctr: return
+    for env in ctr['environments']:
+        env_d = { 'key':  env['key'],
+                  'type': 'description' }
+        description = ''
+        if not yarrdb.environment.find_one( env_d ):
+            description = env['description'] 
+            env_d.update({ 'sys': {
+                               'rev': 0,
+                               'cts': time_now,
+                               'mts': time_now },
+                           'description': description,
+                           'dbVersion':   dbv })
+            yarrdb.environment.insert( env_d ) #INSERT
+        elif not env.get( 'description' ):
+            description = yarrdb.environment.find_one( env_d )['description']
         else:
-            time_now = datetime.datetime.utcnow()
-            env_doc.update({ 'date': date, 
-                             'sys': {
-                                 'rev': 0,
-                                 'cts': time_now,
-                                 'mts': time_now },
-                             'dbVersion': 2
-                           })                             #UPDATE
-            env_id = yarrdb.environment.insert( env_doc ) #INSERT
-            log_file.write( '[Insert] environment doc: {}\n'.format(env.get('key')) )
+            description = env['description'] 
+        key = env['key']
+        value = env['value']
+        if not key in env_doc:
+            env_doc.update({ key: [] })
+        in_doc = { 'data': [
+                       { 'date': date,
+                         'value':  value }
+                   ],
+                   'description': description }
+        env_doc[key].append( in_doc )
+    env_id = yarrdb.environment.insert( env_doc ) #INSERT
+    query = { '_id': env_id }
+    update_ver( 'environment', query, dbv ) #UPDATE
+    yarrdb.testRun.update( tr_query, { '$set': { 'environment': str(env_id) }}) #UPDATE
+    log_file.write( '[Insert] environment doc\n' )
 
-def update_testrun( run, user, plots ):
-    tr_query = { '_id': ObjectId(run['testRun']) }
+def update_testrun( ctr, user, plots ):
+    tr_query = { '_id': ObjectId(ctr['testRun']) }
     thisRun = yarrdb.testRun.find_one( tr_query )
 
     tr_doc = { 'testType'    : thisRun['testType'],
                'runNumber'   : thisRun['runNumber'],
-               'cite'        : user['institution'],
+               'address'     : user['institution'],
                'user_id'     : str(user['_id']) } 
     thisTestRun = yarrdb.testRun.find_one( tr_doc )
     if not thisTestRun:
-        stage = run.get('stage', 'null')
+        stage = ctr.get('stage', 'null')
         date = thisRun['date']
         time_now = datetime.datetime.utcnow()
         tr_doc.update({ 'sys': {
@@ -143,7 +170,7 @@ def update_testrun( run, user, plots ):
                         'finishTime'  : date,
                         'plots'       : plots,
                         'display'     : thisRun.get('display',False),
-                        'dbVersion'   : 2 })    #UPDATE
+                        'dbVersion'   : dbv })  
         tr_id = yarrdb.testRun.insert( tr_doc ) #INSERT
         log_file.write( '[Update] testRun doc: {0}\n'.format(thisRun['runNumber']) )
     else:
@@ -154,7 +181,7 @@ def update_testrun( run, user, plots ):
                                    { '$set': { 'plots': plots }} ) #UPDATE
             log_file.write( '[Update] testRun doc: {0}\n'.format(thisRun['runNumber']) )
 
-    if not thisRun.get('dbVersion','') == 2:
+    if not thisRun.get('dbVersion','') == dbv:
         rtr_id = yarrdb.testRun.remove( tr_query ) #REMOVE
         log_file.write( '[Remove] testRun doc: {0}\n'.format(thisRun['runNumber']) )
 
@@ -163,123 +190,47 @@ def update_testrun( run, user, plots ):
 def for_json( attachment, chipType, ctr_query ):
     code = attachment['code']
     contentType = attachment['contentType']
-    json_name = ""
-    json_data = json.loads( fs.get( ObjectId(code)).read() ) 
+    json_data = json.loads( fs.get(ObjectId(code)).read() ) 
     chipId = ''
     if chipType in json_data:
         if chipType == "FE-I4B":
             chipId = json_data[chipType]['Parameter']['chipId']
         elif chipType == "RD53A":
             chipId = json_data[chipType]['Parameter']['ChipId']
-    json_doc = { 'title'    : 'chipCfg',
-                 'chipType' : chipType,
-                 'filename' : '{}Cfg.json'.format(contentType),
-                 'dataType' : 'default',
-                 'data'     : json_data,
-                 'dbVersion': 2 }
-    thisJson = yarrdb.json.find_one( json_doc )
-    if thisJson:
-        json_id = thisJson['_id']
-    else:
-        json_id = yarrdb.json.insert( json_doc ) #INSERT
+    time_now = datetime.datetime.utcnow()
+    config_doc = { 'sys': {
+                       'rev': 0,
+                       'cts': time_now,
+                       'mts': time_now },
+                   'filename': '{}Cfg.json'.format(contentType),
+                   'chipType': chipType,
+                   'title': 'chipCfg',
+                   'format': 'fs.files',
+                   'dataType': 'default',
+                   'data_id': code }
+    config_id = yarrdb.config.insert( config_doc ) #INSERT
+    query = { '_id': config_id }
+    update_ver( 'config', query, dbv ) #UPDATE
     yarrdb.componentTestRun.update( ctr_query,
-                                    { '$set': { '{}Cfg'.format( contentType ): str(json_id) }} ) #UPDATE
-    fs.delete( ObjectId(code) ) #REMOVE
-    log_file.write( '\t\t\t\t[Insert] json doc: {}Cfg.json\n'.format(contentType) )
+                                    { '$set': { '{}Cfg'.format(contentType): str(config_id) }}) #UPDATE
+    query = { '_id': ObjectId(code) }
+    update_ver( 'fs.files', query, dbv ) #UPDATE
+    yarrdb.fs.files.update( query,
+                            { '$set': { 'filename': '{}Cfg.json'.format(contentType) }}) #UPDATE
+    query = { 'files_id': ObjectId(code) }
+    update_ver( 'fs.chunks', query, dbv ) #UPDATE
+    log_file.write( '\t\t\t\t[Insert] grid doc: {}Cfg.json\n'.format(contentType) )
 
     return chipId
 
-def for_dat( attachment, ctr_query ):
-    code = attachment['code']
-    dat_data = fs.get( ObjectId(code)).read() 
-    dat_list = dat_data.split('\n')
-    dat_line = 0
-    dat_id = ""
-    dat_name = ""
-    data_doc = { 'type'      : dat_list[0][0:7],
-                 'name'      : dat_list[1],
-                 'xaxisTitle': dat_list[2],
-                 'yaxisTitle': dat_list[3],
-                 'zaxisTitle': dat_list[4],
-                 'xbins'     : float(dat_list[5].split(' ')[0]),
-                 'xlow'      : float(dat_list[5].split(' ')[1]),
-                 'xhigh'     : float(dat_list[5].split(' ')[2]) }
-    if dat_list[0][0:7] == 'Histo2d':
-        data_doc.update({ 'ybins': float(dat_list[6].split(' ')[0]),
-                          'ylow' : float(dat_list[6].split(' ')[1]),
-                          'yhigh': float(dat_list[6].split(' ')[2]) })
-        dat_line = 1
-    elif dat_list[0][0:7] == 'Histo3d':
-        data_doc.update({ 'ybins': float(dat_list[6].split(' ')[0]),
-                          'ylow' : float(dat_list[6].split(' ')[1]),
-                          'yhigh': float(dat_list[6].split(' ')[2]), 
-                          'zbins': float(dat_list[7].split(' ')[0]),
-                          'zlow' : float(dat_list[7].split(' ')[1]),
-                          'zhigh': float(dat_list[7].split(' ')[2]) })
-        dat_line = 2
-    data_doc.update({ 'underflow': float(dat_list[6+dat_line].split(' ')[0]),
-                      'overflow' : float(dat_list[6+dat_line].split(' ')[1]) })
-    if len(dat_list) < 8+dat_line : 
-        data_doc.update({ 'dat': [] })
-    else:
-        if dat_list[0][0:7] == 'Histo1d':
-            dat = []
-            for xbin in range(int(data_doc['xbins'])):
-                dat.append(float(dat_list[7+dat_line].split(' ')[xbin]))
-            data_doc.update({ 'dat': dat })
-        elif dat_list[0][0:7] == 'Histo2d':
-            dat = []
-            for ybin in range(int(data_doc['ybins'])):
-                in_dat = []
-                for xbin in range(int(data_doc['xbins'])):
-                    in_dat.append(float(dat_list[7+ybin+dat_line].split(' ')[xbin]))
-                dat.append(in_dat)
-            data_doc.update({ 'dat': dat })
-        elif dat_list[0][0:7] == 'Histo3d':
-            dat = []
-            for ybin in range(int(data_doc['ybins'])):
-                in_dat = []
-                for xbin in range(int(data_doc['xbins'])):
-                    for zbin in range(int(data_doc['zbins'])):
-                        in_dat.append(float(dat_list[7+ybin+dat_line].split(' ')[xbin*data_doc['zbins']+zbin]))
-                dat.append(in_dat)
-            data_doc.update({ 'dat': dat })
-        else:
-            data_doc.update({ 'dat': [] })
-    dat_doc = { 'filename' : '{}.dat'.format(data_doc['name']),
-                'data'     : data_doc,
-                'dbVersion': 2 }
-    thisDat = yarrdb.dat.find_one( dat_doc )
-    if thisDat:
-        dat_id = thisDat['_id']
-    else:
-        dat_id = yarrdb.dat.insert( dat_doc ) #INSERT
-    yarrdb.componentTestRun.update( ctr_query,
-                                    { '$push': { 'attachments': { 'code': str(dat_id),
-                                                                  'dateTime': datetime.datetime.utcnow(),
-                                                                  'title': data_doc['name'], 
-                                                                  'description': 'describe',
-                                                                  'contentType': 'dat',
-                                                                  'filename': '{}.dat'.format(data_doc['name']) }}}) #UPDATE
-    fs.delete( ObjectId(code) ) #REMOVE
-    dat_name = data_doc['name']
-    log_file.write( '\t\t\t\t[Insert] dat doc: {}.dat\n'.format(data_doc['name']) )
-
-    return dat_name
-
-def for_image( attachment, name, plots, ctr_query, contentType ):
+def for_data( attachment, name, plots, ctr_query, contentType ):
     code = attachment['code']
     filename = ""
-    bin_data = fs.get( ObjectId( code )).read()
-    filename = attachment['filename'][len(name)+1:]
-    query = { '_id': ObjectId(code) }
-    update_ver( 'fs.files', query, 2 ) #UPDATE
-    query = { 'files_id': ObjectId(code) }
-    update_ver( 'fs.chunks', query, 2 ) #UPDATE
+    #filename = attachment['filename'][len(name)+1:]
+    filename = attachment['filename'][attachment['filename'].rfind('_')+1:]
     for plot in plots:
         if plot in attachment['filename']:
             filename = plot
-    
     yarrdb.componentTestRun.update( ctr_query,
                                     { '$push': { 'attachments': { 'code'       : code,
                                                                   'dateTime'   : datetime.datetime.utcnow(),
@@ -287,6 +238,12 @@ def for_image( attachment, name, plots, ctr_query, contentType ):
                                                                   'description': 'describe',
                                                                   'contentType': contentType,
                                                                   'filename'   : '{0}.{1}'.format(filename, contentType) }}}) #UPDATE
+    query = { '_id': ObjectId(code) }
+    update_ver( 'fs.files', query, dbv ) #UPDATE
+    yarrdb.fs.files.update( query,
+                            { '$set': { 'filename': '{0}.{1}'.format(filename, contentType) }}) #UPDATE
+    query = { 'files_id': ObjectId(code) }
+    update_ver( 'fs.chunks', query, dbv ) #UPDATE
     log_file.write( '\t\t\t\t[Insert] grid doc: {0}.{1}\n'.format(filename, contentType) )
 
     return filename
@@ -299,9 +256,9 @@ def for_broken( attachment, ctr_query ):
                                                     'code'       : code,
                                                     'contentType': attachment['contentType'] }}}) #UPDATE
     query = { '_id': ObjectId(code) }
-    update_ver( 'fs.files', query, 1 ) #UPDATE
+    update_ver( 'fs.files', query, -1 ) #UPDATE
     query = { 'files_id': ObjectId(code) }
-    update_ver( 'fs.chunks', query, 1 ) #UPDATE
+    update_ver( 'fs.chunks', query, -1 ) #UPDATE
     log_file.write( '\t\t\t\t[Broken] grid doc: {0}.{1}\n'.format(attachment['filename'], attachment['contentType']) )
     
     return True
@@ -315,22 +272,24 @@ start_update_time  = ""
 finish_update_time = ""
 
 # restore from backup database
-answer = ""
-while answer == "" :
-    answer = input_v( '# Do you make it back to the originl DB : {0}_copy ---> {1} ? (y/n) > '.format( args.db, args.db ) )
-if answer == 'y' :
-    print( '\t# Restoring ...' )
-    start_copy_time = datetime.datetime.now() 
-    log_file.write( '[Remove] database: {}\n'.format(args.db) )
-    client.drop_database( args.db )
-    log_file.write( '[Restore] database: {0}_copy ---> database: {1}\n'.format(args.db, args.db) )
-    client.admin.command( 'copydb',
-                          fromdb='{}_copy'.format( args.db ),
-                          todb='{}'.format( args.db ) )#COPY 
-    finish_copy_time = datetime.datetime.now() 
-    client.drop_database( '{}_copy'.format(args.db) )
-    print( '\t# Succeeded to Restore.' )
-print( ' ' )
+dbs = client.list_database_names()
+if '{}_copy'.format( args.db ) in dbs:
+    answer = ""
+    while answer == "" :
+        answer = input_v( '# Do you make it back to the originl DB : {0}_copy ---> {1} ? (y/n) > '.format( args.db, args.db ) )
+    if answer == 'y' :
+        print( '\t# Restoring ...' )
+        start_copy_time = datetime.datetime.now() 
+        log_file.write( '[Remove] database: {}\n'.format(args.db) )
+        client.drop_database( args.db )
+        log_file.write( '[Restore] database: {0}_copy ---> database: {1}\n'.format(args.db, args.db) )
+        client.admin.command( 'copydb',
+                              fromdb='{}_copy'.format( args.db ),
+                              todb='{}'.format( args.db ) )#COPY 
+        finish_copy_time = datetime.datetime.now() 
+        client.drop_database( '{}_copy'.format(args.db) )
+        print( '\t# Succeeded to Restore.' )
+    print( ' ' )
 
 # convert database scheme
 answer = ""
@@ -378,7 +337,7 @@ print( '\t# Converting ...' )
 start_update_time = datetime.datetime.now() 
 
 query = { 'componentType' : 'Module',
-          'dbVersion'     : { '$ne': 2 } }
+          'dbVersion'     : { '$ne': dbv } }
 module_entries = yarrdb.component.find( query )
 moduleid_entries = []
 for module in module_entries:
@@ -395,19 +354,20 @@ for moduleid in moduleid_entries:
     log_file.write( '\n==============================================\n' )
     log_file.write( '[Start] Module: {}\n'.format( module['serialNumber'] ) )
     log_file.write( '----------------------------------------------\n' )
+    print( '[Start] Module: {}'.format( module['serialNumber'] ) )
 
     query = { 'component': str(module['_id']),
-              'dbVersion': { '$ne': 2 } }
+              'dbVersion': { '$ne': dbv } }
     run_entries = yarrdb.componentTestRun.find( query )
     runid_entries = []
     for run in run_entries:
         runid_entries.append( str(run['_id']) )
     for runid in runid_entries:
-        query = { '_id': ObjectId(runid) }
-        run = yarrdb.componentTestRun.find_one( query )
-        ctr_query = { '_id': run['_id'] }
-        log_file.write( '\nComponentTestRun: {0}-{1}\n'.format( mo_serialNumber, run['runNumber'] ) )
-        tr_query = { '_id': ObjectId(run['testRun']) }
+        ctr_query = { '_id': ObjectId(runid) }
+        thisCtr = yarrdb.componentTestRun.find_one( query )
+        log_file.write( '\nComponentTestRun: #{}\n'.format( thisCtr['runNumber'] ) )
+        print( '\trun#: {}'.format( thisCtr['runNumber'] ) )
+        tr_query = { '_id': ObjectId(thisCtr['testRun']) }
         thisRun = yarrdb.testRun.find_one( tr_query )
         user = get_user( thisRun ) #user
 
@@ -421,20 +381,20 @@ for moduleid in moduleid_entries:
             bin_data =  fs.get( ObjectId(code) ).read()
             if is_png( bin_data ):
                 try:
-                    image_name = for_image( attachment, mo_serialNumber, plots, ctr_query, 'png' )
-                    plots.append( image_name )
+                    data_name = for_data( attachment, mo_serialNumber, plots, ctr_query, 'png' )
+                    plots.append( data_name )
                 except:
                     maybe_broken = for_broken( attachment, ctr_query )
             elif is_pdf( bin_data ):
                 try:
-                    image_name = for_image( attachment, mo_serialNumber, plots, ctr_query, 'pdf' )
-                    plots.append( image_name )
+                    data_name = for_data( attachment, mo_serialNumber, plots, ctr_query, 'pdf' )
+                    plots.append( data_name )
                 except:
                     maybe_broken = for_broken( attachment, ctr_query )
             elif 'Histo' in bin_data.split('\n')[0][0:7]:
                 try:
-                    dat_name = for_dat( attachment, ctr_query )
-                    plots.append( dat_name )
+                    data_name = for_data( attachment, mo_serialNumber, plots, ctr_query, 'dat' )
+                    plots.append( data_name )
                 except:
                     maybe_broken = for_broken( attachment, ctr_query )
             else:
@@ -447,24 +407,24 @@ for moduleid in moduleid_entries:
         plots = list(set(plots))
 
         ### testRun
-        tr_id = update_testrun( run, user, plots )
+        tr_id = update_testrun( thisCtr, user, plots ) #UPDATE
 
         ### environment
-        insert_env( run, str(tr_id) )
+        insert_env( thisCtr, str(tr_id) ) #UPDATE
 
         yarrdb.componentTestRun.update( ctr_query,
                                         { '$set': { 'tx'       : -1,
                                                     'rx'       : -1,
-                                                    'testRun'  : str(tr_id) }})
+                                                    'testRun'  : str(tr_id) }}) #UPDATE
         yarrdb.componentTestRun.update( ctr_query,
                                         { '$unset': { 'stage': '',
                                                       'environments': '' }} ) #UPDATE
-        update_ver( 'componentTestRun', ctr_query, 2 )
+        update_ver( 'componentTestRun', ctr_query, dbv ) #UPDATE
         update_mod( 'componentTestRun', ctr_query ) #UPDATE
 
         if (maybe_broken):
             log_file.write( '\t\t\t\t[Broken] change db version -> 1\n' )
-            update_ver( 'componentTestRun', ctr_query, 1 )
+            update_ver( 'componentTestRun', ctr_query, -1 ) #UPDATE
         log_file.write( '[Update] componentTestRun doc: {0} - {1}\n'.format(mo_serialNumber, thisRun['runNumber']) )
 
     # modify chip documents
@@ -488,17 +448,17 @@ for moduleid in moduleid_entries:
 
         ### componentTestRun (chip)
         query = { 'component': str(chip['_id']),
-                  'dbVersion': { '$ne': 2 } }
+                  'dbVersion': { '$ne': dbv } }
         run_entries = yarrdb.componentTestRun.find( query )
         runid_entries = []
         for run in run_entries:
             runid_entries.append( str(run['_id']) )
         for runid in runid_entries:
             query = { '_id': ObjectId(runid) }
-            run = yarrdb.componentTestRun.find_one( query )
-            ctr_query = { '_id': run['_id'] }
-            log_file.write( '\nComponentTestRun: {0}-{1}\n'.format( chip['serialNumber'], run['runNumber'] ) )
-            tr_query = { '_id': ObjectId(run['testRun']) }
+            thisCtr = yarrdb.componentTestRun.find_one( query )
+            ctr_query = { '_id': thisCtr['_id'] }
+            log_file.write( '\nComponentTestRun: {0}-{1}\n'.format( chip['serialNumber'], thisCtr['runNumber'] ) )
+            tr_query = { '_id': ObjectId(thisCtr['testRun']) }
             thisRun = yarrdb.testRun.find_one( tr_query )
             user = get_user( thisRun ) #user
 
@@ -512,20 +472,20 @@ for moduleid in moduleid_entries:
                 bin_data =  fs.get( ObjectId(code) ).read()
                 if is_png( bin_data ):
                     try:
-                        image_name = for_image( attachment, chipName, plots, ctr_query, 'png' )
-                        plots.append( image_name )
+                        data_name = for_data( attachment, chipName, plots, ctr_query, 'png' )
+                        plots.append( data_name )
                     except:
                         maybe_broken = for_broken( attachment, ctr_query )
                 elif is_pdf( bin_data ):
                     try:
-                        image_name = for_image( attachment, chipName, plots, ctr_query, 'pdf' )
-                        plots.append( image_name )
+                        data_name = for_data( attachment, chipName, plots, ctr_query, 'pdf' )
+                        plots.append( data_name )
                     except:
                         maybe_broken = for_broken( attachment, ctr_query )
                 elif 'Histo' in bin_data.split('\n')[0][0:7]:
                     try:
-                        dat_name = for_dat( attachment, ctr_query )
-                        plots.append( dat_name )
+                        data_name = for_data( attachment, chipName, plots, ctr_query, 'dat' )
+                        plots.append( data_name )
                     except:
                         maybe_broken = for_broken( attachment, ctr_query )
                 else:
@@ -538,10 +498,10 @@ for moduleid in moduleid_entries:
             plots = list(set(plots))
 
             ### testRun
-            tr_id = update_testrun( run, user, plots ) #UPDATE
+            tr_id = update_testrun( thisCtr, user, plots ) #UPDATE
 
             ### environment 
-            insert_env( run, str(tr_id) )              #UPDATE
+            insert_env( thisCtr, str(tr_id) )              #UPDATE
 
             yarrdb.componentTestRun.update( ctr_query,
                                             { '$set': { 'tx'       : -1,
@@ -550,12 +510,12 @@ for moduleid in moduleid_entries:
             yarrdb.componentTestRun.update( ctr_query,
                                             { '$unset': { 'stage': '',
                                                           'environments': '' }} )   #UPDATE
-            update_ver( 'componentTestRun', ctr_query, 2 ) #UPDATE
+            update_ver( 'componentTestRun', ctr_query, dbv ) #UPDATE
             update_mod( 'componentTestRun', ctr_query )    #UPDATE
 
             if (maybe_broken):
                 log_file.write( '[Broken] change db version -> 1\n' )
-                update_ver( 'componentTestRun', ctr_query, 1 ) #UPDATE
+                update_ver( 'componentTestRun', ctr_query, -1 ) #UPDATE
             log_file.write( '[Update] componentTestRun doc: {0} - {1}\n'.format(chip['serialNumber'], thisRun['runNumber']) )
 
             query = { 'component': str(mo_query['_id']), 'testRun': str(tr_id) }
@@ -576,7 +536,7 @@ for moduleid in moduleid_entries:
                                'problems' : True,
                                'tx'       : -1,
                                'rx'       : -1,
-                               'dbVersion': 2 }
+                               'dbVersion': dbv }
                 mo_ctr_id = yarrdb.componentTestRun.insert( mo_ctr_doc ) #INSERT
                 log_file.write( '[Insert] componentTestRun doc: {0} - {1}\n'.format(mo_serialNumber, thisRun['runNumber']) )
 
@@ -592,7 +552,7 @@ for moduleid in moduleid_entries:
         ### component (chip)
         user = get_user( chip ) #user
         yarrdb.component.update( ch_query,
-                                 { '$set': { 'cite'         : user['institution'],
+                                 { '$set': { 'address'      : user['institution'],
                                              'user_id'      : str(user['_id']),
                                              'componentType': 'Front-end Chip',
                                              'chipType'     : chipType,
@@ -601,14 +561,14 @@ for moduleid in moduleid_entries:
                                  { '$unset': { 'institution' : '',
                                                'userIdentity': '' }} )         #UPDATE
 
-        update_ver( 'component', ch_query, 2 )
+        update_ver( 'component', ch_query, dbv ) #UPDATE
         update_mod( 'component', ch_query ) #UPDATE
         log_file.write( '\n[Update] chip doc: {0}\n'.format(chip['serialNumber']) )
 
         ### childParentRelation
         cpr_query = { '_id': child['_id'] }
         cpr_id = yarrdb.childParentRelation.find_one( cpr_query )['_id']
-        update_ver( 'childParentRelation', cpr_query, 2 ) #UPDATE
+        update_ver( 'childParentRelation', cpr_query, dbv ) #UPDATE
         update_mod( 'childParentRelation', cpr_query )    #UPDATE
         log_file.write( '\n[Update] cpr doc: {0}\n'.format(chip['serialNumber']) )
 
@@ -617,21 +577,22 @@ for moduleid in moduleid_entries:
     ### component (module)
     user = get_user( module ) #user
     yarrdb.component.update( mo_query,
-                             { '$set': { 'cite'    : user['institution'],
+                             { '$set': { 'address' : user['institution'],
                                          'chipType': chipType,
                                          'user_id' : str(user['_id']) }} ) #UPDATE
     yarrdb.component.update( mo_query,
                              { '$unset': { 'institution' : '',
                                            'userIdentity': '' }} )          #UPDATE
 
-    update_ver( 'component', mo_query, 2 ) #UPDATE
+    update_ver( 'component', mo_query, dbv ) #UPDATE
     update_mod( 'component', mo_query )    #UPDATE
     log_file.write( '[Update] module doc: {}\n'.format(mo_serialNumber) )
     log_file.write( '\n[Finish] Module: {}\n'.format( mo_serialNumber ) )
+    print( '[Finish] Module: {}'.format( mo_serialNumber ) )
     now_time = datetime.datetime.now()
     log_file.write( now_time.strftime( '[Time] %M:%S:%f' ) + '\n' )
+    print( now_time.strftime( '[Time] %M:%S:%f' ) )
     log_file.write( '==============================================\n' )
-    time.sleep( 2 )
 
 finish_update_time = datetime.datetime.now() 
 print( '\t# Succeeded to convert.' )
