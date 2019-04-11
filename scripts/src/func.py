@@ -240,7 +240,7 @@ def fill_summary():
     for thisComponentTestRun in ctr_entries:
         query = { '_id': ObjectId(thisComponentTestRun['testRun']) }
         thisRun = yarrdb.testRun.find_one( query )
-        if not thisRun.get('stage') == '':
+        if 'stage' in thisRun:
             stage = thisRun['stage']
             if not stage in entries:
                 entries.update({ stage: {} })
@@ -567,7 +567,7 @@ def fill_resultIndex():
             chip_run_entries = yarrdb.componentTestRun.find( query )
             result = True in [ 'attachments' in chip_run for chip_run in chip_run_entries ]
 
-        stage = thisRun['stage']
+        stage = thisRun.get('stage','null')
         testType = thisRun.get('testType')
 
         if not testType in resultIndex: 
@@ -644,7 +644,7 @@ def fill_results():
         results.update({ 'testType'    : thisRun['testType'],
                          'runNumber'   : thisRun['runNumber'],
                          'comments'    : list(thisRun['comments']),
-                         'stage'       : thisRun['stage'],
+                         'stage'       : thisRun.get('stage'),
                          'address'     : thisRun.get('address','null'),
                          'institution' : user['institution'],
                          'userIdentity': user['userName'],
