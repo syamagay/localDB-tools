@@ -71,6 +71,7 @@ mongo     = PyMongo(app, uri=MONGO_URL+'/'+args.db)
 usermongo = PyMongo(app, uri=MONGO_URL+'/'+args.userdb)
 usermongo.db.localdb.drop()
 fs = gridfs.GridFS(mongo.db)
+dbv=args.version
 
 # top page 
 @app.route('/', methods=['GET'])
@@ -86,7 +87,7 @@ def show_modules_and_chips():
     clean_dir( STATIC_DIR )
     session.pop( 'signup', None )
 
-    query = { 'componentType': 'Module', 'dbVersion': 0 }
+    query = { 'componentType': 'Module', 'dbVersion': dbv }
     module_entries = mongo.db.component.find( query )
     modules = {}
 
