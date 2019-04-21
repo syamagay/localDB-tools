@@ -188,7 +188,10 @@ def update_testrun( ctr, user, plots ):
             yarrdb.testRun.update( query,
                                    { '$set': { 'plots': plots }} ) #UPDATE
             log_file.write( datetime.datetime.now().strftime( '%Y-%m-%dT%H:%M:%S \t\t[Update] testRun doc: {0}\n'.format(thisRun['runNumber']) ) )
-
+        if thisRun.get('display', False) and not thisTestRun['display']:
+            yarrdb.testRun.update( query,
+                                   { '$set': { 'display': thisRun['display'] }} ) #UPDATE
+            log_file.write( datetime.datetime.now().strftime( '%Y-%m-%dT%H:%M:%S \t\t[Update] testRun doc: {0}\n'.format(thisRun['runNumber']) ) )
     if not thisRun.get('dbVersion','') == dbv:
         rtr_id = yarrdb.testRun.remove( tr_query ) #REMOVE
         log_file.write( datetime.datetime.now().strftime( '%Y-%m-%dT%H:%M:%S \t\t[Remove] testRun doc: {0}\n'.format(thisRun['runNumber']) ) )
@@ -289,7 +292,7 @@ finish_update_time = ''
 log_file.write( datetime.datetime.now().strftime( '%Y-%m-%dT%H:%M:%S [Start] convertDB.py\n' ))
 
 # convert database scheme
-print( '# Converting flow' )
+print( '# Conversion flow' )
 print( '\t1. Replicate : python copyDB.py    : {0}      ---> {1}_copy'.format( args.db, args.db ) )
 print( '\t2. Convert   : python convertDB.py : {0}(old) ---> {1}(new)'.format( args.db, args.db ) )
 print( '\t3. Confirm   : python confirmDB.py : {0}(new) ---> {1}(confirmed)'.format( args.db, args.db ) )
@@ -300,6 +303,7 @@ print( ' ' )
 answer = ''
 while not answer == 'y' and not answer == 'n':
     answer = input_v( '# Do you convert db scheme? (y/n) > ' )
+print( ' ' )
 if answer == 'y' :
     # modify module document
     print( '# Convert database scheme: {}'.format(args.db) )
@@ -414,103 +418,135 @@ if answer == 'y' :
             chipType = chip['componentType']
             chipName = chip['name']
             chipId = ''
+            multiparent = False
     
             ### componentTestRun (chip)
             query = { 'component': str(chip['_id']),
                       'dbVersion': { '$ne': dbv } }
             run_entries = yarrdb.componentTestRun.find( query )
-            runid_entries = []
-            for run in run_entries:
-                runid_entries.append( str(run['_id']) )
-            for runid in runid_entries:
-                query = { '_id': ObjectId(runid) }
-                thisCtr = yarrdb.componentTestRun.find_one( query )
-                ctr_query = { '_id': thisCtr['_id'] }
-                log_file.write( datetime.datetime.now().strftime( '%Y-%m-%dT%H:%M:%S \t\tComponentTestRun: {0}-{1}\n'.format( chip['serialNumber'], thisCtr['runNumber'] ) ) )
-                tr_query = { '_id': ObjectId(thisCtr['testRun']) }
-                thisRun = yarrdb.testRun.find_one( tr_query )
-                user = get_user( thisRun ) #user
+            if not run_entries.count() == 0:
+                runid_entries = []
+                for run in run_entries:
+                    runid_entries.append( str(run['_id']) )
+                for runid in runid_entries:
+                    query = { '_id': ObjectId(runid) }
+                    thisCtr = yarrdb.componentTestRun.find_one( query )
+                    ctr_query = { '_id': thisCtr['_id'] }
+                    log_file.write( datetime.datetime.now().strftime( '%Y-%m-%dT%H:%M:%S \t\tComponentTestRun: {0}-{1}\n'.format( chip['serialNumber'], thisCtr['runNumber'] ) ) )
+                    tr_query = { '_id': ObjectId(thisCtr['testRun']) }
+                    thisRun = yarrdb.testRun.find_one( tr_query )
+                    user = get_user( thisRun ) #user
     
-                ### attachments
-                attachments = thisRun.get('attachments',[])
-                plots = []
-                maybe_broken = False
-                log_file.write( datetime.datetime.now().strftime( '%Y-%m-%dT%H:%M:%S \t\t\t\tAttachments:\n' ) )
-                for attachment in attachments:
-                    code = attachment.get('code')
-                    bin_data =  fs.get( ObjectId(code) ).read()
-                    if is_png( bin_data ):
-                        try:
-                            data_name = for_data( attachment, chipName, plots, ctr_query, 'png' ) #UPDATE
-                            plots.append( data_name )
-                        except:
-                            maybe_broken = for_broken( attachment, ctr_query )
-                    elif is_pdf( bin_data ):
-                        try:
-                            data_name = for_data( attachment, chipName, plots, ctr_query, 'pdf' ) #UPDATE
-                            plots.append( data_name )
-                        except:
-                            maybe_broken = for_broken( attachment, ctr_query ) #UPDATE
-                    elif 'Histo' in bin_data.split('\n')[0][0:7]:
-                        try:
-                            data_name = for_data( attachment, chipName, plots, ctr_query, 'dat' ) #UPDATE
-                            plots.append( data_name )
-                        except:
-                            maybe_broken = for_broken( attachment, ctr_query ) #UPDATE
-                    else:
-                        try:
-                            json_data = json.loads( bin_data )
-                            chipId = for_json( attachment, chipType, ctr_query ) #UPDATE
-                        except:
-                            maybe_broken = for_broken( attachment, ctr_query ) #UPDATE
+                    ### attachments
+                    attachments = thisRun.get('attachments',[])
+                    plots = []
+                    maybe_broken = False
+                    log_file.write( datetime.datetime.now().strftime( '%Y-%m-%dT%H:%M:%S \t\t\t\tAttachments:\n' ) )
+                    for attachment in attachments:
+                        code = attachment.get('code')
+                        bin_data =  fs.get( ObjectId(code) ).read()
+                        if is_png( bin_data ):
+                            try:
+                                data_name = for_data( attachment, chipName, plots, ctr_query, 'png' ) #UPDATE
+                                plots.append( data_name )
+                            except:
+                                maybe_broken = for_broken( attachment, ctr_query )
+                        elif is_pdf( bin_data ):
+                            try:
+                                data_name = for_data( attachment, chipName, plots, ctr_query, 'pdf' ) #UPDATE
+                                plots.append( data_name )
+                            except:
+                                maybe_broken = for_broken( attachment, ctr_query ) #UPDATE
+                        elif 'Histo' in bin_data.split('\n')[0][0:7]:
+                            try:
+                                data_name = for_data( attachment, chipName, plots, ctr_query, 'dat' ) #UPDATE
+                                plots.append( data_name )
+                            except:
+                                maybe_broken = for_broken( attachment, ctr_query ) #UPDATE
+                        else:
+                            try:
+                                json_data = json.loads( bin_data )
+                                chipId = for_json( attachment, chipType, ctr_query ) #UPDATE
+                            except:
+                                maybe_broken = for_broken( attachment, ctr_query ) #UPDATE
     
-                plots = list(set(plots))
+                    plots = list(set(plots))
     
-                ### testRun
-                tr_id = update_testrun( thisCtr, user, plots ) #UPDATE
+                    ### testRun
+                    tr_id = update_testrun( thisCtr, user, plots ) #UPDATE
     
-                ### environment 
-                insert_env( thisCtr, str(tr_id) )              #UPDATE
+                    ### environment 
+                    insert_env( thisCtr, str(tr_id) )              #UPDATE
     
-                yarrdb.componentTestRun.update( ctr_query,
-                                                { '$set': { 'tx'       : -1,
-                                                            'rx'       : -1,
-                                                            'testRun'  : str(tr_id) }}) #UPDATE
-                yarrdb.componentTestRun.update( ctr_query,
-                                                { '$unset': { 'stage': '',
-                                                              'environments': '' }} )   #UPDATE
-                update_ver( 'componentTestRun', ctr_query, dbv ) #UPDATE
-                update_mod( 'componentTestRun', ctr_query )      #UPDATE
+                    yarrdb.componentTestRun.update( ctr_query,
+                                                    { '$set': { 'tx'       : -1,
+                                                                'rx'       : -1,
+                                                                'testRun'  : str(tr_id) }}) #UPDATE
+                    yarrdb.componentTestRun.update( ctr_query,
+                                                    { '$unset': { 'stage': '',
+                                                                  'environments': '' }} )   #UPDATE
+                    update_ver( 'componentTestRun', ctr_query, dbv ) #UPDATE
+                    update_mod( 'componentTestRun', ctr_query )      #UPDATE
     
-                if (maybe_broken):
-                    log_file.write( datetime.datetime.now().strftime( '%Y-%m-%dT%H:%M:%S \t\t[Broken] change db version -> 1\n' ) )
-                    update_ver( '\t\tcomponentTestRun', ctr_query, -1 ) #UPDATE
-                log_file.write( datetime.datetime.now().strftime( '%Y-%m-%dT%H:%M:%S \t\t[Update] componentTestRun doc: {0} - {1}\n'.format(chip['serialNumber'], thisRun['runNumber']) ) )
+                    if (maybe_broken):
+                        log_file.write( datetime.datetime.now().strftime( '%Y-%m-%dT%H:%M:%S \t\t[Broken] change db version -> 1\n' ) )
+                        update_ver( '\t\tcomponentTestRun', ctr_query, -1 ) #UPDATE
+                    log_file.write( datetime.datetime.now().strftime( '%Y-%m-%dT%H:%M:%S \t\t[Update] componentTestRun doc: {0} - {1}\n'.format(chip['serialNumber'], thisRun['runNumber']) ) )
     
-                #TODO
-                ### insert module - testRun (if registered)
-                query = { 'component': str(mo_query['_id']), 'testRun': str(tr_id) }
-                mo_ctr = yarrdb.componentTestRun.find_one( query )
-                if not mo_ctr:
-                    time_now = datetime.datetime.utcnow()
-                    mo_ctr_doc = { 'sys': {
-                                        'rev': 0,
-                                        'cts': time_now,
-                                        'mts': time_now },
-                                   'component': str(mo_query['_id']),
-                                   'testRun'  : str(tr_id),
-                                   'state'    : '...',
-                                   'testType' : thisRun['testType'],
-                                   'qaTest'   : False,
-                                   'runNumber': thisRun['runNumber'],
-                                   'passed'   : True,
-                                   'problems' : True,
-                                   'tx'       : -1,
-                                   'rx'       : -1,
-                                   'dbVersion': dbv }
-                    mo_ctr_id = yarrdb.componentTestRun.insert( mo_ctr_doc ) #INSERT
-                    log_file.write( datetime.datetime.now().strftime( '%Y-%m-%dT%H:%M:%S \t\t[Insert] componentTestRun doc: {0} - {1}\n'.format(mo_serialNumber, thisRun['runNumber']) ) )
-    
+                    ### insert module - testRun (if registered)
+                    query = { 'component': str(mo_query['_id']), 'testRun': str(tr_id) }
+                    mo_ctr = yarrdb.componentTestRun.find_one( query )
+                    if not mo_ctr:
+                        time_now = datetime.datetime.utcnow()
+                        mo_ctr_doc = { 'sys': {
+                                            'rev': 0,
+                                            'cts': time_now,
+                                            'mts': time_now },
+                                       'component': str(mo_query['_id']),
+                                       'testRun'  : str(tr_id),
+                                       'state'    : '...',
+                                       'testType' : thisRun['testType'],
+                                       'qaTest'   : False,
+                                       'runNumber': thisRun['runNumber'],
+                                       'passed'   : True,
+                                       'problems' : True,
+                                       'tx'       : -1,
+                                       'rx'       : -1,
+                                       'dbVersion': dbv }
+                        yarrdb.componentTestRun.insert( mo_ctr_doc ) #INSERT
+                        log_file.write( datetime.datetime.now().strftime( '%Y-%m-%dT%H:%M:%S \t\t[Insert] componentTestRun doc: {0} - {1}\n'.format(mo_serialNumber, thisRun['runNumber']) ) )
+            else:
+                query = { 'component': str(chip['_id']),
+                          'dbVersion': dbv }
+                run_entries = yarrdb.componentTestRun.find( query )
+                if not run_entries.count() == 0:
+                    multiparent = True
+                    for run in run_entries:
+                        ### insert module - testRun (if registered)
+                        query = { 'component': str(mo_query['_id']), 'testRun': run['testRun'] }
+                        mo_ctr = yarrdb.componentTestRun.find_one( query )
+                        if not mo_ctr:
+                            query = { '_id': ObjectId(run['testRun']) }
+                            thisRun = yarrdb.testRun.find_one( query )
+                            time_now = datetime.datetime.utcnow()
+                            mo_ctr_doc = { 'sys': {
+                                                'rev': 0,
+                                                'cts': time_now,
+                                                'mts': time_now },
+                                           'component': str(mo_query['_id']),
+                                           'testRun'  : run['testRun'],
+                                           'state'    : '...',
+                                           'testType' : thisRun['testType'],
+                                           'qaTest'   : False,
+                                           'runNumber': thisRun['runNumber'],
+                                           'passed'   : True,
+                                           'problems' : True,
+                                           'tx'       : -1,
+                                           'rx'       : -1,
+                                           'dbVersion': dbv }
+                            yarrdb.componentTestRun.insert( mo_ctr_doc ) #INSERT
+                            log_file.write( datetime.datetime.now().strftime( '%Y-%m-%dT%H:%M:%S \t\t[Insert] componentTestRun doc: {0} - {1}\n'.format(mo_serialNumber, thisRun['runNumber']) ) )
+   
             if chipId == '':
                 if 'chipId' in chipName:
                     chipId = int(chipName[chipName.find('chipId')+6])
@@ -521,30 +557,40 @@ if answer == 'y' :
                         chipId = 0
     
             ### component (chip)
-            user = get_user( chip ) #user
-            yarrdb.component.update( ch_query,
-                                     { '$set': { 'address'      : user['institution'],
-                                                 'user_id'      : str(user['_id']),
-                                                 'componentType': 'Front-end Chip',
-                                                 'chipType'     : chipType,
-                                                 'chipId'       : int(chipId) }} ) #UPDATE
-            yarrdb.component.update( ch_query,
-                                     { '$unset': { 'institution' : '',
-                                                   'userIdentity': '' }} )         #UPDATE
-            update_ver( 'component', ch_query, dbv ) #UPDATE
-            update_mod( 'component', ch_query ) #UPDATE
-            log_file.write( datetime.datetime.now().strftime( '%Y-%m-%dT%H:%M:%S [Update] chip doc: {0}\n'.format(chip['serialNumber']) ) )
+            if not chip.get('dbVersion') == dbv:
+                user = get_user( chip ) #user
+                yarrdb.component.update( ch_query,
+                                         { '$set': { 'address'      : user['institution'],
+                                                     'user_id'      : str(user['_id']),
+                                                     'componentType': 'Front-end Chip',
+                                                     'chipType'     : chipType,
+                                                     'chipId'       : int(chipId) }} ) #UPDATE
+                yarrdb.component.update( ch_query,
+                                         { '$unset': { 'institution' : '',
+                                                       'userIdentity': '' }} )         #UPDATE
+                update_ver( 'component', ch_query, dbv ) #UPDATE
+                update_mod( 'component', ch_query ) #UPDATE
+                log_file.write( datetime.datetime.now().strftime( '%Y-%m-%dT%H:%M:%S [Update] chip doc: {0}\n'.format(chip['serialNumber']) ) )
     
             ### childParentRelation
-            cpr_query = { '_id': child['_id'] } 
-            yarrdb.childParentRelation.update( cpr_query,
-                                               { '$set': { 'status': 'active',
-                                                           'chipId': int(chipId) }} ) #UPDATE
-            update_ver( 'childParentRelation', cpr_query, dbv ) #UPDATE
-            update_mod( 'childParentRelation', cpr_query )    #UPDATE
-            log_file.write( datetime.datetime.now().strftime( '%Y-%m-%dT%H:%M:%S [Update] cpr doc: {0}\n'.format(chip['serialNumber']) ) )
-    
-        #TODO add componentTestRun if no data for another chip
+            if not multiparent:
+                cpr_query = { '_id': child['_id'] } 
+                yarrdb.childParentRelation.update( cpr_query,
+                                                   { '$set': { 'status': 'active',
+                                                               'chipId': int(chipId) }} ) #UPDATE
+                update_ver( 'childParentRelation', cpr_query, dbv ) #UPDATE
+                update_mod( 'childParentRelation', cpr_query )    #UPDATE
+                log_file.write( datetime.datetime.now().strftime( '%Y-%m-%dT%H:%M:%S [Update] cpr doc: {0}\n'.format(chip['serialNumber']) ) )
+            else:
+                ### childParentRelation
+                cpr_query = { '_id': child['_id'] } 
+                yarrdb.childParentRelation.update( cpr_query,
+                                                   { '$set': { 'status': 'dead',
+                                                               'chipId': int(chipId) }} ) #UPDATE
+                update_ver( 'childParentRelation', cpr_query, -1 ) #UPDATE
+                update_mod( 'childParentRelation', cpr_query )    #UPDATE
+                log_file.write( datetime.datetime.now().strftime( '%Y-%m-%dT%H:%M:%S [Unupdate] cpr doc: {0}\n'.format(chip['serialNumber']) ) )
+
         ### confirmation
         query = { 'component': str(mo_query['_id']) }
         run_entries = yarrdb.componentTestRun.find( query )
@@ -587,7 +633,6 @@ if answer == 'y' :
                                            'dbVersion': dbv }
                             ch_ctr_id = yarrdb.componentTestRun.insert( ch_ctr_doc ) #INSERT
                             log_file.write( datetime.datetime.now().strftime( '%Y-%m-%dT%H:%M:%S \t\t[Insert] componentTestRun doc: {0} - {1}\n'.format(chip['serialNumber'], thisRun['runNumber']) ) )
-    
         ### component (module)
         user = get_user( module ) #user
         yarrdb.component.update( mo_query,
@@ -598,16 +643,21 @@ if answer == 'y' :
         yarrdb.component.update( mo_query,
                                  { '$unset': { 'institution' : '',
                                                'userIdentity': '' }} )         #UPDATE
-        update_ver( 'component', mo_query, dbv ) #UPDATE
+        query = { 'parent': str(mo_query['_id']), 'dbVersion': { '$ne': dbv } }
+        if yarrdb.childParentRelation.find( query ).count() == 0:
+            update_ver( 'component', mo_query, dbv ) #UPDATE
+            log_file.write( datetime.datetime.now().strftime( '%Y-%m-%dT%H:%M:%S [Update] module doc: {}\n'.format(mo_serialNumber) ) )
+        else:
+            update_ver( 'component', mo_query, -1 ) #UPDATE
+            log_file.write( datetime.datetime.now().strftime( '%Y-%m-%dT%H:%M:%S [Unupdate] module doc: {}\n'.format(mo_serialNumber) ) )
         update_mod( 'component', mo_query )      #UPDATE
-        log_file.write( datetime.datetime.now().strftime( '%Y-%m-%dT%H:%M:%S [Update] module doc: {}\n'.format(mo_serialNumber) ) )
         log_file.write( datetime.datetime.now().strftime( '%Y-%m-%dT%H:%M:%S [Finish] Module: {}\n'.format(mo_serialNumber) ) )
         print( datetime.datetime.now().strftime( '\t%Y-%m-%dT%H:%M:%S Done.') )
     
     finish_update_time = datetime.datetime.now() 
     log_file.write( datetime.datetime.now().strftime( '%Y-%m-%dT%H:%M:%S ==============================================\n' ) )
     print( datetime.datetime.now().strftime( '\t%Y-%m-%dT%H:%M:%S [Finish]') )
-    print( '\t# Succeeded to convert.' )
+    print( '\t# Succeeded in conversion.' )
     print( ' ' )
 
 finish_time = datetime.datetime.now()
@@ -625,6 +675,10 @@ if not start_update_time == '':
 log_file.write( '======================================' )
 log_file.close()
 
+print( start_time.strftime( '# Start time: %Y-%m-%dT%H:%M:%S' ) ) 
+print( finish_time.strftime( '# Finish time: %Y-%m-%dT%H:%M:%S' ) ) 
+print( '# Total time: ' + str(total_time) + ' [s]' ) 
+print( ' ' )
 print( '# The path to log file: {}'.format(log_filename) )
 print( ' ' )
 print( '# Exit ...' )

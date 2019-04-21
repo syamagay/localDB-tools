@@ -78,23 +78,171 @@ if file_stages == [] or file_dcs == []:
     sys.exit()
 
 # convert database scheme
-print( '# Converting flow' )
+print( '# Conversion flow' )
 print( '\t1. Replicate : python copyDB.py    : {0}      ---> {1}_copy'.format( args.db, args.db ) )
 print( '\t2. Convert   : python convertDB.py : {0}(old) ---> {1}(new)'.format( args.db, args.db ) )
 print( '\t3. Confirm   : python confirmDB.py : {0}(new) ---> {1}(confirmed)'.format( args.db, args.db ) )
-print( '\t\t1. stage name' )
-print( '\t\t2. environment key' )
+print( '\t\t1. module data' )
+print( '\t\t2. stage name' )
+print( '\t\t3. environment key' )
 print( '\t\t4. file data' )
-print( '\t\t5. component data' )
+print( '\t\t5. chip data' )
 print( '\t\t6. check all data' )
 print( ' ' )
 print( '# This is the stage of step3. Confirm' )
 print( '# It must be run after step2. Convert' )
 print( ' ' )
+query = { 'dbVersion': dbv }
+if yarrdb.component.find( query ).count() == 0:
+    print( '# There are no component with "dbVersion: {0}" in DB : {1}.'.format(dbv, args.db) )
+    print( '# Conversion might not have been finished.' )
+    print( '# Run "python convert.py --config ../../conf.yml" to convert the scheme of DB.' )
+    print( ' ' )
+    print( '# Exit ... ' )
+    sys.exit()
 answer = ''
 while not answer == 'y' and not answer == 'n':
     answer = input_v( '# Do you confirm new db? (y/n) > ' )
 if answer == 'y' :
+    ##########
+    ### Module 
+    print( '# Confirm the module data ...' )
+    print( ' ' )
+    log_file.write( datetime.datetime.now().strftime( '%Y-%m-%dT%H:%M:%S ================================================================\n' ) )
+    log_file.write( datetime.datetime.now().strftime( '%Y-%m-%dT%H:%M:%S [Confirmation] component\n' ) )
+    log_file.write( datetime.datetime.now().strftime( '%Y-%m-%dT%H:%M:%S [Start]\n' ) )
+    query = { 'dbVersion': { '$ne': dbv }, 'componentType': 'Module' }
+    module_entries = yarrdb.component.find( query )
+    moduleIds = []
+    for module in module_entries:
+        moduleIds.append( str(module['_id']) )
+    for moduleId in moduleIds:
+        query = { 'parent': moduleId, 'status': 'dead' }
+        child_entries = yarrdb.childParentRelation.find( query )
+        for child in child_entries:
+            query = { 'child': child['child'] }
+            parent_entries = yarrdb.childParentRelation.find( query )
+            parents = []
+            for parent in parent_entries:
+                query = { '_id': ObjectId(parent['parent']) }
+                thisModule = yarrdb.component.find_one( query )
+                parents.append({ 'serialNumber': thisModule['serialNumber'], 'children': thisModule['children'], '_id': parent['parent'] })
+            final_answer = ''
+            while final_answer == '':
+                query = { '_id': ObjectId(child['child']) }
+                thisChip = yarrdb.component.find_one( query )
+                print( '# The chip {} has more than one parent module'.format(thisChip['serialNumber']) )
+                print( '# Select one from the list.' )
+                print( ' ' )
+                print( '----- parent list -----' )
+                for parent in parents:
+                    print( '{0:^3} : {1:^10} (children: {2:^4})'.format( parents.index(parent), parent['serialNumber'], parent['children'] ) )
+                print( '{0:^3}'.format(len(parents)) + ' : unknown ---> skip to select this module' )
+                print(' ')
+                parent_num = ''
+                while parent_num == '' :
+                    num = ''
+                    while num == '' :
+                        num = input_v( '# Enter module number >> ' ) 
+                    if not num.isdigit() : 
+                        print( '[WARNING] Input item is not number, enter agein. ')
+                    elif not int(num) < len(parents)+1 : 
+                        print( '[WARNING] Input number is not included in the parent list, enter agein. ')
+                    else :
+                        parent_num = int(num)
+                print(' ')
+                # Confirmation before convert
+                print( '{:^46}'.format( '###### Confirmation before the convert ######' ) )
+                print( '{:^46}'.format( '---------------------------------------------' ) )
+                for parent in parents:
+                    if parent_num == len(parents):
+                        print( '{0:^3} : {1:^10} (children: {2:^4}) ---> skip'.format( parents.index(parent), parent['serialNumber'], parent['children'] ) )
+                    elif not parents.index(parent) == parent_num:
+                        print( '{0:^3} : {1:^10} (children: {2:^4}) ---> delete'.format( parents.index(parent), parent['serialNumber'], parent['children'] ) )
+                    else:
+                        print( '{0:^3} : {1:^10} (children: {2:^4}) ---> select'.format( parents.index(parent), parent['serialNumber'], parent['children'] ) )
+                print( ' ' )
+                answer = ''
+                while not answer == 'y' and not answer == 'n':
+                    answer = input_v( '# Do you continue to convert for changing DB scheme? (y/n) > ' )
+                print( ' ' )
+                if answer == 'y':
+                    final_answer = 'y'
+                else:
+                    print( '# Check again.' ) 
+                    print( ' ' )
+        if answer == 'y' : 
+            print( '# Start the convert...' )
+            # Conversion
+            log_file.write( datetime.datetime.now().strftime( '%Y-%m-%dT%H:%M:%S \t\t[Convert]\n' ) )
+            log_file.write( datetime.datetime.now().strftime( '%Y-%m-%dT%H:%M:%S \t\t[Start]\n' ) )
+            if parent_num == len(parents): continue
+            parent_id = parents[parent_num]['_id']
+            for parent in parents:
+                if not parents.index(parent) == parent_num:
+                    query = { 'component': parent['_id'] }
+                    run_entries = yarrdb.componentTestRun.find( query )
+                    for run in run_entries:
+                        query = { 'component': parent_id, 'testRun': run['testRun'] }
+                        if not yarrdb.componentTestRun.find( query ):
+                            query = { '_id': run['_id'] }
+                            yarrdb.componentTestRun.update( query, 
+                                                            { '$set': { 'component': parent_id } }) #UPDATE
+                            update_mod( 'componentTestRun', query ) #UPDATE
+                            log_file.write( datetime.datetime.now().strftime( '%Y-%m-%dT%H:%M:%S \t\t[Update] {0:<7}: {1:<20} -> {2:<20}\n'.format(run['runNumber'], parent['serialNumber'], parents[parent_num]['serialNumber']) ) )
+                        else:
+                            if 'attachments' in run:
+                                query = { '_id': run['_id'] }
+                                yarrdb.componentTestRun.update( query, 
+                                                                { '$set': { 'component': parent_id } }) #UPDATE
+                                update_mod( 'componentTestRun', query ) #UPDATE
+                                log_file.write( datetime.datetime.now().strftime( '%Y-%m-%dT%H:%M:%S \t\t[Update] {0:<7}: {1:<20} -> {2:<20}\n'.format(run['runNumber'], parent['serialNumber'], parents[parent_num]['serialNumber']) ) )
+                            else:
+                                query = { '_id': run['_id'] }
+                                yarrdb.componentTestRun.remove( query )
+                                log_file.write( datetime.datetime.now().strftime( '%Y-%m-%dT%H:%M:%S \t\t[Remove] {0:<7}: {1:<20}\n'.format(run['runNumber'], parent['serialNumber']) ) )
+                    query = { 'parent': parent['_id'] }
+                    child_entries = yarrdb.childParentRelation.find( query )
+                    for child in child_entries:
+                        query = { '_id': ObjectId(child['child']) }
+                        thisChip = yarrdb.component.find_one( query )
+                        query = { 'parent': parent_id, 'child': child['child'] }
+                        if yarrdb.childParentRelation.find_one( query ):
+                            query = { '_id': child['_id'] }
+                            yarrdb.childParentRelation.remove( query )
+                            log_file.write( datetime.datetime.now().strftime( '%Y-%m-%dT%H:%M:%S \t\t[Remove] {0:<20} - {1:<20}\n'.format( thisChip['serialNumber'], parent['serialNumber']) ) )
+                        else:
+                            query = { '_id': child['_id'] }
+                            yarrdb.childParentRelation.update( query,
+                                                               { '$set': { 'parent': parent_id }})
+                            log_file.write( datetime.datetime.now().strftime( '%Y-%m-%dT%H:%M:%S \t\t[Update] {0:<20} - {1:<20} -> {2:<20}\n'.format(thisChip['serialNumber'], parent['serialNumber'], parents[parent_num]['serialNumber']) ) )
+                    query = { '_id': ObjectId(parent['_id']) }
+                    yarrdb.component.remove( query ) 
+                    log_file.write( datetime.datetime.now().strftime( '%Y-%m-%dT%H:%M:%S \t\t[Remove] {0:<20}\n'.format(parent['serialNumber']) ) )
+
+            query = { 'parent': parent_id }
+            yarrdb.childParentRelation.update( query,
+                                               { '$set': { 'status': 'active' }},
+                                               multi=True )
+            update_ver( 'childParentRelation', query, dbv ) #UPDATE
+            update_mod( 'childParentRelation', query ) #UPDATE
+            log_file.write( datetime.datetime.now().strftime( '%Y-%m-%dT%H:%M:%S \t\t[Update] {0:<20} - {1:<20}\n'.format(thisChip['serialNumber'], parents[parent_num]['serialNumber']) ) )
+            children = yarrdb.childParentRelation.find( query ).count()
+            query = { '_id': ObjectId(parent_id) } 
+            thisModule = yarrdb.component.find_one( query )
+            if not thisModule['children'] == children:
+                yarrdb.component.update( query,
+                                         { '$set': { 'children': children }} )
+            update_ver( 'component', query, dbv ) #UPDATE
+            update_mod( 'component', query ) #UPDATE
+            log_file.write( datetime.datetime.now().strftime( '%Y-%m-%dT%H:%M:%S \t\t[Update] {0:<20}\n'.format(parents[parent_num]['serialNumber']) ) )
+            log_file.write( datetime.datetime.now().strftime( '%Y-%m-%dT%H:%M:%S \t\t[Finish]\n' ) )
+            print( '# Done.' )
+            print( ' ' )
+    log_file.write( datetime.datetime.now().strftime( '%Y-%m-%dT%H:%M:%S [Finish]\n' ) )
+    print( '# Finish' )
+    print( ' ' )
+
     #########
     ### stage
     print( '# Confirm the stage name ...' )
@@ -189,7 +337,7 @@ if answer == 'y' :
                 print( ' ' )
         if answer == 'y' : 
             print( '# Start the convert...' )
-            # Converting
+            # Conversion
             log_file.write( datetime.datetime.now().strftime( '%Y-%m-%dT%H:%M:%S \t\t[Convert]\n' ) )
             log_file.write( datetime.datetime.now().strftime( '%Y-%m-%dT%H:%M:%S \t\t[Start]\n' ) )
             for runId in runIds:
@@ -226,6 +374,7 @@ if answer == 'y' :
     else:
         log_file.write( datetime.datetime.now().strftime( '%Y-%m-%dT%H:%M:%S [Finish]\n' ) )
         log_file.write( datetime.datetime.now().strftime( '%Y-%m-%dT%H:%M:%S [Success] complete the convert of the stage name.\n' ) )
+    print( '# Finish' )
     print( ' ' )
 
     #############
@@ -340,7 +489,7 @@ if answer == 'y' :
         if answer == 'y' : 
             print( '# Start the convert...' )
             print( ' ' )
-            # Converting
+            # Conversion
             log_file.write( datetime.datetime.now().strftime( '%Y-%m-%dT%H:%M:%S \t\t[Convert]\n' ) )
             log_file.write( datetime.datetime.now().strftime( '%Y-%m-%dT%H:%M:%S \t\t[Start]\n' ) )
             for envId in envIds:
@@ -387,6 +536,8 @@ if answer == 'y' :
     else:
         log_file.write( datetime.datetime.now().strftime( '%Y-%m-%dT%H:%M:%S [Finish]\n' ) )
         log_file.write( datetime.datetime.now().strftime( '%Y-%m-%dT%H:%M:%S [Success] complete the convert of the environmental key name.\n' ) )
+    print( '# Finish' )
+    print( ' ' )
 
     #####################
     ### check broken data
@@ -452,6 +603,8 @@ if answer == 'y' :
         log_file.write( datetime.datetime.now().strftime( '%Y-%m-%dT%H:%M:%S \t\tNumber Of Delete Data: {}\n'.format(num) ) )
         log_file.write( datetime.datetime.now().strftime( '%Y-%m-%dT%H:%M:%S \t\t[Finish]\n' ) )
     log_file.write( datetime.datetime.now().strftime( '%Y-%m-%dT%H:%M:%S [Finish]\n' ) )
+    print( '# Finish' )
+    print( ' ' )
     
     # check fs.files
     print( '# Checking fs.files ...' )
@@ -488,6 +641,8 @@ if answer == 'y' :
             log_file.write( datetime.datetime.now().strftime( '%Y-%m-%dT%H:%M:%S [Not found/Delete] chunks data {}'.format(thisFile['filename']) ) + str(thisFile['_id']) + '\n' )
             fs.delete( thisFile['_id'] )
     log_file.write( datetime.datetime.now().strftime( '%Y-%m-%dT%H:%M:%S [Finish]\n' ) )
+    print( '# Finish' )
+    print( ' ' )
 
     # check fs.chunks
     print( '# Checking fs.chunks ...' )
@@ -526,9 +681,12 @@ if answer == 'y' :
             log_file.write( datetime.datetime.now().strftime( '%Y-%m-%dT%H:%M:%S [Not found/Delete] files data' + str(chunks['files_id']) + '\n' ) )
             query = { '_id': chunks['_id'] }
             yarrdb.fs.chunks.remove( query )
+    print( '# Finish' )
+    print( ' ' )
     
-    # check component
-    print( '# Checking component ...' )
+    ##############
+    ### check chip 
+    print( '# Checking chip data ...' )
     print( ' ' )
     query = { 'dbVersion': { '$ne': dbv }}
     component_entries = yarrdb.component.find( query )
@@ -551,6 +709,8 @@ if answer == 'y' :
             query = { '_id': component['_id'] }
             yarrdb.component.remove( query )
     log_file.write( datetime.datetime.now().strftime( '%Y-%m-%dT%H:%M:%S [Finish]\n' ) )
+    print( '# Finish' )
+    print( ' ' )
     
     # check every collection
     confirmation = True
@@ -671,6 +831,8 @@ if answer == 'y' :
         child_entries = yarrdb.childParentRelation.find( query )
         if not thisModule['children'] == child_entries.count():
             log_file.write( datetime.datetime.now().strftime( '%Y-%m-%dT%H:%M:%S \t\t[WARNING] Not match the number of children: {}\n'.format(thisModule['serialNumber']) ) )
+            log_file.write( datetime.datetime.now().strftime( '%Y-%m-%dT%H:%M:%S \t\t          The module has children: {} in component document\n'.format(thisModule['children']) ) )
+            log_file.write( datetime.datetime.now().strftime( '%Y-%m-%dT%H:%M:%S \t\t          The child entries connected by CPrelation document\n'.format( child_entries.count() ) ) )
             confirmation = False
         query = { 'component': moduleId }
         run_entries = yarrdb.componentTestRun.find( query )
@@ -682,7 +844,9 @@ if answer == 'y' :
                 confirmation = False
             query = { 'component': child['child'] }
             if not yarrdb.componentTestRun.find( query ).count() == run_entries.count():
-                log_file.write( datetime.datetime.now().strftime( '%Y-%m-%dT%H:%M:%S \t\t[WARNING] Not match the number of testRun: {0} and {1}\n'.format(thisModule['serialNumber'], child['chipId']) ) )
+                log_file.write( datetime.datetime.now().strftime( '%Y-%m-%dT%H:%M:%S \t\t[WARNING] Not match the number of testRun: {0} (chipId: {1})\n'.format(thisModule['serialNumber'], child['chipId']) ) )
+                log_file.write( datetime.datetime.now().strftime( '%Y-%m-%dT%H:%M:%S \t\t          The module has test entries: {}\n'.format( run_entries.count() ) ) )
+                log_file.write( datetime.datetime.now().strftime( '%Y-%m-%dT%H:%M:%S \t\t          The chip has test entries: {}\n'.format( yarrdb.componentTestRun.find( query ).count() ) ) )
                 confirmation = False
         for run in run_entries:
             query = { '_id': ObjectId(run['testRun']) }
@@ -701,6 +865,8 @@ if answer == 'y' :
         print( ' ' )
     log_file.write( datetime.datetime.now().strftime( '%Y-%m-%dT%H:%M:%S [Finish]\n' ) )
     log_file.write( datetime.datetime.now().strftime( '%Y-%m-%dT%H:%M:%S ================================================================\n' ) )
+    print( '# Finish' )
+    print( ' ' )
 
 finish_time = datetime.datetime.now() 
 log_file.write( '\n====        Operation Time        ====\n' )
