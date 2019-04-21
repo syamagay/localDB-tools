@@ -68,8 +68,6 @@ log_file.write( datetime.datetime.now().strftime( '%Y-%m-%dT%H:%M:%S [Start] con
 
 # Check database.json
 home = os.environ['HOME']
-filepath = '{}/.yarr/address'.format(home)
-with open(filepath, 'r') as f: file_address = f.read().split()[0]
 filepath = '{}/.yarr/database.json'.format(home)
 with open(filepath, 'r') as f: file_json = json.load(f)
 file_stages = file_json.get('stage', [])
@@ -86,7 +84,6 @@ print( '\t2. Convert   : python convertDB.py : {0}(old) ---> {1}(new)'.format( a
 print( '\t3. Confirm   : python confirmDB.py : {0}(new) ---> {1}(confirmed)'.format( args.db, args.db ) )
 print( '\t\t1. stage name' )
 print( '\t\t2. environment key' )
-print( '\t\t3. MAC address' )
 print( '\t\t4. file data' )
 print( '\t\t5. component data' )
 print( '\t\t6. check all data' )
@@ -101,6 +98,7 @@ if answer == 'y' :
     #########
     ### stage
     print( '# Confirm the stage name ...' )
+    print( ' ' )
     log_file.write( datetime.datetime.now().strftime( '%Y-%m-%dT%H:%M:%S ================================================================\n' ) )
     log_file.write( datetime.datetime.now().strftime( '%Y-%m-%dT%H:%M:%S [Confirmation] stage\n' ) )
     log_file.write( datetime.datetime.now().strftime( '%Y-%m-%dT%H:%M:%S [Start]\n' ) )
@@ -116,26 +114,41 @@ if answer == 'y' :
         if stage in file_stages: continue
         log_file.write( datetime.datetime.now().strftime( '%Y-%m-%dT%H:%M:%S \t\t{0:^7}: {1:^20}\n'.format(thisRun['runNumber'], stage) ) )
         if not stage in stages:
-            stages.update({ stage: [] })
-        stages[stage].append(thisRun['runNumber'])
+            stages.update({ stage: {} })
+        query = { 'testRun': runId }
+        component_entries = yarrdb.componentTestRun.find( query )
+        for component in component_entries:
+            query = { 'componentType': 'Module', '_id': ObjectId(component['component']) }
+            thisComponent = yarrdb.component.find_one( query )
+            if thisComponent:
+                if not thisComponent['serialNumber'] in stages[stage]:
+                    stages[stage].update({ thisComponent['serialNumber']: { 'first': thisRun['startTime'], 'last': thisRun['startTime'] }})
+                else:
+                    if thisRun['startTime'] > stages[stage][thisComponent['serialNumber']]['last']: stages[stage][thisComponent['serialNumber']]['last'] = thisRun['startTime']
+                    if thisRun['startTime'] < stages[stage][thisComponent['serialNumber']]['first']: stages[stage][thisComponent['serialNumber']]['first'] = thisRun['startTime']
     if not stages == {}:
         final_answer = ''
         while final_answer == '':
             # Confirm the stage name
             for stage in stages:
                 if stage in file_stages: continue
+                print( '#########################################' )
+                print( '###        {0:^19}        ###'.format(stage) )
+                print( '#########################################' )
+                print( '  {0:^11} : {1:^10} - {2:^10}  '.format( 'Module', 'from', 'to' ) )
+                print( '-----------------------------------------' )
+                for component in stages[stage]:
+                    print( '  {0:^11} : {1:^10} - {2:^10}  '.format( component, stages[stage][component]['first'].strftime('%Y.%m.%d'), stages[stage][component]['last'].strftime('%Y.%m.%d') ) )
+                print( '-----------------------------------------' )
                 print( ' ' )
-                print( '############################' )
-                print( '### {0:^20} ###'.format(stage) )
-                print( '############################' )
-                print( 'This stage is not written in {0}'.format(filepath) ) 
-                print( 'Then, it must be changed to the name in following list.' )
-                print( 'Select the stage from the list after checking data (ref {})'.format(log_filename) )
+                print( '# This stage name is not written in {0}'.format(filepath) ) 
+                print( '# Then, it must be changed to the name in following list.' )
+                print( '# Select the stage from the list after checking data (ref {})'.format(log_filename) )
                 print( ' ' )
                 print( '----- stage list -----' )
                 for file_stage in file_stages:
                     print( ' {0:<3}'.format(file_stages.index(file_stage)) + ' : ' + file_stage )
-                print( ' {0:<3}'.format(len(file_stages)) + ' : unknown' )
+                print( ' {0:<3}'.format(len(file_stages)) + ' : unknown ---> skip to convert this stage name' )
                 print(' ')
                 stage_num = ''
                 while stage_num == '' :
@@ -152,14 +165,17 @@ if answer == 'y' :
                     stages[stage] = 'unknown'
                 else:
                     stages[stage] = file_stages[stage_num] 
+                print(' ')
     
             # Confirmation before convert
-            print( ' ' )
             print( '{:^46}'.format( '###### Confirmation before the convert ######' ) )
             print( '{:^46}'.format( '---------------------------------------------' ) )
             print( '{0:^20} ---> {1:^20}'.format( 'before the convert', 'after the convert' ) )
             for stage in stages:
-                print( '{0:^20} ---> {1:^20}'.format( stage, stages[stage] ) )
+                if stages[stage] == 'unknown':
+                    print( '{0:^20} ---> {1:^20}'.format( stage, stage + ' (no convert)' ) )
+                else:
+                    print( '{0:^20} ---> {1:^20}'.format( stage, stages[stage] ) )
             print( '{:^46}'.format( '---------------------------------------------' ) )
             print( ' ' )
             answer = ''
@@ -169,7 +185,8 @@ if answer == 'y' :
             if answer == 'y':
                 final_answer = 'y'
             else:
-                print( '# Check again.' ) )
+                print( '# Check again.' ) 
+                print( ' ' )
         if answer == 'y' : 
             print( '# Start the convert...' )
             # Converting
@@ -214,6 +231,7 @@ if answer == 'y' :
     #############
     # environment
     print( '# Confirm the environmental key ...' )
+    print( ' ' )
     mistake = False
     keys = {}
     log_file.write( datetime.datetime.now().strftime( '%Y-%m-%dT%H:%M:%S ================================================================\n' ) )
@@ -237,22 +255,29 @@ if answer == 'y' :
             for data in thisEnv[env_key]:
                 description = data.get('description', 'null')
                 if description == 'null':
-                    print( ' ' )
                     print( '######################################' )
                     print( '### {0:^7} : {0:^20} ###'.format(env_key) )
                     print( '######################################' )
-                    print( 'The key does not have description.' ) 
-                    print( 'Fill the description of this environmental key after checking data (ref {}), or "n" if unknown key'.format(log_filename) )
+                    print( ' ' )
+                    print( '# The key does not have description.' ) 
+                    print( '# Fill the description of this environmental key after checking data (ref {}), or "n" if unknown key'.format(log_filename) )
+                    print( '# e.g.) Low Voltage [V]' )
                     print( ' ' )
                     answer = ''
                     while answer == '' :
                         answer = input_v( '# Write description (unknown ---> enter "n") >> ' ) 
-                    if answer == 'n': continue
+                    print( ' ' )
+                    if answer == 'n':
+                        print( '# Skipped' )
+                        print( ' ' )
+                        continue
                     description = answer
                     yarrdb.environment.update( env_query,
                                                { '$set': { '{0}.0.description'.format(env_key): description }})
                     update_mod( 'environment', env_query ) #UPDATE
                     log_file.write( datetime.datetime.now().strftime( '%Y-%m-%dT%H:%M:%S \t\t[Update] {0:<7}: {1:<20} {2:<23}\n'.format(thisRun['runNumber'], env_key, description) ) )
+                    print( '# Added description "{0}" to {1}'.format( description, env_key ) )
+                    print( ' ' )
                 if env_key in file_dcs: continue
                 log_file.write( datetime.datetime.now().strftime( '%Y-%m-%dT%H:%M:%S \t\t{0:^7}: {1:^20}({2:^20})\n'.format(thisRun['runNumber'], env_key, description) ) )
                 if not env_key in keys:
@@ -263,18 +288,18 @@ if answer == 'y' :
             # Confirm the environmental key name
             for key in keys:
                 if key in file_dcs: continue
-                print( ' ' )
                 print( '#############################################################' )
                 print( '### {0:^20} : {1:^30} ###'.format(key, keys[key]) )
                 print( '#############################################################' )
-                print( 'This key is not written in {0}'.format(filepath) ) 
-                print( 'Then, it must be changed to the name in following list.' )
-                print( 'Select the environmental key from the list after checking data (ref {})'.format(log_filename) )
+                print( ' ' )
+                print( '# This key is not written in {0}'.format(filepath) ) 
+                print( '# Then, it must be changed to the name in following list.' )
+                print( '# Select the environmental key from the list after checking data (ref {})'.format(log_filename) )
                 print( ' ' )
                 print( '----- key list -----' )
                 for file_env in file_dcs:
                     print( ' {0:<3}'.format(file_dcs.index(file_env)) + ' : ' + file_env )
-                print( ' {0:<3}'.format(len(file_dcs)) + ' : unknown' )
+                print( ' {0:<3}'.format(len(file_dcs)) + ' : unknown ---> skip to convert this stage name' )
                 print(' ')
                 env_num = ''
                 while env_num == '' :
@@ -291,13 +316,16 @@ if answer == 'y' :
                     keys[key] = 'unknown'
                 else:
                     keys[key] = file_dcs[env_num] 
+                print( ' ' )
             # Confirmation before convert
-            print( ' ' )
             print( '{:^46}'.format( '###### Confirmation before the convert ######' ) )
             print( '{:^46}'.format( '---------------------------------------------' ) )
             print( '{0:^20} ---> {1:^20}'.format( 'before the convert', 'after the convert' ) )
             for key in keys:
-                print( '{0:^20} ---> {1:^20}'.format( key, keys[key] ) )
+                if keys[key] == 'unknown':
+                    print( '{0:^20} ---> {1:^20}'.format( key, key + 'no convert' ) )
+                else:
+                    print( '{0:^20} ---> {1:^20}'.format( key, keys[key] ) )
             print( '{:^46}'.format( '---------------------------------------------' ) )
             print( ' ' )
             answer = ''
@@ -308,8 +336,10 @@ if answer == 'y' :
                 final_answer = 'y'
             else:
                 print( '# Check again.' )
+                print( ' ' )
         if answer == 'y' : 
             print( '# Start the convert...' )
+            print( ' ' )
             # Converting
             log_file.write( datetime.datetime.now().strftime( '%Y-%m-%dT%H:%M:%S \t\t[Convert]\n' ) )
             log_file.write( datetime.datetime.now().strftime( '%Y-%m-%dT%H:%M:%S \t\t[Start]\n' ) )
@@ -353,237 +383,17 @@ if answer == 'y' :
                 print( '# There are still unregistered environmental key name, check log file: {}.'.format(log_filename) )
                 log_file.write( datetime.datetime.now().strftime( '%Y-%m-%dT%H:%M:%S \t\t[Finish]\n' ) )
                 log_file.write( datetime.datetime.now().strftime( '%Y-%m-%dT%H:%M:%S \t\t[Failure] There are still unregistered environmental key name.\n' ) )
+            print( ' ' )
     else:
         log_file.write( datetime.datetime.now().strftime( '%Y-%m-%dT%H:%M:%S [Finish]\n' ) )
         log_file.write( datetime.datetime.now().strftime( '%Y-%m-%dT%H:%M:%S [Success] complete the convert of the environmental key name.\n' ) )
-    print( ' ' )
-
-    ############
-    # user check
-    print( '# Confirm user ...' )
-    log_file.write( datetime.datetime.now().strftime( '%Y-%m-%dT%H:%M:%S ================================================================\n' ) )
-    log_file.write( datetime.datetime.now().strftime( '%Y-%m-%dT%H:%M:%S [Confirmation] user data\n' ) )
-    log_file.write( datetime.datetime.now().strftime( '%Y-%m-%dT%H:%M:%S [Start]\n' ) )
-    users = yarrdb.user.find()
-    userIds = []
-    for user in users:
-        userIds.append(str(user['_id']))
-    print( ' ' )
-    print( '----- user list -----' )
-    print( '{:^46}'.format( '---------------------------------------------' ) )
-    for userId in userIds:
-        query = { '_id': ObjectId(userId) }
-        thisUser = yarrdb.user.find_one( query )
-        print( ' {0:<3} : {1:^25} {2:^15}'.format(userIds.index(userId), thisUser['institution'], thisUser['userName']) )
-    print( '{:^46}'.format( '---------------------------------------------' ) )
-    print( ' ' )
-    answer = ''
-    while not answer == 'y' and not answer == 'n':
-        answer = input_v( '# Is there your data in the list? (y/n) > ' )
-    print( ' ' )
-    while answer == 'y':
-        user_num = ''
-        while user_num == '':
-            num = ''
-            while num == '':
-                num = input_v( '# Enter the user number of your data >> ' )
-            if not num.isdigit() : 
-                print( '[WARNING] Input item is not number, enter agein. ')
-            elif not int(num) < len(userIds): 
-                print( '[WARNING] Input number is not included in the user list, enter agein. ')
-            else :
-                user_num = int(num)
-        user_query = { '_id': ObjectId(userIds[user_num]) }
-        thisUser = yarrdb.user.find_one( user_query )
-        answer = ''
-        print( ' ' )
-        while not answer == 'y' and not answer == 'n':
-            answer = input_v( '# Is your name correct : {}? (y/n) > '.format(thisUser['userName']) )
-        if not answer == 'y':
-            answer = ''
-            print( ' ' )
-            while answer == '' :
-                answer = input_v( '# Input your name > ' )
-            userName = answer
-        else:
-            userName = thisUser['userName']
-        answer = ''
-        print( ' ' )
-        while not answer == 'y' and not answer == 'n':
-            answer = input_v( '# Is the name of the institution correct : {}? (y/n) > '.format(thisUser['institution']) )
-        if not answer == 'y':
-            answer = ''
-            print( ' ' )
-            while answer == '' :
-                answer = input_v( '# Input the name of the institution > ' )
-            instName = answer
-        else:
-            instName = thisUser['institution']
-        answer = ''
-        print( ' ' )
-        while not answer == 'y' and not answer == 'n':
-            answer = input_v( '# Do you want to set identification key? (y/n ---> "default") > ' )
-        if answer == 'y':
-            answer = ''
-            print( ' ' )
-            while answer == '' :
-                answer = input_v( '# Input the identification key > ' )
-            idkey = answer
-        else:
-            idkey = thisUser['userIdentity']
-
-        print( ' ' )
-        print( '{:^46}'.format( '###### Confirmation before the convert ######' ) )
-        print( '{:^46}'.format( '---------------------------------------------' ) )
-        print( 'user name   : {}'.format(userName) )
-        print( 'institution : {}'.format(instName) )
-        print( 'userIdentity: {}'.format(idkey) ) 
-        print( '{:^46}'.format( '---------------------------------------------' ) )
-        print( ' ' )
-        answer = ''
-        while not answer == 'y' and not answer == 'n':
-            answer = input_v( '# Do you continue to convert their names for changing DB scheme? (y/n) > ' )
-        if answer == 'y' : 
-            print( '# Start the convert...' )
-            # Converting
-            log_file.write( datetime.datetime.now().strftime( '%Y-%m-%dT%H:%M:%S \t\t[Convert]\n' ) )
-            log_file.write( datetime.datetime.now().strftime( '%Y-%m-%dT%H:%M:%S \t\t[Start]\n' ) )
-            user_doc = { 'institution':  instName,
-                         'userName':     userName,
-                         'userIdentity': idkey }
-            user_data = yarrdb.user.find_one( user_doc )
-            user_id = str(user_query['_id']) 
-            if user_data:
-                if not str(user_data['_id']) == str(user_query['_id']):
-                    user_id = str(user_data['_id'])
-                    yarrdb.user.remove( user_query )
-                    log_file.write( datetime.datetime.now().strftime( '%Y-%m-%dT%H:%M:%S \t\t[Remove] user data : ' + str(user_query['_id']) ) )
-                    query = { 'user_id': str(user_query['_id']) }
-                    yarrdb.component.update( query, { '$set': { 'user_id': user_id }}, multi=True )
-                    yarrdb.testRun.update( query, { '$set': { 'user_id': user_id }}, multi=True )
-            else:
-                yarrdb.user.update( user_query,
-                                    { '$set': user_doc }) #UPDATE
-                update_mod( 'user', user_query ) #UPDATE
-                log_file.write( datetime.datetime.now().strftime( '%Y-%m-%dT%H:%M:%S \t\t[Update] user data {0}'.format(userName) ) )
-        print( ' ' )
-        print( '----- user list -----' )
-        print( '{:^46}'.format( '---------------------------------------------' ) )
-        query = { '_id': { '$ne': ObjectId(user_id) }}
-        users = yarrdb.user.find(query)
-        userIds = []
-        for user in users:
-            userIds.append(str(user['_id']))
-        for userId in userIds:
-            query = { '_id': ObjectId(userId) }
-            thisUser = yarrdb.user.find_one( query )
-            print( ' {0:<3} : {1:^25} {2:^15}'.format(userIds.index(userId), thisUser['institution'], thisUser['userName']) )
-        print( '{:^46}'.format( '---------------------------------------------' ) )
-        print( ' ' )
-        answer = ''
-        while not answer == 'y' and not answer == 'n':
-            answer = input_v( '# Is there your data in the list? (y/n) > ' )
-        print( ' ' )
-    log_file.write( datetime.datetime.now().strftime( '%Y-%m-%dT%H:%M:%S [Finish]\n' ) )
-
-    #############
-    # MAC address
-    print( '# Confirm the MAC address ...' )
-    log_file.write( datetime.datetime.now().strftime( '%Y-%m-%dT%H:%M:%S ================================================================\n' ) )
-    log_file.write( datetime.datetime.now().strftime( '%Y-%m-%dT%H:%M:%S [Confirmation] MAC address\n' ) )
-    log_file.write( datetime.datetime.now().strftime( '%Y-%m-%dT%H:%M:%S [Start]\n' ) )
-    institutions = yarrdb.institution.find()
-    instIds = []
-    for inst in institutions:
-        instIds.append(str(inst['_id']))
-    for instId in instIds:
-        inst_query = { '_id': ObjectId(instId) }
-        thisInstitution = yarrdb.institution.find_one( inst_query )
-        if thisInstitution['institution'] == 'null':
-            query = { 'address': thisInstitution['address'] }
-            run_entries = yarrdb.testRun.find( query )
-            print( ' ' )
-            print( '----- test list -----' )
-            print( '{:^46}'.format( '---------------------------------------------' ) )
-            cnt=0
-            for run in run_entries:
-                query = { '_id': ObjectId(run['user_id']) }
-                thisUser = yarrdb.user.find_one( query )
-                query = { 'testRun': str(run['_id']) }
-                thisCtr = yarrdb.componentTestRun.find_one( query )
-                query = { '_id': ObjectId(thisCtr['component']) }
-                thisComponent = yarrdb.component.find_one( query )
-                print( '{0:^15} ({1:^15}) tested by {2:^20} in {3:^20}'.format(thisComponent['serialNumber'], run['stage'], thisUser['userName'], set_time(run['startTime'])) )
-            print( '{:^46}'.format( '---------------------------------------------' ) )
-            print( ' ' )
-
-            institutionName = thisInstitution['address']
-            userName = thisInstitution['name']
-            answer = ''
-            while not answer == 'y' and not answer == 'n':
-                answer = input_v( '# Is these runs tested on the machine you are using? (y/n) > ' )
-            if answer == 'y' : 
-                query = { 'address': file_address }
-                if yarrdb.institution.find_one( query ):
-                    yarrdb.institution.remove( inst_query )
-                else:
-                    answer = ''
-                    print( ' ' )
-                    while not answer == 'y' and not answer == 'n':
-                        answer = input_v( '# Is the name of the institution the same as where you are using this machine: {}? (y/n) > '.format(institutionName) )
-                    if not answer == 'y':
-                        answer = ''
-                        print( ' ' )
-                        while answer == '' :
-                            answer = input_v( '# Input the name of the institution > ' )
-                        instName = answer
-                    else:
-                        instName = thisInstitution['address']
-                    answer = ''
-                    print( ' ' )
-                    while answer == '' :
-                        answer = input_v( '# Input the name of this machine > ' )
-                    name = answer
-                    print( ' ' )
-                    print( '{:^46}'.format( '###### Confirmation before the convert ######' ) )
-                    print( '{:^46}'.format( '---------------------------------------------' ) )
-                    print( 'insitution name: {}'.format(instName) )
-                    print( 'machine name:    {}'.format(name) )
-                    print( 'MAC address:     {}'.format(file_address) ) 
-                    print( '{:^46}'.format( '---------------------------------------------' ) )
-                    print( ' ' )
-                    answer = ''
-                    while not answer == 'y' and not answer == 'n':
-                        answer = input_v( '# Do you continue to convert their names for changing DB scheme? (y/n) > ' )
-                    if answer == 'y' : 
-                        print( '# Start the convert...' )
-                        # Converting
-                        log_file.write( datetime.datetime.now().strftime( '%Y-%m-%dT%H:%M:%S \t\t[Convert]\n' ) )
-                        log_file.write( datetime.datetime.now().strftime( '%Y-%m-%dT%H:%M:%S \t\t[Start]\n' ) )
-                        yarrdb.institution.update( inst_query,
-                                                   { '$set': { 'institution': instName,
-                                                               'name': name,
-                                                               'address': file_address }}) #UPDATE
-                        update_mod( 'institution', inst_query ) #UPDATE
-                        log_file.write( datetime.datetime.now().strftime( '%Y-%m-%dT%H:%M:%S \t\t[Update] {0} -> {1} in institution document'.format(institutionName, file_address) ) )
-                        log_file.write( datetime.datetime.now().strftime( '%Y-%m-%dT%H:%M:%S \t\t[Finish]\n' ) )
-
-                query = { 'address': institutionName }
-                yarrdb.component.update( query,
-                                         { '$set': { 'address': file_address }},
-                                         multi=True )
-                log_file.write( datetime.datetime.now().strftime( '%Y-%m-%dT%H:%M:%S \t\t[Update] {0} -> {1} in component collection'.format(institutionName, file_address) ) )
-                yarrdb.testRun.update( query,
-                                       { '$set': { 'address': file_address }},
-                                       multi=True )
-                log_file.write( datetime.datetime.now().strftime( '%Y-%m-%dT%H:%M:%S \t\t[Update] {0} -> {1} in testRun collection'.format(institutionName, file_address) ) )
-    log_file.write( datetime.datetime.now().strftime( '%Y-%m-%dT%H:%M:%S [Finish]\n' ) )
 
     #####################
     ### check broken data
     if not os.path.isdir( './broken_files' ):
         os.mkdir( './broken_files' )
     print( '# Checking broken data ...' )
+    print( ' ' )
     query = { 'dbVersion': { '$ne': dbv } }
     run_entries = yarrdb.componentTestRun.find( query )
     log_file.write( datetime.datetime.now().strftime( '%Y-%m-%dT%H:%M:%S ================================================================\n' ) )
@@ -608,19 +418,19 @@ if answer == 'y' :
                 num = num + 1
             else:
                 if is_png( bin_data ):
-                    print( '\n[PNG] chunks data {0}: {1}\n'.format(thisFile['filename'], runNumber) )
+                    print( '[PNG] Found chunks data ---> ./broken_files/{0}_{1}_{2}.png\n'.format(runNumber, data['key'], num) )
                     log_file.write( datetime.datetime.now().strftime( '%Y-%m-%dT%H:%M:%S \t\t[Found/Delete] chunks data (png) {0}: {1}'.format(thisFile['filename'], runNumber) ) + str(data['code']) + '\n' )
                     fin = open('./broken_files/{0}_{1}_{2}.png'.format(runNumber, data['key'], num), 'wb')
                     fin.write(bin_data)
                     fin.close()
                 elif is_pdf( bin_data ):
-                    print( '\n[PDF] chunks data {0}: {1}\n'.format(thisFile['filename'], runNumber) )
+                    print( '[PDF] Found chunks data ---> ./broken_files/{0}_{1}_{2}.pdf\n'.format(runNumber, data['key'], num) )
                     log_file.write( datetime.datetime.now().strftime( '%Y-%m-%dT%H:%M:%S \t\t[Found/Delete] chunks data (pdf) {0}: {1}'.format(thisFile['filename'], runNumber) ) + str(data['code']) + '\n' )
                     fin = open('./broken_files/{0}_{1}_{2}.pdf'.format(runNumber, data['key'], num), 'wb')
                     fin.write(bin_data)
                     fin.close()
                 else:
-                    print( '\n[JSON/DAT] chunks data {0}: {1}\n'.format(thisFile['filename'], runNumber) )
+                    print( '[JSON/DAT] Found chunks data ---> ./{0}_{1}_{2}.dat\n'.format(runNumber, data['key'], num) )
                     log_file.write( datetime.datetime.now().strftime( '%Y-%m-%dT%H:%M:%S \t\t[Found/Delete] chunks data (json/dat) {0}: {1}'.format(thisFile['filename'], runNumber) ) + str(data['code']) + '\n' )
                     fin = open('./broken_files/{0}_{1}_{2}.dat'.format(runNumber, data['key'], num), 'wb')
                     fin.write(bin_data)
@@ -645,6 +455,7 @@ if answer == 'y' :
     
     # check fs.files
     print( '# Checking fs.files ...' )
+    print( ' ' )
     query = { 'dbVersion': { '$ne': dbv } }
     file_entries = yarrdb.fs.files.find( query )
     file_num = file_entries.count()
@@ -680,6 +491,7 @@ if answer == 'y' :
 
     # check fs.chunks
     print( '# Checking fs.chunks ...' )
+    print( ' ' )
     query = { 'dbVersion': { '$ne': dbv } }
     chunk_entries = yarrdb.fs.chunks.find( query )
     chunk_num = chunk_entries.count()
@@ -717,6 +529,7 @@ if answer == 'y' :
     
     # check component
     print( '# Checking component ...' )
+    print( ' ' )
     query = { 'dbVersion': { '$ne': dbv }}
     component_entries = yarrdb.component.find( query )
     component_num = component_entries.count()
@@ -742,6 +555,7 @@ if answer == 'y' :
     # check every collection
     confirmation = True
     print( '# Checking every collection ...' )
+    print( ' ' )
     cols = yarrdb.collection_names()
     log_file.write( datetime.datetime.now().strftime( '%Y-%m-%dT%H:%M:%S ================================================================\n' ) )
     log_file.write( datetime.datetime.now().strftime( '%Y-%m-%dT%H:%M:%S [Confirmation] unupdated documentt\n' ) )
@@ -892,11 +706,14 @@ finish_time = datetime.datetime.now()
 log_file.write( '\n====        Operation Time        ====\n' )
 total_time = datetime.timedelta(seconds=(finish_time-start_time).total_seconds())
 log_file.write( 'Total time:  ' + str(total_time) + ' [s]\n' )
-log_file.write( start_time.strftime(  '\tStart: %M:%S:%f' ) + '\n' )
-log_file.write( finish_time.strftime( '\tFinish: %M:%S:%f' ) + '\n' )
+log_file.write( start_time.strftime(  '\tStart: %Y-%m-%dT%H:%M:%S:%f' ) + '\n' )
+log_file.write( finish_time.strftime( '\tFinish: %Y-%m-%dT%H:%M:%S:%f' ) + '\n' )
 log_file.write( '======================================' )
 log_file.close()
-
+print( start_time.strftime( '# Start time: %Y-%m-%dT%H:%M:%S' ) ) 
+print( finish_time.strftime( '# Finish time: %Y-%m-%dT%H:%M:%S' ) ) 
+print( '# Total time: ' + str(total_time) + ' [s]' ) 
+print( ' ' )
 print( '# The path to log file: {}'.format(log_filename) )
 print( ' ' )
 print( '# Exit ...' )
