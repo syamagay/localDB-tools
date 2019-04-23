@@ -1,88 +1,35 @@
 """
-script for remove testRun data 
-
-necessary information
-- admin name     : required at login as admin
-- admin password : required at login as admin
+script for confirmation database scheme
+log file ---> log/loConvert_%m%d_%H%M.txt
 """
 
-##### import #####
+### Import 
 import os, sys, datetime, json, re
 import gridfs # gridfs system 
 from   pymongo       import MongoClient, ASCENDING # use mongodb scheme
 from   bson.objectid import ObjectId               # handle bson format
-
-SCRIPT_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)) )
-sys.path.append( SCRIPT_DIR )
-sys.path.append( SCRIPT_DIR + '/src' )
-
+sys.path.append( os.path.dirname(os.path.dirname(os.path.abspath(__file__)) ) )
+sys.path.append( os.path.dirname(os.path.dirname(os.path.abspath(__file__)) ) + '/src' )
 from   arguments import *   # Pass command line arguments into app.py
 
-### Setting about dbs #####
+### Set database
 args = getArgs()         
 if args.username : url = 'mongodb://' + args.username + ':' + args.password + '@' + args.host + ':' + str(args.port) 
 else :             url = 'mongodb://'                                             + args.host + ':' + str(args.port) 
 client = MongoClient( url )
 yarrdb = client[args.db]
-userdb = client[args.userdb]
 copydb = client['{}_copy'.format(args.db)]
 fs = gridfs.GridFS( yarrdb )
 dbv = args.version
 
+### Set log file
 log_dir = './log'
-if not os.path.isdir(log_dir): 
-    os.mkdir(log_dir)
+if not os.path.isdir(log_dir): os.mkdir(log_dir)
 now = datetime.datetime.now() 
 log_filename = now.strftime("{}/logConfirm_%m%d_%H%M.txt".format(log_dir))
 log_file = open( log_filename, 'w' )
 
-##### function #####
-def set_time(date):
-    DIFF_FROM_UTC = args.timezone 
-    time = (date+datetime.timedelta(hours=DIFF_FROM_UTC)).strftime('%Y/%m/%d %H:%M:%S')
-    return time
-def input_v( message ) :
-    answer = ''
-    if args.fpython == 2 : answer = raw_input( message ) 
-    if args.fpython == 3 : answer =     input( message )
-    return answer
-def update_mod(collection, query):
-    yarrdb[collection].update(query, 
-                                {'$set': { 'sys.rev'  : int(yarrdb[collection].find_one(query)['sys']['rev']+1), 
-                                           'sys.mts'  : datetime.datetime.utcnow() }}, 
-                                multi=True)
-def update_ver(collection, query, ver):
-    yarrdb[collection].update(query, 
-                                {'$set': { 'dbVersion': ver }}, 
-                                multi=True)
-def is_png(b):
-    return bool(re.match(br"^\x89\x50\x4e\x47\x0d\x0a\x1a\x0a", b[:8]))
-def is_pdf(b):
-    return bool(re.match(b"^%PDF", b[:4]))
-
-def input_number( txt, len_list ):
-    final_num = ''
-    while final_num == '' :
-        num = ''
-        while num == '' :
-            num = input_v( txt ) 
-        if not num.isdigit() : 
-            print( '[WARNING] Input item is not number, enter agein. ')
-        elif not int(num) < len_list : 
-            print( '[WARNING] Input number is not included in the list, enter agein. ')
-        else :
-            final_num = int(num)
-    return final_num
-
-
-##################################################################
-# Main function
-start_time         = datetime.datetime.now() 
-start_update_time  = ''
-finish_update_time = ''
-log_file.write( datetime.datetime.now().strftime( '%Y-%m-%dT%H:%M:%S [Start] confirmDB.py \n' ) )
-
-# Check database.json
+# Set database.json
 home = os.environ['HOME']
 filepath = '{}/.yarr/database.json'.format(home)
 with open(filepath, 'r') as f: file_json = json.load(f)
@@ -92,6 +39,75 @@ if file_stages == [] or file_dcs == []:
     print( '# There is no database config: {}'.format(filepath) )
     print( '# Prepare the config file by running dbLogin.sh in YARR SW' )
     sys.exit()
+
+#################################################################
+#################################################################
+
+### Function 
+def set_time(date):
+    DIFF_FROM_UTC = args.timezone 
+    time = (date+datetime.timedelta(hours=DIFF_FROM_UTC)).strftime('%Y/%m/%d %H:%M:%S')
+    return time
+
+def input_v( message ) :
+    answer = ''
+    if args.fpython == 2 : answer = raw_input( message ) 
+    if args.fpython == 3 : answer =     input( message )
+    return answer
+
+def input_answer( message ):
+    answer = ''
+    while not answer == 'y' and not answer == 'n':
+        answer = input_v( message )
+    print( ' ' )
+    return answer
+
+def input_number( message, len_list ):
+    final_num = ''
+    while final_num == '' :
+        num = ''
+        while num == '' :
+            num = input_v( message ) 
+        if not num.isdigit() : 
+            print( '[WARNING] Input item is not number, enter agein. ')
+        elif not int(num) < len_list : 
+            print( '[WARNING] Input number is not included in the list, enter agein. ')
+        else :
+            final_num = int(num)
+    return final_num
+
+def write_log( text ):
+    log_file.write( datetime.datetime.now().strftime( '%Y-%m-%dT%H:%M:%S {}\n'.format(text) ) )
+
+def update_mod(collection, query):
+    yarrdb[collection].update(query, 
+        { '$set': { 
+              'sys.rev'  : int(yarrdb[collection].find_one(query)['sys']['rev']+1), 
+              'sys.mts'  : datetime.datetime.utcnow() }
+        }, 
+        multi=True
+    )
+def update_ver(collection, query, ver):
+    yarrdb[collection].update(query, 
+        { '$set': { 'dbVersion': ver }}, 
+        multi=True
+    )
+
+def is_png(b):
+    return bool(re.match(br"^\x89\x50\x4e\x47\x0d\x0a\x1a\x0a", b[:8]))
+
+def is_pdf(b):
+    return bool(re.match(b"^%PDF", b[:4]))
+
+##################################################################
+##################################################################
+
+### Main function
+start_time         = datetime.datetime.now() 
+start_update_time  = ''
+finish_update_time = ''
+#log_file.write( datetime.datetime.now().strftime( '%Y-%m-%dT%H:%M:%S [Start] confirmDB.py \n' ) )
+write_log( '[Start] confirmDB.py' ) 
 
 # convert database scheme
 print( '# Conversion flow' )
@@ -116,18 +132,16 @@ if yarrdb.component.find( query ).count() == 0:
     print( ' ' )
     print( '# Exit ... ' )
     sys.exit()
-answer = ''
-while not answer == 'y' and not answer == 'n':
-    answer = input_v( '# Do you confirm new db? (y/n) > ' )
+answer = input_answer( '# Do you confirm new db? (y/n) > ' )
 if answer == 'y' :
-    ############
+    #############
     ### Component
     print( '# Confirm the component data ...' )
     print( ' ' )
-    log_file.write( datetime.datetime.now().strftime( '%Y-%m-%dT%H:%M:%S ================================================================\n' ) )
-    log_file.write( datetime.datetime.now().strftime( '%Y-%m-%dT%H:%M:%S [Confirmation] component\n' ) )
-    log_file.write( datetime.datetime.now().strftime( '%Y-%m-%dT%H:%M:%S [Start]\n' ) )
-    query = { 'componentType': { '$ne': 'Module' } }
+    write_log( '================================================================' )
+    write_log( '[Confirmation] component' )
+    write_log( '[Start]' )
+    query = { 'componentType': { '$ne':'Module' } }
     chip_entries = yarrdb.component.find( query )
     chipIds = []
     for chip in chip_entries:
@@ -165,10 +179,7 @@ if answer == 'y' :
                     else:                                         txt = 'select'
                     print( '{0:^3} : {1:^10} (children: {2:^4}) ---> {3:^8}'.format( parents.index(parent), parent['serialNumber'], parent['children'], txt ) )
                 print( ' ' )
-                answer = ''
-                while not answer == 'y' and not answer == 'n':
-                    answer = input_v( '# Do you continue to convert for changing DB scheme? (y/n) > ' )
-                print( ' ' )
+                answer = input_answer( '# Do you continue to convert for changing DB scheme? (y/n) > ' )
                 if answer == 'y':
                     final_answer = 'y'
                 else:
@@ -178,8 +189,8 @@ if answer == 'y' :
                 if parent_num == len(parents): continue
                 print( '# Start the convert...' )
                 # Conversion
-                log_file.write( datetime.datetime.now().strftime( '%Y-%m-%dT%H:%M:%S \t\t[Convert]\n' ) )
-                log_file.write( datetime.datetime.now().strftime( '%Y-%m-%dT%H:%M:%S \t\t[Start]\n' ) )
+                write_log( '\t\t[Convert]' )
+                write_log( '\t\t[Start]' )
                 parent_id = parents[parent_num]['_id']
                 for parent in parents:
                     if not parents.index(parent) == parent_num:
@@ -192,18 +203,18 @@ if answer == 'y' :
                                 yarrdb.componentTestRun.update( query, 
                                                                 { '$set': { 'component': parent_id } }) #UPDATE
                                 update_mod( 'componentTestRun', query ) #UPDATE
-                                log_file.write( datetime.datetime.now().strftime( '%Y-%m-%dT%H:%M:%S \t\t[Update] {0:<7}: {1:<20} -> {2:<20}\n'.format(run['runNumber'], parent['serialNumber'], parents[parent_num]['serialNumber']) ) )
+                                write_log( '\t\t[Update] {0:<7}: {1:<20} -> {2:<20}'.format(run['runNumber'], parent['serialNumber'], parents[parent_num]['serialNumber']) )
                             else:
                                 if 'attachments' in run:
                                     query = { '_id': run['_id'] }
                                     yarrdb.componentTestRun.update( query, 
                                                                     { '$set': { 'component': parent_id } }) #UPDATE
                                     update_mod( 'componentTestRun', query ) #UPDATE
-                                    log_file.write( datetime.datetime.now().strftime( '%Y-%m-%dT%H:%M:%S \t\t[Update] {0:<7}: {1:<20} -> {2:<20}\n'.format(run['runNumber'], parent['serialNumber'], parents[parent_num]['serialNumber']) ) )
+                                    write_log( '\t\t[Update] {0:<7}: {1:<20} -> {2:<20}'.format(run['runNumber'], parent['serialNumber'], parents[parent_num]['serialNumber']) )
                                 else:
                                     query = { '_id': run['_id'] }
                                     yarrdb.componentTestRun.remove( query )
-                                    log_file.write( datetime.datetime.now().strftime( '%Y-%m-%dT%H:%M:%S \t\t[Remove] {0:<7}: {1:<20}\n'.format(run['runNumber'], parent['serialNumber']) ) )
+                                    write_log( '\t\t[Remove] {0:<7}: {1:<20}'.format(run['runNumber'], parent['serialNumber']) ) 
                         query = { 'parent': parent['_id'] }
                         child_entries = yarrdb.childParentRelation.find( query )
                         for child in child_entries:
@@ -213,15 +224,15 @@ if answer == 'y' :
                             if yarrdb.childParentRelation.find_one( query ):
                                 query = { '_id': child['_id'] }
                                 yarrdb.childParentRelation.remove( query )
-                                log_file.write( datetime.datetime.now().strftime( '%Y-%m-%dT%H:%M:%S \t\t[Remove] {0:<20} - {1:<20}\n'.format( thisChip['serialNumber'], parent['serialNumber']) ) )
+                                write_log( '\t\t[Remove] {0:<20} - {1:<20}'.format( thisChip['serialNumber'], parent['serialNumber']) )
                             else:
                                 query = { '_id': child['_id'] }
                                 yarrdb.childParentRelation.update( query,
                                                                    { '$set': { 'parent': parent_id }})
-                                log_file.write( datetime.datetime.now().strftime( '%Y-%m-%dT%H:%M:%S \t\t[Update] {0:<20} - {1:<20} -> {2:<20}\n'.format(thisChip['serialNumber'], parent['serialNumber'], parents[parent_num]['serialNumber']) ) )
+                                write_log( '\t\t[Update] {0:<20} - {1:<20} -> {2:<20}'.format(thisChip['serialNumber'], parent['serialNumber'], parents[parent_num]['serialNumber']) ) 
                         query = { '_id': ObjectId(parent['_id']) }
                         yarrdb.component.remove( query ) 
-                        log_file.write( datetime.datetime.now().strftime( '%Y-%m-%dT%H:%M:%S \t\t[Remove] {0:<20}\n'.format(parent['serialNumber']) ) )
+                        write_log( '\t\t[Remove] {0:<20}'.format(parent['serialNumber']) ) 
 
                 query = { 'parent': parent_id }
                 yarrdb.childParentRelation.update( query,
@@ -229,7 +240,7 @@ if answer == 'y' :
                                                    multi=True )
                 update_ver( 'childParentRelation', query, dbv ) #UPDATE
                 update_mod( 'childParentRelation', query ) #UPDATE
-                log_file.write( datetime.datetime.now().strftime( '%Y-%m-%dT%H:%M:%S \t\t[Update] {0:<20} - {1:<20}\n'.format(thisChip['serialNumber'], parents[parent_num]['serialNumber']) ) )
+                write_log( '\t\t[Update] {0:<20} - {1:<20}'.format(thisChip['serialNumber'], parents[parent_num]['serialNumber']) ) 
                 children = yarrdb.childParentRelation.find( query ).count()
                 query = { '_id': ObjectId(parent_id) } 
                 thisModule = yarrdb.component.find_one( query )
@@ -238,17 +249,16 @@ if answer == 'y' :
                                              { '$set': { 'children': children }} )
                 update_ver( 'component', query, dbv ) #UPDATE
                 update_mod( 'component', query ) #UPDATE
-                log_file.write( datetime.datetime.now().strftime( '%Y-%m-%dT%H:%M:%S \t\t[Update] {0:<20}\n'.format(parents[parent_num]['serialNumber']) ) )
-                log_file.write( datetime.datetime.now().strftime( '%Y-%m-%dT%H:%M:%S \t\t[Finish]\n' ) )
+                write_log( '\t\t[Update] {0:<20}'.format(parents[parent_num]['serialNumber']) ) 
+                write_log( '\t\t[Finish]' ) 
                 print( '# Done.' )
                 print( ' ' )
-
         if child_entries.count() == 0:
             query = { '_id': ObjectId(chipId) }
             thisChip = yarrdb.component.find_one( query )
             query = { '_id': ObjectId(chipId) }
             yarrdb.component.remove( query )
-            log_file.write( datetime.datetime.now().strftime( '%Y-%m-%dT%H:%M:%S [Not found/Delete] relational documents (run/cpr): {}'.format( thisChip['serialNumber'] ) + '\n' ) )
+            write_log( '[Not found/Delete] relational documents (run/cpr): {}'.format( thisChip['serialNumber'] )  ) 
     query = { 'componentType': 'Module' }
     module_entries = yarrdb.component.find( query )
     moduleIds = []
@@ -257,13 +267,14 @@ if answer == 'y' :
     for moduleId in moduleIds:
         query = { 'parent': moduleId }
         child_entries = yarrdb.childParentRelation.find( query )
+        print( child_entries.count() )
         if child_entries.count() == 0:
             query = { '_id': ObjectId(moduleId) }
             thisModule = yarrdb.component.find_one( query )
             query = { '_id': ObjectId(moduleId) }
             yarrdb.component.remove( query )
-            log_file.write( datetime.datetime.now().strftime( '%Y-%m-%dT%H:%M:%S [Not found/Delete] relational documents (run/cpr): {}'.format( thisModule['serialNumber'] ) + '\n' ) )
-    log_file.write( datetime.datetime.now().strftime( '%Y-%m-%dT%H:%M:%S [Finish]\n' ) )
+            write_log( '[Not found/Delete] relational documents (run/cpr): {}'.format( thisModule['serialNumber'] ) ) 
+    write_log( '[Finish]' )
     print( '# Finish' )
     print( ' ' )
 
@@ -271,9 +282,9 @@ if answer == 'y' :
     ### stage
     print( '# Confirm the stage name ...' )
     print( ' ' )
-    log_file.write( datetime.datetime.now().strftime( '%Y-%m-%dT%H:%M:%S ================================================================\n' ) )
-    log_file.write( datetime.datetime.now().strftime( '%Y-%m-%dT%H:%M:%S [Confirmation] stage\n' ) )
-    log_file.write( datetime.datetime.now().strftime( '%Y-%m-%dT%H:%M:%S [Start]\n' ) )
+    write_log( '================================================================' )
+    write_log( '[Confirmation] stage' )
+    write_log( '[Start]' )
     runs = yarrdb.testRun.find()
     runIds = []
     for run in runs:
@@ -284,7 +295,7 @@ if answer == 'y' :
         thisRun = yarrdb.testRun.find_one( query )
         stage = thisRun.get('stage', 'null')
         if stage in file_stages: continue
-        log_file.write( datetime.datetime.now().strftime( '%Y-%m-%dT%H:%M:%S \t\t{0:^7}: {1:^20}\n'.format(thisRun['runNumber'], stage) ) )
+        write_log( '\t\t{0:^7}: {1:^20}'.format(thisRun['runNumber'], stage) )
         if not stage in stages:
             stages.update({ stage: {} })
         query = { 'testRun': runId }
@@ -316,7 +327,7 @@ if answer == 'y' :
                 print( '-----------------------------------------' )
                 print( ' ' )
                 print( '# This stage name is not written in {0}'.format(filepath) ) 
-                print( '# Then, it must be changed to the name in following list. (The stage name registered before is recorded as comment.)' )
+                print( '# Then, it must be changed to the name in following list. (The stage name registered before is recorded as comment.' )
                 print( '# Select the stage from the list after checking data (ref {})'.format(log_filename) )
                 print( ' ' )
                 print( '----- stage list -----' )
@@ -340,10 +351,7 @@ if answer == 'y' :
                     print( '{0:^20} ---> {1:^20}'.format( stage, stages[stage] ) )
             print( '{:^46}'.format( '---------------------------------------------' ) )
             print( ' ' )
-            answer = ''
-            while not answer == 'y' and not answer == 'n':
-                answer = input_v( '# Do you continue to convert their names for changing DB scheme? (y/n) > ' )
-            print( ' ' )
+            answer = input_answer( '# Do you continue to convert their names for changing DB scheme? (y/n) > ' )
             if answer == 'y':
                 final_answer = 'y'
             else:
@@ -352,8 +360,8 @@ if answer == 'y' :
         if answer == 'y' : 
             print( '# Start the convert...' )
             # Conversion
-            log_file.write( datetime.datetime.now().strftime( '%Y-%m-%dT%H:%M:%S \t\t[Convert]\n' ) )
-            log_file.write( datetime.datetime.now().strftime( '%Y-%m-%dT%H:%M:%S \t\t[Start]\n' ) )
+            write_log( '\t\t[Convert]' )
+            write_log( '\t\t[Start]' )
             for runId in runIds:
                 query = { '_id': ObjectId(runId) }
                 thisRun = yarrdb.testRun.find_one( query )
@@ -362,33 +370,35 @@ if answer == 'y' :
                 if stages[stage] == 'unknown': continue
                 user = thisRun['user_id']
                 yarrdb.testRun.update( query, { '$push': { 'comments': { 'user_id': user, 'comment': 'The stage neme registered before is "{}"'.format(stage) }}})
-                yarrdb.testRun.update( query, { '$set': { 'stage': stages[stage] }}) #UPDATE
+
+                yarrdb.testRun.update( query,
+                                                { '$set': { 'stage': stages[stage] }}) #UPDATE
                 update_mod( 'testRun', query ) #UPDATE
-                log_file.write( datetime.datetime.now().strftime( '%Y-%m-%dT%H:%M:%S \t\t[Update] {0:<7}: {1:<20} -> {2:<20}\n'.format(thisRun['runNumber'], stage, stages[stage]) ) )
-            log_file.write( datetime.datetime.now().strftime( '%Y-%m-%dT%H:%M:%S \t\t[Finish]\n' ) )
+                write_log( '\t\t[Update] {0:<7}: {1:<20} -> {2:<20}'.format(thisRun['runNumber'], stage, stages[stage]) ) 
+            write_log( '\t\t[Finish]' ) 
             # Confirmation after convert
             mistake = False
-            log_file.write( datetime.datetime.now().strftime( '%Y-%m-%dT%H:%M:%S \t\t[Confirmation] after convert\n' ) )
-            log_file.write( datetime.datetime.now().strftime( '%Y-%m-%dT%H:%M:%S \t\t[Start]\n' ) ) 
+            write_log( '\t\t[Confirmation] after convert' )
+            write_log( '\t\t[Start]' ) 
             for runId in runIds:
                 query = { '_id': ObjectId(runId) }
                 thisRun = yarrdb.testRun.find_one( query )
                 stage = thisRun.get('stage','null')
                 if stage in file_stages: continue
-                log_file.write( datetime.datetime.now().strftime( '%Y-%m-%dT%H:%M:%S \t\t\t\t{0:^7}: {1:^20}\n'.format(thisRun['runNumber'], stage) ) )
+                write_log( '\t\t\t\t{0:^7}: {1:^20}'.format(thisRun['runNumber'], stage) )
                 mistake=True
     
             if not mistake:
                 print( '# Complete the convert of the stage name.' )
-                log_file.write( datetime.datetime.now().strftime( '%Y-%m-%dT%H:%M:%S \t\t[Finish]\n' ) )
-                log_file.write( datetime.datetime.now().strftime( '%Y-%m-%dT%H:%M:%S \t\t[Success] complete the convert of the stage name.\n' ) )
+                write_log( '\t\t[Finish]' )
+                write_log( '\t\t[Success] complete the convert of the stage name.' )
             else:
                 print( '# There are still unregistered stage name, check log file: {}.'.format(log_filename) )
-                log_file.write( datetime.datetime.now().strftime( '%Y-%m-%dT%H:%M:%S \t\t[Finish]\n' ) )
-                log_file.write( datetime.datetime.now().strftime( '%Y-%m-%dT%H:%M:%S \t\t[Failure] There are still unregistered stage name.\n' ) )
+                write_log( '\t\t[Finish]' )
+                write_log( '\t\t[Failure] There are still unregistered stage name.' )
     else:
-        log_file.write( datetime.datetime.now().strftime( '%Y-%m-%dT%H:%M:%S [Finish]\n' ) )
-        log_file.write( datetime.datetime.now().strftime( '%Y-%m-%dT%H:%M:%S [Success] complete the convert of the stage name.\n' ) )
+        write_log( '[Finish]' )
+        write_log( '[Success] complete the convert of the stage name.' )
     print( '# Finish' )
     print( ' ' )
 
@@ -398,9 +408,9 @@ if answer == 'y' :
     print( ' ' )
     mistake = False
     keys = {}
-    log_file.write( datetime.datetime.now().strftime( '%Y-%m-%dT%H:%M:%S ================================================================\n' ) )
-    log_file.write( datetime.datetime.now().strftime( '%Y-%m-%dT%H:%M:%S [Confirmation] environment\n' ) )
-    log_file.write( datetime.datetime.now().strftime( '%Y-%m-%dT%H:%M:%S [Start]\n' ) )
+    write_log( '================================================================' )
+    write_log( '[Confirmation] environment' )
+    write_log( '[Start]' ) 
     
     environments = yarrdb.environment.find()
     envIds = []
@@ -427,10 +437,7 @@ if answer == 'y' :
                     print( '# Fill the description of this environmental key after checking data (ref {}), or "n" if unknown key'.format(log_filename) )
                     print( '# e.g.) Low Voltage [V]' )
                     print( ' ' )
-                    answer = ''
-                    while answer == '' :
-                        answer = input_v( '# Write description (unknown ---> enter "n") >> ' ) 
-                    print( ' ' )
+                    answer = input_answer( '# Write description (unknown ---> enter "n") >> ' )
                     if answer == 'n':
                         print( '# Skipped' )
                         print( ' ' )
@@ -439,11 +446,11 @@ if answer == 'y' :
                     yarrdb.environment.update( env_query,
                                                { '$set': { '{0}.0.description'.format(env_key): description }})
                     update_mod( 'environment', env_query ) #UPDATE
-                    log_file.write( datetime.datetime.now().strftime( '%Y-%m-%dT%H:%M:%S \t\t[Update] {0:<7}: {1:<20} {2:<23}\n'.format(thisRun['runNumber'], env_key, description) ) )
+                    write_log( '\t\t[Update] {0:<7}: {1:<20} {2:<23}'.format(thisRun['runNumber'], env_key, description) ) 
                     print( '# Added description "{0}" to {1}'.format( description, env_key ) )
                     print( ' ' )
                 if env_key in file_dcs: continue
-                log_file.write( datetime.datetime.now().strftime( '%Y-%m-%dT%H:%M:%S \t\t{0:^7}: {1:^20}({2:^20})\n'.format(thisRun['runNumber'], env_key, description) ) )
+                write_log( '\t\t{0:^7}: {1:^20}({2:^20})'.format(thisRun['runNumber'], env_key, description) )
                 if not env_key in keys:
                     keys.update({ env_key: description })
     if not keys == {}:  
@@ -465,7 +472,7 @@ if answer == 'y' :
                 print( '----- key list -----' )
                 for file_env in file_dcs:
                     print( ' {0:<3}'.format(file_dcs.index(file_env)) + ' : ' + file_env )
-                print( ' {0:<3}'.format(len(file_dcs)) + ' : unknown ---> skip to convert this key name' )
+                print( ' {0:<3}'.format(len(file_dcs)) + ' : unknown ---> skip to convert this stage name' )
                 print(' ')
                 env_num = input_number( '# Enter key number >> ', len(file_dcs)+1 )
                 if env_num == len(file_dcs): keys[key] = 'unknown'
@@ -482,10 +489,7 @@ if answer == 'y' :
                     print( '{0:^20} ---> {1:^20}'.format( key, keys[key] ) )
             print( '{:^46}'.format( '---------------------------------------------' ) )
             print( ' ' )
-            answer = ''
-            while not answer == 'y' and not answer == 'n':
-                answer = input_v( '# Do you continue to convert their key names for changing DB scheme? (y/n) > ' )
-            print( ' ' )
+            answer = input_answer( '# Do you continue to convert their key names for changing DB scheme? (y/n) > ' )
             if answer == 'y':
                 final_answer = 'y'
             else:
@@ -495,11 +499,11 @@ if answer == 'y' :
             print( '# Start the convert...' )
             print( ' ' )
             # Conversion
-            log_file.write( datetime.datetime.now().strftime( '%Y-%m-%dT%H:%M:%S \t\t[Convert]\n' ) )
-            log_file.write( datetime.datetime.now().strftime( '%Y-%m-%dT%H:%M:%S \t\t[Start]\n' ) )
+            write_log( '\t\t[Convert]' )
+            write_log( '\t\t[Start]' )
             for envId in envIds:
                 env_query = { '_id': ObjectId(envId),
-                              'type': 'data' }
+                          'type': 'data' }
                 cut_query = { 'sys': 0, 'type': 0, 'dbVersion': 0, '_id': 0 }
                 thisEnv = yarrdb.environment.find_one( env_query, cut_query )
                 for env_key in thisEnv:
@@ -511,15 +515,14 @@ if answer == 'y' :
                     yarrdb.environment.update( env_query,
                                                { '$unset': { env_key: '' }})
                     query = { 'environment': envId }
-                    thisRun = yarrdb.testRun.find_one( query )
-                    user = thisRun['user_id']
                     yarrdb.testRun.update( query, { '$push': { 'comments': { 'user_id': user, 'comment': 'The environmental key registered before is "{}"'.format(env_key) }}})
+
                     update_mod( 'environment', env_query ) #UPDATE
-                    log_file.write( datetime.datetime.now().strftime( '%Y-%m-%dT%H:%M:%S \t\t[Update] {0:<7}: {1:<20} -> {2:<20}\n'.format(thisRun['runNumber'], env_key, keys[env_key]) ) )
+                    write_log( '\t\t[Update] {0:<7}: {1:<20} -> {2:<20}'.format(thisRun['runNumber'], env_key, keys[env_key]) )
             mistake = False
-            log_file.write( datetime.datetime.now().strftime( '%Y-%m-%dT%H:%M:%S \t\t[Finish]\n' ) )
-            log_file.write( datetime.datetime.now().strftime( '%Y-%m-%dT%H:%M:%S \t\t[Confirmation] after convert\n' ) )
-            log_file.write( datetime.datetime.now().strftime( '%Y-%m-%dT%H:%M:%S \t\t[Start]\n' ) ) 
+            write_log( '\t\t[Finish]' )
+            write_log( '\t\t[Confirmation] after convert' )
+            write_log( '\t\t[Start]' ) 
             for envId in envIds:
                 env_query = { '_id': ObjectId(envId),
                           'type': 'data' }
@@ -531,20 +534,20 @@ if answer == 'y' :
                     for data in thisEnv[env_key]:
                         description = data.get('description', 'null')
                         if env_key in file_dcs and description != 'null': continue
-                        log_file.write( datetime.datetime.now().strftime( '%Y-%m-%dT%H:%M:%S \t\t\t\t{0:<7}: {1:<20}({2:^20})\n'.format(thisRun['runNumber'], key, description) ) )
+                        write_log( '\t\t\t\t{0:<7}: {1:<20}({2:^20})'.format(thisRun['runNumber'], key, description) )
                         mistake=True
             if not mistake:
                 print( '# Complete the convert of the environmental key name.' )
-                log_file.write( datetime.datetime.now().strftime( '%Y-%m-%dT%H:%M:%S \t\t[Finish]\n' ) )
-                log_file.write( datetime.datetime.now().strftime( '%Y-%m-%dT%H:%M:%S \t\t[Success] complete the convert of the environmental key name.\n' ) )
+                write_log( '\t\t[Finish]' )
+                write_log( '\t\t[Success] complete the convert of the environmental key name.' )
             else:
                 print( '# There are still unregistered environmental key name, check log file: {}.'.format(log_filename) )
-                log_file.write( datetime.datetime.now().strftime( '%Y-%m-%dT%H:%M:%S \t\t[Finish]\n' ) )
-                log_file.write( datetime.datetime.now().strftime( '%Y-%m-%dT%H:%M:%S \t\t[Failure] There are still unregistered environmental key name.\n' ) )
+                write_log( '\t\t[Finish]' )
+                write_log( '\t\t[Failure] There are still unregistered environmental key name.' )
             print( ' ' )
     else:
-        log_file.write( datetime.datetime.now().strftime( '%Y-%m-%dT%H:%M:%S [Finish]\n' ) )
-        log_file.write( datetime.datetime.now().strftime( '%Y-%m-%dT%H:%M:%S [Success] complete the convert of the environmental key name.\n' ) )
+        write_log( '[Finish]' )
+        write_log( '[Success] complete the convert of the environmental key name.' )
     print( '# Finish' )
     print( ' ' )
 
@@ -554,19 +557,19 @@ if answer == 'y' :
     print( ' ' )
     query = { 'dbVersion': { '$ne': dbv } }
     run_entries = yarrdb.testRun.find( query )
-    log_file.write( datetime.datetime.now().strftime( '%Y-%m-%dT%H:%M:%S ================================================================\n' ) )
-    log_file.write( datetime.datetime.now().strftime( '%Y-%m-%dT%H:%M:%S [Confirmation] test run data\n' ) )
-    log_file.write( datetime.datetime.now().strftime( '%Y-%m-%dT%H:%M:%S [Start]\n' ) )
+    write_log( '================================================================' )
+    write_log( '[Confirmation] test run data' )
+    write_log( '[Start]' )
     for run in run_entries:
         query = { 'testRun': str(run['_id']) }
         if yarrdb.componentTestRun.find( query ).count() == 0:
             query = { '_id': run['_id'] }
             yarrdb.testRun.remove( query )
-            log_file.write( datetime.datetime.now().strftime( '%Y-%m-%dT%H:%M:%S [Not found/Delete] relational documents : {}\n'.format( run['runNumber'] ) ) )
-    log_file.write( datetime.datetime.now().strftime( '%Y-%m-%dT%H:%M:%S [Finish]\n' ) )
+            write_log( '[Not found/Delete] relational documents : {}'.format( run['runNumber'] ) ) 
+    write_log( '[Finish]' ) 
     print( '# Finish' )
     print( ' ' )
-     
+ 
     #####################
     ### check broken data
     if not os.path.isdir( './broken_files' ):
@@ -575,22 +578,22 @@ if answer == 'y' :
     print( ' ' )
     query = { 'dbVersion': { '$ne': dbv } }
     run_entries = yarrdb.componentTestRun.find( query )
-    log_file.write( datetime.datetime.now().strftime( '%Y-%m-%dT%H:%M:%S ================================================================\n' ) )
-    log_file.write( datetime.datetime.now().strftime( '%Y-%m-%dT%H:%M:%S [Confirmation] broken files\n' ) )
-    log_file.write( datetime.datetime.now().strftime( '%Y-%m-%dT%H:%M:%S [Start]\n' ) )
+    write_log( '================================================================' )
+    write_log( '[Confirmation] broken files' )
+    write_log( '[Start]' )
     for run in run_entries:
         runNumber = run['runNumber']
-        log_file.write( datetime.datetime.now().strftime( '%Y-%m-%dT%H:%M:%S \t\t[Start] ComponentTestRun: {}\n'.format(runNumber) ) )
+        write_log( '\t\t[Start] ComponentTestRun: {}'.format(runNumber) )
         broken_data = run.get( 'broken', [] )
         broken_num = len(broken_data)
-        log_file.write( datetime.datetime.now().strftime( '%Y-%m-%dT%H:%M:%S \t\tNumber Of Broken Data: {}\n'.format(broken_num) ) )
+        write_log( '\t\tNumber Of Broken Data: {}'.format(broken_num) )
         num = 0
         for data in broken_data:
             bin_data = fs.get( ObjectId( data['code'] )).read()
             query = { '_id': ObjectId( data['code'] ) }
             thisFile = yarrdb.fs.files.find_one( query )
             if not bin_data:
-                log_file.write( datetime.datetime.now().strftime( '%Y-%m-%dT%H:%M:%S \t\t[Not found/Delete] chunks data {0}_{1}: '.format(runNumber, thisFile['filename']) ) + str(data['code']) + '\n' )
+                write_log( '\t\t[Not found/Delete] chunks data {0}_{1}: '.format(runNumber, thisFile['filename']) ) 
                 fs.delete( ObjectId(data['code']) )
                 query = { '_id': run['_id'] }
                 yarrdb.componentTestRun.update( query, { '$pull': { 'broken': { 'code': data['code'] }}} )
@@ -598,19 +601,19 @@ if answer == 'y' :
             else:
                 if is_png( bin_data ):
                     print( '[PNG] Found chunks data ---> ./broken_files/{0}_{1}_{2}.png\n'.format(runNumber, data['key'], num) )
-                    log_file.write( datetime.datetime.now().strftime( '%Y-%m-%dT%H:%M:%S \t\t[Found/Delete] chunks data (png) {0}: {1}'.format(thisFile['filename'], runNumber) ) + str(data['code']) + '\n' )
+                    write_log( '\t\t[Found/Delete] chunks data (png) {0}: {1}'.format(thisFile['filename'], runNumber) )
                     fin = open('./broken_files/{0}_{1}_{2}.png'.format(runNumber, data['key'], num), 'wb')
                     fin.write(bin_data)
                     fin.close()
                 elif is_pdf( bin_data ):
                     print( '[PDF] Found chunks data ---> ./broken_files/{0}_{1}_{2}.pdf\n'.format(runNumber, data['key'], num) )
-                    log_file.write( datetime.datetime.now().strftime( '%Y-%m-%dT%H:%M:%S \t\t[Found/Delete] chunks data (pdf) {0}: {1}'.format(thisFile['filename'], runNumber) ) + str(data['code']) + '\n' )
+                    write_log( '\t\t[Found/Delete] chunks data (pdf) {0}: {1}'.format(thisFile['filename'], runNumber) ) 
                     fin = open('./broken_files/{0}_{1}_{2}.pdf'.format(runNumber, data['key'], num), 'wb')
                     fin.write(bin_data)
                     fin.close()
                 else:
                     print( '[JSON/DAT] Found chunks data ---> ./{0}_{1}_{2}.dat\n'.format(runNumber, data['key'], num) )
-                    log_file.write( datetime.datetime.now().strftime( '%Y-%m-%dT%H:%M:%S \t\t[Found/Delete] chunks data (json/dat) {0}: {1}'.format(thisFile['filename'], runNumber) ) + str(data['code']) + '\n' )
+                    write_log( '\t\t[Found/Delete] chunks data (json/dat) {0}: {1}'.format(thisFile['filename'], runNumber) ) 
                     fin = open('./broken_files/{0}_{1}_{2}.dat'.format(runNumber, data['key'], num), 'wb')
                     fin.write(bin_data)
                     fin.close()
@@ -625,12 +628,12 @@ if answer == 'y' :
                                             { '$unset': { 'broken' : '' }} )
             yarrdb.componentTestRun.update( query,
                                             { '$set': { 'dbVersion' : dbv }} )
-            log_file.write( datetime.datetime.now().strftime( '%Y-%m-%dT%H:%M:%S \t\t[Update] componentTestRun doc: ' + str(run['_id']) + '\n' ) )
+            write_log( '\t\t[Update] componentTestRun doc: ' + str(run['_id']) )
         else:
-            log_file.write( datetime.datetime.now().strftime( '%Y-%m-%dT%H:%M:%S \t\t[WARNING][Unupdate] componentTestRun doc: ' + str(run['_id']) + '\n' ) )
-        log_file.write( datetime.datetime.now().strftime( '%Y-%m-%dT%H:%M:%S \t\tNumber Of Delete Data: {}\n'.format(num) ) )
-        log_file.write( datetime.datetime.now().strftime( '%Y-%m-%dT%H:%M:%S \t\t[Finish]\n' ) )
-    log_file.write( datetime.datetime.now().strftime( '%Y-%m-%dT%H:%M:%S [Finish]\n' ) )
+            write_log( '\t\t[WARNING][Unupdate] componentTestRun doc: ' + str(run['_id']) )
+        write_log( '\t\tNumber Of Delete Data: {}'.format(num) ) 
+        write_log( '\t\t[Finish]' )
+    write_log( '[Finish]' )
     print( '# Finish' )
     print( ' ' )
     
@@ -641,34 +644,34 @@ if answer == 'y' :
     file_entries = yarrdb.fs.files.find( query )
     file_num = file_entries.count()
     num = 0
-    log_file.write( datetime.datetime.now().strftime( '%Y-%m-%dT%H:%M:%S ================================================================\n' ) )
-    log_file.write( datetime.datetime.now().strftime( '%Y-%m-%dT%H:%M:%S [Confirmation] unupdated fs.files\n' ) )
-    log_file.write( datetime.datetime.now().strftime( '%Y-%m-%dT%H:%M:%S [Start]\n' ) )
-    log_file.write( datetime.datetime.now().strftime( '%Y-%m-%dT%H:%M:%S Number Of Unupdated Data: {}\n'.format(file_num) ) )
+    write_log( '================================================================' )
+    write_log( '[Confirmation] unupdated fs.files' )
+    write_log( '[Start]' )
+    write_log( 'Number Of Unupdated Data: {}'.format(file_num) )
     for thisFile in file_entries:
         bin_data = fs.get( thisFile['_id'] ).read()
         if bin_data:
             if is_png( bin_data ): 
-                log_file.write( datetime.datetime.now().strftime( '%Y-%m-%dT%H:%M:%S [Found/Delete] files data (png) {}'.format(thisFile['filename']) ) + str(thisFile['_id']) + '\n')
+                write_log( '[Found/Delete] files data (png) {}'.format(thisFile['filename']) )
                 fin = open('./broken_files/files_{}.png '.format(num) , 'wb')
                 fin.write(bin_data)
                 fin.close()
             elif is_pdf( bin_data ): 
-                log_file.write( datetime.datetime.now().strftime( '%Y-%m-%dT%H:%M:%S [Found/Delete] files data (pdf) {}'.format(thisFile['filename']) ) + str(thisFile['_id']) + '\n' )
+                write_log( '[Found/Delete] files data (pdf) {}'.format(thisFile['filename']) ) 
                 fin = open('./broken_files/files_{}.pdf '.format(num) , 'wb')
                 fin.write(bin_data)
                 fin.close()
             else:
-                log_file.write( datetime.datetime.now().strftime( '%Y-%m-%dT%H:%M:%S [Found/Delete] files data (json/dat) {}'.format(thisFile['filename']) ) + str(thisFile['_id']) + '\n' )
+                write_log( '[Found/Delete] files data (json/dat) {}'.format(thisFile['filename']) )
                 fin = open('./broken_files/files_{}.dat '.format(num) , 'wb')
                 fin.write(bin_data)
                 fin.close()
             num = num + 1
             fs.delete( ObjectId(thisFile['_id']) )
         else:
-            log_file.write( datetime.datetime.now().strftime( '%Y-%m-%dT%H:%M:%S [Not found/Delete] chunks data {}'.format(thisFile['filename']) ) + str(thisFile['_id']) + '\n' )
+            write_log( '[Not found/Delete] chunks data {}'.format(thisFile['filename']) )
             fs.delete( thisFile['_id'] )
-    log_file.write( datetime.datetime.now().strftime( '%Y-%m-%dT%H:%M:%S [Finish]\n' ) )
+    write_log( '[Finish]' )
     print( '# Finish' )
     print( ' ' )
 
@@ -679,34 +682,34 @@ if answer == 'y' :
     chunk_entries = yarrdb.fs.chunks.find( query )
     chunk_num = chunk_entries.count()
     num = 0
-    log_file.write( datetime.datetime.now().strftime( '%Y-%m-%dT%H:%M:%S ================================================================\n' ) )
-    log_file.write( datetime.datetime.now().strftime( '%Y-%m-%dT%H:%M:%S [Confirmation] unupdated fs.chunks\n' ) )
-    log_file.write( datetime.datetime.now().strftime( '%Y-%m-%dT%H:%M:%S [Start]\n' ) )
-    log_file.write( datetime.datetime.now().strftime( '%Y-%m-%dT%H:%M:%S Number Of Unupdated Data: {}\n'.format(chunk_num) ) )
+    write_log( '================================================================' )
+    write_log( '[Confirmation] unupdated fs.chunks' )
+    write_log( '[Start]' )
+    write_log( 'Number Of Unupdated Data: {}'.format(chunk_num) )
     for chunks in chunk_entries:
         query = { '_id': chunks['files_id'] }
         thisFile = yarrdb.fs.files.find_one( query )
         bin_data = chunks['data']
         if thisFile:
             if is_png( bin_data ): 
-                log_file.write( datetime.datetime.now().strftime( '%Y-%m-%dT%H:%M:%S [Found/Delete] chunks data (png) {0}'.format(thisFile['filename']) ) + str(chunks['files_id']) + '\n' )
+                write_log( '[Found/Delete] chunks data (png) {0}'.format(thisFile['filename']) ) 
                 fin = open('./broken_files/chunk_{}.png '.format(num) , 'wb')
                 fin.write(bin_data)
                 fin.close()
             elif is_pdf( bin_data ): 
-                log_file.write( datetime.datetime.now().strftime( '%Y-%m-%dT%H:%M:%S [Found/Delete chunks data (pdf) {0}'.format(thisFile['filename']) ) + str(chunks['files_id']) + '\n' )
+                write_log( '[Found/Delete chunks data (pdf) {0}'.format(thisFile['filename']) ) 
                 fin = open('./broken_files/chunk_{}.pdf '.format(num) , 'wb')
                 fin.write(bin_data)
                 fin.close()
             else:
-                log_file.write( datetime.datetime.now().strftime( '%Y-%m-%dT%H:%M:%S [Found/Delete] chunks data (json/dat) {0}'.format(thisFile['filename']) ) + str(chunks['files_id']) + '\n' )
+                write_log( '[Found/Delete] chunks data (json/dat) {0}'.format(thisFile['filename']) ) 
                 fin = open('./broken_files/chunk_{}.dat '.format(num) , 'wb')
                 fin.write(bin_data)
                 fin.close()
             num = num + 1
             fs.delete( ObjectId(chunks['files_id']) )
         else:
-            log_file.write( datetime.datetime.now().strftime( '%Y-%m-%dT%H:%M:%S [Not found/Delete] files data' + str(chunks['files_id']) + '\n' ) )
+            write_log( '[Not found/Delete] files data' + str(chunks['files_id']) )
             query = { '_id': chunks['_id'] }
             yarrdb.fs.chunks.remove( query )
     print( '# Finish' )
@@ -717,46 +720,44 @@ if answer == 'y' :
     print( '# Checking every collection ...' )
     print( ' ' )
     cols = yarrdb.collection_names()
-    log_file.write( datetime.datetime.now().strftime( '%Y-%m-%dT%H:%M:%S ================================================================\n' ) )
-    log_file.write( datetime.datetime.now().strftime( '%Y-%m-%dT%H:%M:%S [Confirmation] unupdated documentt\n' ) )
-    log_file.write( datetime.datetime.now().strftime( '%Y-%m-%dT%H:%M:%S [Start]\n' ) )
+    write_log( '================================================================' )
+    write_log( '[Confirmation] unupdated document' )
+    write_log( '[Start]' )
     # component
     col = 'component'
-    log_file.write( datetime.datetime.now().strftime( '%Y-%m-%dT%H:%M:%S Collection: {}\n'.format(col) ) )
-    log_file.write( datetime.datetime.now().strftime( '%Y-%m-%dT%H:%M:%S \t\tUnupdated documents: {0}\n'.format(yarrdb[col].find({ 'dbVersion': { '$ne': dbv } }).count()) ) )
+    write_log( 'Collection: {}'.format(col) )
+    write_log( '\t\tUnupdated documents: {0}'.format(yarrdb[col].find({ 'dbVersion': { '$ne': dbv } }).count()) )
     if not yarrdb[col].find({ 'dbVersion': { '$ne': dbv } }).count() == 0: confirmation = False
-    log_file.write( datetime.datetime.now().strftime( '%Y-%m-%dT%H:%M:%S \t\t{0:<15}: {1:^10} ---> {2:^10} {3:^6}\n'.format( 'Keyword', 'old (copy)', 'new (orig)', 'status' ))) 
-    log_file.write( datetime.datetime.now().strftime( '%Y-%m-%dT%H:%M:%S \t\t{0:<15}: {1:^10} ---> {2:^10} {3:^6}\n'.format( 'Document', copydb[col].find().count(), yarrdb[col].find().count(), copydb[col].find().count()==yarrdb[col].find().count() ))) 
+    write_log( '\t\t{0:<15}: {1:^10} ---> {2:^10} {3:^6}'.format( 'Keyword', 'old (copy)', 'new (orig)', 'status' ))
+    write_log( '\t\t{0:<15}: {1:^10} ---> {2:^10} {3:^6}'.format( 'Document', copydb[col].find().count(), yarrdb[col].find().count(), copydb[col].find().count()==yarrdb[col].find().count() ))
     query = { 'componentType': 'Module' }
-    log_file.write( datetime.datetime.now().strftime( '%Y-%m-%dT%H:%M:%S \t\t{0:<15}: {1:^10} ---> {2:^10} {3:^6}\n'.format( 'Module', copydb[col].find( query ).count(), yarrdb[col].find( query ).count(), copydb[col].find( query ).count()==yarrdb[col].find( query ).count() ))) 
+    write_log( '\t\t{0:<15}: {1:^10} ---> {2:^10} {3:^6}'.format( 'Module', copydb[col].find( query ).count(), yarrdb[col].find( query ).count(), copydb[col].find( query ).count()==yarrdb[col].find( query ).count() ))
     query = { 'componentType': { '$ne': 'Module' } }
-    log_file.write( datetime.datetime.now().strftime( '%Y-%m-%dT%H:%M:%S \t\t{0:<15}: {1:^10} ---> {2:^10} {3:^6}\n'.format( 'Chip', copydb[col].find( query ).count(), yarrdb[col].find( query ).count(), copydb[col].find( query ).count()==yarrdb[col].find( query ).count() ))) 
-    old_query = { 'componentType': 'FE-I4B' }
-    new_query = { 'chipType': 'FE-I4B', 'componentType': { '$ne': 'Module' } }
-    log_file.write( datetime.datetime.now().strftime( '%Y-%m-%dT%H:%M:%S \t\t{0:<15}: {1:^10} ---> {2:^10} {3:^6}\n'.format( 'FE-I4B', copydb[col].find( old_query ).count(), yarrdb[col].find( new_query ).count(), copydb[col].find(old_query).count()==yarrdb[col].find(new_query).count() ))) 
-    old_query = { 'componentType': 'RD53A' }
-    new_query = { 'chipType': 'RD53A', 'componentType': { '$ne': 'Module' } }
-    log_file.write( datetime.datetime.now().strftime( '%Y-%m-%dT%H:%M:%S \t\t{0:<15}: {1:^10} ---> {2:^10} {3:^6}\n'.format( 'RD53A', copydb[col].find( old_query ).count(), yarrdb[col].find( new_query ).count(), copydb[col].find(old_query).count()==yarrdb[col].find(new_query).count() ))) 
-    log_file.write( datetime.datetime.now().strftime( '%Y-%m-%dT%H:%M:%S ----------------------------------------------------------------\n' ) )
+    write_log( '\t\t{0:<15}: {1:^10} ---> {2:^10} {3:^6}'.format( 'Chip', copydb[col].find( query ).count(), yarrdb[col].find( query ).count(), copydb[col].find( query ).count()==yarrdb[col].find( query ).count() ))
+    query = { 'chipType': 'FE-I4B', 'componentType': { '$ne': 'Module' } }
+    write_log( '\t\t{0:<15}: {1:^10} ---> {2:^10} {3:^6}'.format( 'FE-I4B', copydb[col].find( query ).count(), yarrdb[col].find( query ).count(), copydb[col].find(query).count()==yarrdb[col].find(query).count() ))
+    query = { 'chipType': 'RD53A', 'componentType': { '$ne': 'Module' } }
+    write_log( '\t\t{0:<15}: {1:^10} ---> {2:^10} {3:^6}'.format( 'RD53A', copydb[col].find( query ).count(), yarrdb[col].find( query ).count(), copydb[col].find(query).count()==yarrdb[col].find(query).count() ))
+    write_log( '----------------------------------------------------------------' )
 
     # childParentRelation
     col = 'childParentRelation'
-    log_file.write( datetime.datetime.now().strftime( '%Y-%m-%dT%H:%M:%S Collection: {}\n'.format(col) ) )
-    log_file.write( datetime.datetime.now().strftime( '%Y-%m-%dT%H:%M:%S \t\tUnupdated documents: {0}\n'.format(yarrdb[col].find({ 'dbVersion': { '$ne': dbv } }).count()) ) )
+    write_log( 'Collection: {}'.format(col) )
+    write_log( '\t\tUnupdated documents: {0}'.format(yarrdb[col].find({ 'dbVersion': { '$ne': dbv } }).count()) )
     if not yarrdb[col].find({ 'dbVersion': { '$ne': dbv } }).count() == 0: confirmation = False
-    log_file.write( datetime.datetime.now().strftime( '%Y-%m-%dT%H:%M:%S \t\t{0:<15}: {1:^10} ---> {2:^10} {3:^6}\n'.format( 'Keyword', 'old (copy)', 'new (orig)', 'status' ))) 
-    log_file.write( datetime.datetime.now().strftime( '%Y-%m-%dT%H:%M:%S \t\t{0:<15}: {1:^10} ---> {2:^10} {3:^6}\n'.format( 'Document', copydb[col].find().count(), yarrdb[col].find().count(), copydb[col].find().count()==yarrdb[col].find().count() ))) 
+    write_log( '\t\t{0:<15}: {1:^10} ---> {2:^10} {3:^6}'.format( 'Keyword', 'old (copy)', 'new (orig)', 'status' ))
+    write_log( '\t\t{0:<15}: {1:^10} ---> {2:^10} {3:^6}'.format( 'Document', copydb[col].find().count(), yarrdb[col].find().count(), copydb[col].find().count()==yarrdb[col].find().count() ))
     query = { 'status': 'active' }
-    log_file.write( datetime.datetime.now().strftime( '%Y-%m-%dT%H:%M:%S \t\t{0:<15}: {1:^10} ---> {2:^10} {3:^6}\n'.format( 'Active', copydb[col].find().count(), yarrdb[col].find( query ).count(), copydb[col].find().count()==yarrdb[col].find( query ).count() ))) 
-    log_file.write( datetime.datetime.now().strftime( '%Y-%m-%dT%H:%M:%S ----------------------------------------------------------------\n' ) )
+    write_log( '\t\t{0:<15}: {1:^10} ---> {2:^10} {3:^6}'.format( 'Active', copydb[col].find().count(), yarrdb[col].find( query ).count(), copydb[col].find().count()==yarrdb[col].find( query ).count() ))
+    write_log( '----------------------------------------------------------------' )
 
     # componentTestRun
     col = 'componentTestRun'
-    log_file.write( datetime.datetime.now().strftime( '%Y-%m-%dT%H:%M:%S Collection: {}\n'.format(col) ) )
-    log_file.write( datetime.datetime.now().strftime( '%Y-%m-%dT%H:%M:%S \t\tUnupdated documents: {0}\n'.format(yarrdb[col].find({ 'dbVersion': { '$ne': dbv } }).count()) ) )
+    write_log( 'Collection: {}'.format(col) )
+    write_log( '\t\tUnupdated documents: {0}'.format(yarrdb[col].find({ 'dbVersion': { '$ne': dbv } }).count()) )
     if not yarrdb[col].find({ 'dbVersion': { '$ne': dbv } }).count() == 0: confirmation = False
-    log_file.write( datetime.datetime.now().strftime( '%Y-%m-%dT%H:%M:%S \t\t{0:<35}: {1:^10} ---> {2:^10} {3:^6}\n'.format( 'Keyword', 'old (copy)', 'new (orig)', 'status' ))) 
-    log_file.write( datetime.datetime.now().strftime( '%Y-%m-%dT%H:%M:%S \t\t{0:<35}: {1:^10} ---> {2:^10} {3:^6}\n'.format( 'Document', copydb[col].find().count(), yarrdb[col].find().count(), '---' ))) 
+    write_log( '\t\t{0:<35}: {1:^10} ---> {2:^10} {3:^6}'.format( 'Keyword', 'old (copy)', 'new (orig)', 'status' ))
+    write_log( '\t\t{0:<35}: {1:^10} ---> {2:^10} {3:^6}'.format( 'Document', copydb[col].find().count(), yarrdb[col].find().count(), '---' ))
     component_entries = yarrdb.component.find()
     componentIds = []
     for component in component_entries:
@@ -766,59 +767,46 @@ if answer == 'y' :
         thisComponent = yarrdb.component.find_one( query )
         query = { 'component': componentId }
         if thisComponent['componentType'] == 'Module':
-            log_file.write( datetime.datetime.now().strftime( '%Y-%m-%dT%H:%M:%S \t\tscan entries ({0:^20}): {1:^10} ---> {2:^10} {3:^6}\n'.format( thisComponent['serialNumber'], copydb[col].find( query ).count(), yarrdb[col].find( query ).count(), '---' ))) 
+            write_log( '\t\tscan entries ({0:^20}): {1:^10} ---> {2:^10} {3:^6}'.format( thisComponent['serialNumber'], copydb[col].find( query ).count(), yarrdb[col].find( query ).count(), '---' ))
         else:
-            log_file.write( datetime.datetime.now().strftime( '%Y-%m-%dT%H:%M:%S \t\tscan entries ({0:^20}): {1:^10} ---> {2:^10} {3:^6}\n'.format( thisComponent['serialNumber'], copydb[col].find( query ).count(), yarrdb[col].find( query ).count(), copydb[col].find( query ).count()==yarrdb[col].find( query ).count() ))) 
-    log_file.write( datetime.datetime.now().strftime( '%Y-%m-%dT%H:%M:%S ----------------------------------------------------------------\n' ) )
+            write_log( '\t\tscan entries ({0:^20}): {1:^10} ---> {2:^10} {3:^6}'.format( thisComponent['serialNumber'], copydb[col].find( query ).count(), yarrdb[col].find( query ).count(), copydb[col].find( query ).count()==yarrdb[col].find( query ).count() ))
+    write_log( '----------------------------------------------------------------' )
  
     # testRun
     col = 'testRun'
-    log_file.write( datetime.datetime.now().strftime( '%Y-%m-%dT%H:%M:%S Collection: {}\n'.format(col) ) )
-    log_file.write( datetime.datetime.now().strftime( '%Y-%m-%dT%H:%M:%S \t\tUnupdated documents: {0}\n'.format(yarrdb[col].find({ 'dbVersion': { '$ne': dbv } }).count()) ) )
+    write_log( 'Collection: {}'.format(col) )
+    write_log( '\t\tUnupdated documents: {0}'.format(yarrdb[col].find({ 'dbVersion': { '$ne': dbv } }).count()) )
     if not yarrdb[col].find({ 'dbVersion': { '$ne': dbv } }).count() == 0: confirmation = False
-    log_file.write( datetime.datetime.now().strftime( '%Y-%m-%dT%H:%M:%S \t\t{0:<15}: {1:^10} ---> {2:^10} {3:^6}\n'.format( 'Keyword', 'old (copy)', 'new (orig)', 'status' ))) 
-    log_file.write( datetime.datetime.now().strftime( '%Y-%m-%dT%H:%M:%S \t\t{0:<15}: {1:^10} ---> {2:^10} {3:^6}\n'.format( 'Document', copydb[col].find().count(), yarrdb[col].find().count(), '---' ))) 
-    run_entries = copydb.testRun.find()
-    runIds = []
-    testRuns = []
-    display = 0
-    for run in run_entries:
-        runIds.append( str(run['_id']) )
-    for runId in runIds:
-        query = { '_id': ObjectId(runId) }
-        thisRun = copydb.testRun.find_one( query )
-        doc = { 'runNumber': thisRun['runNumber'], 'institution': thisRun.get('institution','null'), 'userIdentity': thisRun.get('userIdentity','null') }
-        if not doc in testRuns: 
-            testRuns.append( doc )
-            if thisRun.get('display', False): display += 1
-    log_file.write( datetime.datetime.now().strftime( '%Y-%m-%dT%H:%M:%S \t\t{0:<15}: {1:^10} ---> {2:^10} {3:^6}\n'.format( 'testRuns', len(testRuns), yarrdb[col].find().count(), len(testRuns)==yarrdb[col].find().count() ))) 
+    write_log( '\t\t{0:<15}: {1:^10} ---> {2:^10} {3:^6}'.format( 'Keyword', 'old (copy)', 'new (orig)', 'status' ))
+    write_log( '\t\t{0:<15}: {1:^10} ---> {2:^10} {3:^6}'.format( 'Document', copydb[col].find().count(), yarrdb[col].find().count(), '---' ))
+    write_log( '\t\t{0:<15}: {1:^10} ---> {2:^10} {3:^6}'.format( 'testRuns', copydb[col].find().count(), yarrdb[col].find().count(), copydb[col].find().count()==yarrdb[col].find().count() ))
     query = { 'display': True }
-    log_file.write( datetime.datetime.now().strftime( '%Y-%m-%dT%H:%M:%S \t\t{0:<15}: {1:^10} ---> {2:^10} {3:^6}\n'.format( 'display', display, yarrdb[col].find( query ).count(), len(testRuns)==yarrdb[col].find().count() ))) 
+    write_log( '\t\t{0:<15}: {1:^10} ---> {2:^10} {3:^6}'.format( 'display', copydb[col].find( query ).count(), yarrdb[col].find( query ).count(), copydb[col].find(query).count()==yarrdb[col].find(query).count() ))
     query = { 'environment': { '$exists': True } }
-    log_file.write( datetime.datetime.now().strftime( '%Y-%m-%dT%H:%M:%S \t\t{0:<15}: {1:^10} ---> {2:^10} {3:^6}\n'.format( 'environment', yarrdb[col].find( query ).count(), yarrdb.environment.find().count(), yarrdb[col].find( query ).count()==yarrdb.environment.find().count() ))) 
-    log_file.write( datetime.datetime.now().strftime( '%Y-%m-%dT%H:%M:%S ----------------------------------------------------------------\n' ) )
+    write_log( '\t\t{0:<15}: {1:^10} ---> {2:^10} {3:^6}'.format( 'environment', yarrdb[col].find( query ).count(), yarrdb.environment.find().count(), yarrdb[col].find( query ).count()==yarrdb.environment.find().count() ))
+    write_log( '----------------------------------------------------------------' )
 
     # fs.files
     col = 'fs.files'
-    log_file.write( datetime.datetime.now().strftime( '%Y-%m-%dT%H:%M:%S Collection: {}\n'.format(col) ) )
-    log_file.write( datetime.datetime.now().strftime( '%Y-%m-%dT%H:%M:%S \t\tUnupdated documents: {0}\n'.format(yarrdb[col].find({ 'dbVersion': { '$ne': dbv } }).count()) ) )
+    write_log( 'Collection: {}'.format(col) )
+    write_log( '\t\tUnupdated documents: {0}'.format(yarrdb[col].find({ 'dbVersion': { '$ne': dbv } }).count()) )
     if not yarrdb[col].find({ 'dbVersion': { '$ne': dbv } }).count() == 0: confirmation = False
-    log_file.write( datetime.datetime.now().strftime( '%Y-%m-%dT%H:%M:%S \t\t{0:<15}: {1:^10} ---> {2:^10} {3:^6}\n'.format( 'Keyword', 'old (copy)', 'new (orig)', 'status' ))) 
-    log_file.write( datetime.datetime.now().strftime( '%Y-%m-%dT%H:%M:%S \t\t{0:<15}: {1:^10} ---> {2:^10} {3:^6}\n'.format( 'Document', copydb[col].find().count(), yarrdb[col].find().count(), '---' ))) 
-    log_file.write( datetime.datetime.now().strftime( '%Y-%m-%dT%H:%M:%S ----------------------------------------------------------------\n' ) )
+    write_log( '\t\t{0:<15}: {1:^10} ---> {2:^10} {3:^6}'.format( 'Keyword', 'old (copy)', 'new (orig)', 'status' ))
+    write_log( '\t\t{0:<15}: {1:^10} ---> {2:^10} {3:^6}'.format( 'Document', copydb[col].find().count(), yarrdb[col].find().count(), '---' ))
+    write_log( '----------------------------------------------------------------' )
 
     # fs.chunks
     col = 'fs.chunks'
-    log_file.write( datetime.datetime.now().strftime( '%Y-%m-%dT%H:%M:%S Collection: {}\n'.format(col) ) )
-    log_file.write( datetime.datetime.now().strftime( '%Y-%m-%dT%H:%M:%S \t\tUnupdated documents: {0}\n'.format(yarrdb[col].find({ 'dbVersion': { '$ne': dbv } }).count()) ) )
+    write_log( 'Collection: {}'.format(col) )
+    write_log( '\t\tUnupdated documents: {0}'.format(yarrdb[col].find({ 'dbVersion': { '$ne': dbv } }).count()) )
     if not yarrdb[col].find({ 'dbVersion': { '$ne': dbv } }).count() == 0: confirmation = False
-    log_file.write( datetime.datetime.now().strftime( '%Y-%m-%dT%H:%M:%S \t\t{0:<15}: {1:^10} ---> {2:^10} {3:^6}\n'.format( 'Keyword', 'old (copy)', 'new (orig)', 'status' ))) 
-    log_file.write( datetime.datetime.now().strftime( '%Y-%m-%dT%H:%M:%S \t\t{0:<15}: {1:^10} ---> {2:^10} {3:^6}\n'.format( 'Document', copydb[col].find().count(), yarrdb[col].find().count(), '---' ))) 
-    log_file.write( datetime.datetime.now().strftime( '%Y-%m-%dT%H:%M:%S ----------------------------------------------------------------\n' ) )
+    write_log( '\t\t{0:<15}: {1:^10} ---> {2:^10} {3:^6}'.format( 'Keyword', 'old (copy)', 'new (orig)', 'status' ))
+    write_log( '\t\t{0:<15}: {1:^10} ---> {2:^10} {3:^6}'.format( 'Document', copydb[col].find().count(), yarrdb[col].find().count(), '---' ))
+    write_log( '----------------------------------------------------------------' ) 
 
     # emulate basic function
-    log_file.write( datetime.datetime.now().strftime( '%Y-%m-%dT%H:%M:%S Emulation\n' ) )
-    log_file.write( datetime.datetime.now().strftime( '%Y-%m-%dT%H:%M:%S \t\t[Start]\n' ) )
+    write_log( 'Emulation' ) 
+    write_log( '\t\t[Start]' ) 
     query = { 'componentType': 'Module' }
     module_entries = yarrdb.component.find( query )
     moduleIds = []
@@ -830,9 +818,9 @@ if answer == 'y' :
         query = { 'parent': moduleId }
         child_entries = yarrdb.childParentRelation.find( query )
         if not thisModule['children'] == child_entries.count():
-            log_file.write( datetime.datetime.now().strftime( '%Y-%m-%dT%H:%M:%S \t\t[WARNING] Not match the number of children: {}\n'.format(thisModule['serialNumber']) ) )
-            log_file.write( datetime.datetime.now().strftime( '%Y-%m-%dT%H:%M:%S \t\t          The module has children: {} in component document\n'.format(thisModule['children']) ) )
-            log_file.write( datetime.datetime.now().strftime( '%Y-%m-%dT%H:%M:%S \t\t          The child entries connected by CPrelation document\n'.format( child_entries.count() ) ) )
+            write_log( '\t\t[WARNING] Not match the number of children: {}'.format(thisModule['serialNumber']) ) 
+            write_log( '\t\t          The module has children: {} in component document'.format(thisModule['children']) ) 
+            write_log( '\t\t          The child entries connected by CPrelation document'.format( child_entries.count() ) ) 
             confirmation = False
         query = { 'component': moduleId }
         run_entries = yarrdb.componentTestRun.find( query )
@@ -840,21 +828,21 @@ if answer == 'y' :
             query = { '_id': ObjectId(child['child']) }
             thisChip = yarrdb.component.find_one( query )
             if not thisChip:
-                log_file.write( datetime.datetime.now().strftime( '%Y-%m-%dT%H:%M:%S \t\t[WARNING] Not found chip: {0} - {1}\n'.format(thisModule['serialNumber'], child['chipId']) ) )
+                write_log( '\t\t[WARNING] Not found chip: {0} - {1}'.format(thisModule['serialNumber'], child['chipId']) ) 
                 confirmation = False
             query = { 'component': child['child'] }
             if not yarrdb.componentTestRun.find( query ).count() == run_entries.count():
-                log_file.write( datetime.datetime.now().strftime( '%Y-%m-%dT%H:%M:%S \t\t[WARNING] Not match the number of testRun: {0} (chipId: {1})\n'.format(thisModule['serialNumber'], child['chipId']) ) )
-                log_file.write( datetime.datetime.now().strftime( '%Y-%m-%dT%H:%M:%S \t\t          The module has test entries: {}\n'.format( run_entries.count() ) ) )
-                log_file.write( datetime.datetime.now().strftime( '%Y-%m-%dT%H:%M:%S \t\t          The chip has test entries: {}\n'.format( yarrdb.componentTestRun.find( query ).count() ) ) )
+                write_log( '\t\t[WARNING] Not match the number of testRun: {0} (chipId: {1})'.format(thisModule['serialNumber'], child['chipId']) ) 
+                write_log( '\t\t          The module has test entries: {}'.format( run_entries.count() ) ) 
+                write_log( '\t\t          The chip has test entries: {}'.format( yarrdb.componentTestRun.find( query ).count() ) ) 
                 confirmation = False
         for run in run_entries:
             query = { '_id': ObjectId(run['testRun']) }
             thisRun = yarrdb.testRun.find_one( query )
             if not thisRun:
-                log_file.write( datetime.datetime.now().strftime( '%Y-%m-%dT%H:%M:%S \t\t[WARNING] Not found testRun: {0} - {1}\n'.format(thisModule['serialNumber'], run['runNumber']) ) )
+                write_log( '\t\t[WARNING] Not found testRun: {0} - {1}'.format(thisModule['serialNumber'], run['runNumber']) ) 
                 confirmation = False
-    log_file.write( datetime.datetime.now().strftime( '%Y-%m-%dT%H:%M:%S \t\t[Finish]\n' ) )
+    write_log( '\t\t[Finish]' ) 
     if confirmation:
         print( '# Confirmed no problems with the conversion of DB scheme.' )
         print( '# The replica of DB can be deleted by python copyDB.py.' )
@@ -863,18 +851,18 @@ if answer == 'y' :
         print( '# Confirmed some problems with the conversion of DB scheme.' )
         print( '# Please check the log file for detail.' )
         print( ' ' )
-    log_file.write( datetime.datetime.now().strftime( '%Y-%m-%dT%H:%M:%S [Finish]\n' ) )
-    log_file.write( datetime.datetime.now().strftime( '%Y-%m-%dT%H:%M:%S ================================================================\n' ) )
+    write_log( '[Finish]' ) 
+    write_log( '================================================================' ) 
     print( '# Finish' )
     print( ' ' )
 
 finish_time = datetime.datetime.now() 
-log_file.write( '\n====        Operation Time        ====\n' )
+write_log( '====        Operation Time        ====' )
 total_time = datetime.timedelta(seconds=(finish_time-start_time).total_seconds())
-log_file.write( 'Total time:  ' + str(total_time) + ' [s]\n' )
-log_file.write( start_time.strftime(  '\tStart: %Y-%m-%dT%H:%M:%S:%f' ) + '\n' )
-log_file.write( finish_time.strftime( '\tFinish: %Y-%m-%dT%H:%M:%S:%f' ) + '\n' )
-log_file.write( '======================================' )
+write_log( 'Total time:  ' + str(total_time) + ' [s]' )
+write_log( start_time.strftime(  '\tStart: %Y-%m-%dT%H:%M:%S:%f' ) )
+write_log( finish_time.strftime( '\tFinish: %Y-%m-%dT%H:%M:%S:%f' ) )
+write_log( '======================================' )
 log_file.close()
 print( start_time.strftime( '# Start time: %Y-%m-%dT%H:%M:%S' ) ) 
 print( finish_time.strftime( '# Finish time: %Y-%m-%dT%H:%M:%S' ) ) 
