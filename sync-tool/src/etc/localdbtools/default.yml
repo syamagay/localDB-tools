@@ -1,0 +1,22 @@
+#** default.yml **#
+#################################
+# Author: Eunchong Kim
+# Email: eunchong.kim at cern.ch
+# Date: April 2019
+# Project: Local Database for YARR
+# Description: Configuration for LocalDB Tool
+#################################
+
+# local is your mongo database server
+local:
+    host: 127.0.0.1
+    port: 27017
+    #username: tokyotech
+    #password: ihatepassword
+
+# master is the server where to synchronize the data
+master:
+    #host: 127.0.0.1
+    #port: 27017
+    #username: tokyotech
+    #password: ihatepassword
