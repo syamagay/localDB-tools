@@ -15,6 +15,7 @@ import uuid
 import base64                          # Base64 encoding scheme
 import gridfs                          # gridfs system 
 import io
+import sys
 
 from flask            import Flask, request, redirect, url_for, render_template, session, make_response, jsonify
 from flask_pymongo    import PyMongo
@@ -22,6 +23,8 @@ from pymongo          import MongoClient
 from bson.objectid    import ObjectId 
 from werkzeug         import secure_filename # for upload system
 from PIL              import Image
+
+sys.path.append( os.path.dirname(os.path.dirname(os.path.abspath(__file__)) ) )
 
 from scripts.src      import listset
 from scripts.src      import static
