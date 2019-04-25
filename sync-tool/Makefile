@@ -1,49 +1,61 @@
-BIN=bin
+TARGETDIR?=/
+SRC=src
+TARGETETCDIR=/etc/localdbtools
+CONFIGURE=/etc/localdbtools/default.yml
+CRONTAB=/etc/cron.d/localdbtool-sync
+BINFILE=/usr/bin/localdbtool-sync.py
+BASHCOMPLETION=/usr/share/bash-completion/completions/localdbtool-sync
 
-TARGET_FILE=localdb-tool.py
+CONFIGURE_LOCAL=$(shell pwd)/default-sync.yml
+CRONTAB_LOCAL=$(shell pwd)/crontab-sync
 
-TARGET=$(BIN)/$(TARGET_FILE)
+all:
+	@echo "Makefile usage"
+	@echo ""
+	@echo " Configuration is done using environment variable"
+	@echo ""
+	@echo " TARGETDIR defines where to install RPi-Monitor"
+	@echo ""
+	@echo " The current values are:"
+	@echo "  TARGETDIR=${TARGETDIR}"
+	@echo "  CONFIGURE=${SRC}${CONFIGURE}"
+	@echo "  CRONTAB=${SRC}${CRONTAB}"
+	@echo ""
+	@echo " Once environment variable are set, execute: make install"
+	@echo ""
 
-all: $(TARGET)
-
-$(TARGET): check src/*
-	@echo -e "[LDB] Welcome!"
-	grep -vh -e "imports" imports/imports.py > $(TARGET)
-	grep -vh -e "^\s*#" -e "import" -e "__main__" imports/*.py >> $(TARGET)
-	grep -vh -e "^\s*#" -e "import" -e "__main__" src/*.py >> $(TARGET)
-	cat tools/main.py >> $(TARGET)
-	@chmod +x $(TARGET)
-	@echo -e "[LDB] Compile done, type 'make install'"
-
-.PHONY: check
-check:
-	@python3 tools/check.py
-
-cron: $(CONFIG)
-	crontab mycron
-
-$(CONFIG): 
-	@echo "* * 3 * * $(PWD)/$(TARGET) sync --config $(PWD)/$(CONFIG)" > mycron
-	"$$[EDITOR]" $(CONFIG)
-
-install: $(TARGET)
-	@echo "Install Local DB Tool ..."
-	@[ "$(whoami)" != "root" ] && exec sudo -- "$0" "$@"
-	cp $(TARGET) /usr/$(BIN)/.
-	mkdir -p /etc/mongo.d
-	cp ./conf/mongo.d/mongosync.yml /etc/mongo.d/.
-	cp ./conf/cron.d/mongosync.cron /etc/cron.d/.
-
-config-backup:
-	@echo "Config auto backup"
-	"$${EDITOR:-vi}" /etc/mongo.d/mongobackup.conf
-	"$${EDITOR:-vi}" /etc/cron.d/mongobackup.cron
+install: check
+	@echo "Install sync tool ..."
+	@mkdir -p ${TARGETETCDIR}
+	@cp ${SRC}${CONFIGURE} ${CONFIGURE}
+	@cp ${SRC}${CRONTAB} ${CRONTAB}
+	@cp ${SRC}${BINFILE} ${BINFILE}
+	@cp ${SRC}${BASHCOMPLETION} ${BASHCOMPLETION}
 
 uninstall:
-	@[ "$(whoami)" != "root" ] && exec sudo -- "$0" "$@"
-	rm -f /usr/$(TARGET) /etc/mongo.d/mongobackup.conf /etc/cron.d/mongosync.cron
+	@rm -rf ${CONFIGURE} ${TARGETETCDIR} ${CRONTAB} ${BINFILE} ${BASHCOMPLETION}
 
-.PHONY: clean
+check:
+	@/usr/bin/env python3 ../scripts/check_python_modules.py
+
+
+# TODO complete install on local
+install-local: check $(CONFIGURE_LOCAL) $(CRONTAB_LOCAL)
+	crontab $(CRONTAB_LOCAL)
+
+$(CONFIGURE) $(CRONTAB):
+	@mkdir -p configures
+	@cp src/etc/localdbtools/default.yml configures/default.yml
+	@cp src/etc/cron.d/localdbtool-sync configures/localdbtool-sync
+
+$(CRONTAB_LOCAL): ${CONFIGURE_LOCAL}
+	@echo "* * 3 * * $(PWD)/$(TARGET) sync --config $(PWD)/$(CONFIG)" > $(CRONTAB_LOCAL)
+	"$$[EDITOR]" $(CRONTAB_LOCAL)
+
+${CONFIGURE_LOCAL}:
+
+
 clean:
-	rm -f $(TARGET)
+	@echo "USE 'make uninstall'!"
 
+.PHONY: clean check uninstall
