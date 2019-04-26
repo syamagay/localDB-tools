@@ -1,3 +1,11 @@
+#################################
+# Author: Eunchong Kim
+# Email: eunchong.kim at cern.ch
+# Date: April 2019
+# Project: Local Database for YARR
+# Description: Makefile for archive tool
+#################################
+
 TARGETDIR?=/
 SRC=src
 TARGETETCDIR=/etc/localdbtools

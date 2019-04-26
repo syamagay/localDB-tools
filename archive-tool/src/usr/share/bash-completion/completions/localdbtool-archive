@@ -1,5 +1,11 @@
 #!/bin/bash
-# bash completion for localdbtool-archive.sh
+#################################
+# Author: Eunchong Kim
+# Email: eunchong.kim at cern.ch
+# Date: April 2019
+# Project: Local Database for YARR
+# Description: Bash completion for archive tool
+#################################
 # This makes heavy use of ksh style extended globs and contains Linux specific
 # code for completing the parameter to the -fstype option.
 
@@ -8,21 +14,19 @@ _localdbtool_archive() {
     _get_comp_words_by_ref -n : cur prev cword
   
     if [ "${cword}" -eq 1 ]; then
-        COMPREPLY=( $(compgen -W "-h -f -d -a -n" -- "${cur}") )
-#  elif [ "${cword}" -eq 2 ]; then
-#    if [ "${prev}" = "--config" ]; then
-#      compopt -o filenames
-#      COMPREPLY=( $(compgen -W "--host --port --username --password --mhost --mport --musername --mpassword" -- "${cur}") )
-#    elif [ "${prev}" = "--host" ]; then
-#      compopt -o filenames
-#      COMPREPLY=( $(compgen -f -- "${cur}") )
-#    else
-#      COMPREPLY=( $(compgen -W "--config --host --port --username --password" -- "${cur}") )
-#    fi
-#  elif [ "${cword}" -ge 3 ]; then
-#    COMPREPLY=( $(compgen -W "--config --host --port --username --password --mhost --mport" -- "${cur}") )
+        COMPREPLY=( $(compgen -W "--config --data_path --archive_path --n_archives" -- "${cur}") )
     else
-        COMPREPLY=( $(compgen -W "-h -f -d -a -n" -- "${cur}") )
+        if [ "${prev}" = "--config" ]; then
+            _filedir
+        elif [ "${prev}" = "--data_path" ]; then
+            _filedir
+        elif [ "${prev}" = "--archive_path" ]; then
+            _filedir
+        elif [ "${prev}" = "--n_archives" ]; then
+            COMPREPLY=( $(compgen -W "1 2 3 4 5 6 ... #Insert_#_archives" -- "${cur}") )
+        else
+            COMPREPLY=( $(compgen -W "--data_path --archive_path --n_archives" -- "${cur}") )
+        fi
     fi
 }
 
