@@ -20,3 +20,5 @@ master:
     #port: 27017
     #username: tokyotech
     #password: ihatepassword
+
+dbVersion: 1
