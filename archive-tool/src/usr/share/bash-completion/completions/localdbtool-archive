@@ -1,0 +1,28 @@
+#!/bin/bash
+# bash completion for localdbtool-archive.sh
+# This makes heavy use of ksh style extended globs and contains Linux specific
+# code for completing the parameter to the -fstype option.
+
+_localdbtool_archive() {
+    local cur prev cword
+    _get_comp_words_by_ref -n : cur prev cword
+  
+    if [ "${cword}" -eq 1 ]; then
+        COMPREPLY=( $(compgen -W "-h -f -d -a -n" -- "${cur}") )
+#  elif [ "${cword}" -eq 2 ]; then
+#    if [ "${prev}" = "--config" ]; then
+#      compopt -o filenames
+#      COMPREPLY=( $(compgen -W "--host --port --username --password --mhost --mport --musername --mpassword" -- "${cur}") )
+#    elif [ "${prev}" = "--host" ]; then
+#      compopt -o filenames
+#      COMPREPLY=( $(compgen -f -- "${cur}") )
+#    else
+#      COMPREPLY=( $(compgen -W "--config --host --port --username --password" -- "${cur}") )
+#    fi
+#  elif [ "${cword}" -ge 3 ]; then
+#    COMPREPLY=( $(compgen -W "--config --host --port --username --password --mhost --mport" -- "${cur}") )
+    else
+        COMPREPLY=( $(compgen -W "-h -f -d -a -n" -- "${cur}") )
+    fi
+}
+

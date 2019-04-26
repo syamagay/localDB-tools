@@ -1,0 +1,16 @@
+#################################
+# Author: Eunchong Kim
+# Email: eunchong.kim at cern.ch
+# Date: April 2019
+# Project: Local Database for ITk
+# Description: Configure archive-mongo-data.py
+#################################
+
+# MongoDB database path. Default is /var/lib/mongo
+    db_path: /var/lib/mongo
+
+# Path want to put archives
+    backup_path: /root/archive-mongo-data
+
+# # of archives want to keep
+    narchives: 2
