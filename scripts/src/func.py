@@ -631,13 +631,22 @@ def fill_results():
                                'url'     : url,
                                'filename': data['title'] })
         # Change scheme
-        config = {}
+        afterconfig = {}
         if 'afterCfg' in thisComponentTestRun:
             query = { '_id': ObjectId(thisComponentTestRun['afterCfg']) }
             config_data = yarrdb.config.find_one( query )
             fs.get(ObjectId(config_data['data_id'])).read()
-            config.update({ "filename" : config_data['filename'],
-                            "code"     : config_data['data_id'] })
+            afterconfig.update({ "filename" : config_data['filename'],
+                                 "code"     : config_data['data_id'],
+                                 "configid" : thisComponentTestRun['afterCfg'] })
+        beforeconfig = {}
+        if 'beforeCfg' in thisComponentTestRun:
+            query = { '_id': ObjectId(thisComponentTestRun['beforeCfg']) }
+            config_data = yarrdb.config.find_one( query )
+            fs.get(ObjectId(config_data['data_id'])).read()
+            beforeconfig.update({ "filename" : config_data['filename'],
+                                  "code"     : config_data['data_id'],
+                                  "configid" : thisComponentTestRun['beforeCfg'] })
 
         query = { '_id': ObjectId(thisRun['user_id']) }
         user = yarrdb.user.find_one( query )
@@ -649,7 +658,8 @@ def fill_results():
                          'institution' : user['institution'],
                          'userIdentity': user['userName'],
                          'plots'       : plots,
-                         'config'      : config}) 
+                         'afterconfig' : afterconfig,
+                         'beforeconfig': beforeconfig }) 
 
     return results
 

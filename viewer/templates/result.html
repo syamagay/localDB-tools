@@ -73,13 +73,26 @@
   </div>
 </div>
 
-{% if "filename" in component['results']['config'] %}
+{% if "filename" in component['results']['beforeconfig'] %}
 <h4 style="font-size: 10pt;"><i class="fa fa-file"></i> Config </h4>
 <div class="row align-items-top">
   <div class="col">
-    <a href="{{ url_for('download_config', code=component['results']['config']['code']) }}" target="_brank" rel="noopener noreferrer">
-    <h4 style="font-size: 10pt;"><i class="fa fa-caret-right"></i>{{ component['results']['config']['filename'] }}</h4>
+    <a href="{{ url_for('download_config', code=component['results']['beforeconfig']['code']) }}" target="_brank" rel="noopener noreferrer">
+    <h4 style="font-size: 10pt;"><i class="fa fa-caret-right"></i>before: {{ component['results']['beforeconfig']['filename'] }}</h4>
     </a>
+    ( {{ component['results']['beforeconfig']['configid'] }} )
+  </div>
+</div>
+{% endif %}
+
+{% if "filename" in component['results']['afterconfig'] %}
+<h4 style="font-size: 10pt;"><i class="fa fa-file"></i> Config </h4>
+<div class="row align-items-top">
+  <div class="col">
+    <a href="{{ url_for('download_config', code=component['results']['afterconfig']['code']) }}" target="_brank" rel="noopener noreferrer">
+    <h4 style="font-size: 10pt;"><i class="fa fa-caret-right"></i>after:  {{ component['results']['afterconfig']['filename'] }}</h4>
+    </a>
+    ( {{ component['results']['afterconfig']['configid'] }} )
   </div>
 </div>
 {% endif %}
