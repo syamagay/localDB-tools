@@ -3,26 +3,30 @@
 # Email: eunchong.kim at cern.ch
 # Date: April 2019
 # Project: Local Database for YARR
-# Description: Makefile for sync tool
+# Description: Makefile for archive tool
 #################################
 
+TOOLNAME="LocalDB Tool - Synchronization"
 TARGETDIR?=/
-SRC=src
-TARGETETCDIR=/etc/localdbtools
-CONFIGURE=/etc/localdbtools/default.yml
-CRONTAB=/etc/cron.d/localdbtool-sync
-BINFILE=/usr/bin/localdbtool-sync.py
-BASHCOMPLETION=/usr/share/bash-completion/completions/localdbtool-sync
+SRC=src/
+CONFIGURE=etc/localdbtools/default.yml
+CRONTAB=etc/cron.d/localdbtool-sync
+BINFILE=usr/bin/localdbtool-sync.py
+BASHCOMPLETION=usr/share/bash-completion/completions/localdbtool-sync
 
-CONFIGURE_LOCAL=$(shell pwd)/default-sync.yml
-CRONTAB_LOCAL=$(shell pwd)/crontab-sync
+## DO NOT TOUCH THESE
+CONFIGUREDIR = $(patsubst %/,%,$(dir ${CONFIGURE}))
+CRONTABDIR = $(patsubst %/,%,$(dir ${CRONTAB}))
+BINFILEDIR = $(patsubst %/,%,$(dir ${BINFILE}))
+BASHCOMPLETIONDIR = $(patsubst %/,%,$(dir ${BASHCOMPLETION}))
+
 
 all:
 	@echo "Makefile usage"
 	@echo ""
 	@echo " Configuration is done using environment variable"
 	@echo ""
-	@echo " TARGETDIR defines where to install RPi-Monitor"
+	@echo " TARGETDIR defines where to install ${TOOLNAME}"
 	@echo ""
 	@echo " The current values are:"
 	@echo "  TARGETDIR=${TARGETDIR}"
@@ -33,35 +37,23 @@ all:
 	@echo ""
 
 install: check
-	@echo "Install sync tool ..."
-	@mkdir -p ${TARGETETCDIR}
-	@cp ${SRC}${CONFIGURE} ${CONFIGURE}
-	@cp ${SRC}${CRONTAB} ${CRONTAB}
-	@cp ${SRC}${BINFILE} ${BINFILE}
-	@cp ${SRC}${BASHCOMPLETION} ${BASHCOMPLETION}
+	@echo "Install ${TOOLNAME} ..."
+	@mkdir -p ${TARGETDIR}${CONFIGUREDIR}
+	@cp ${SRC}${CONFIGURE} ${TARGETDIR}${CONFIGURE}
+	@mkdir -p ${TARGETDIR}${CRONTABDIR}
+	@cp ${SRC}${CRONTAB} ${TARGETDIR}${CRONTAB}
+	@mkdir -p ${TARGETDIR}${BINFILEDIR}
+	@cp ${SRC}${BINFILE} ${TARGETDIR}${BINFILE}
+	@mkdir -p ${TARGETDIR}${BASHCOMPLETIONDIR}
+	@cp ${SRC}${BASHCOMPLETION} ${TARGETDIR}${BASHCOMPLETION}
+	@echo "Installation finished, please edit ${TARGETDIR}${CONFIGURE} and ${TARGETDIR}${CRONTAB}"
+	@echo ""
 
 uninstall:
-	@rm -rf ${CONFIGURE} ${TARGETETCDIR} ${CRONTAB} ${BINFILE} ${BASHCOMPLETION}
+	@rm -rf ${TARGETDIR}${CONFIGURE} ${TARGETDIR}${CRONTAB} ${TARGETDIR}${BINFILE} ${TARGETDIR}${BASHCOMPLETION}
 
 check:
 	@/usr/bin/env python3 ../scripts/check_python_modules.py
-
-
-# TODO complete install on local
-install-local: check $(CONFIGURE_LOCAL) $(CRONTAB_LOCAL)
-	crontab $(CRONTAB_LOCAL)
-
-$(CONFIGURE) $(CRONTAB):
-	@mkdir -p configures
-	@cp src/etc/localdbtools/default.yml configures/default.yml
-	@cp src/etc/cron.d/localdbtool-sync configures/localdbtool-sync
-
-$(CRONTAB_LOCAL): ${CONFIGURE_LOCAL}
-	@echo "* * 3 * * $(PWD)/$(TARGET) sync --config $(PWD)/$(CONFIG)" > $(CRONTAB_LOCAL)
-	"$$[EDITOR]" $(CRONTAB_LOCAL)
-
-${CONFIGURE_LOCAL}:
-
 
 clean:
 	@echo "USE 'make uninstall'!"
