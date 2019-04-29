@@ -9,10 +9,10 @@
 TARGETDIR?=/
 SRC=src
 TARGETETCDIR=/etc/localdbtools
-CONFIGURE=/etc/localdbtools/default.yml
+CONFIGURE=/etc/localdbtools/archive.yml
 CRONTAB=/etc/cron.d/localdbtool-archive
-BINFILE=/usr/bin/localdbtool-archive.py
-BASHCOMPLETION=/usr/share/bash-completion/completions/archive-sync
+BINFILE=/usr/bin/localdbtool-archive.sh
+BASHCOMPLETION=/usr/share/bash-completion/completions/localdbtool-archive
 
 #CONFIGURE_LOCAL=$(shell pwd)/default-sync.yml
 #CRONTAB_LOCAL=$(shell pwd)/crontab-sync
