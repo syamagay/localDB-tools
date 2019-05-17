@@ -7,10 +7,10 @@
 #################################
 
 # MongoDB database path. Default is /var/lib/mongo
-    db_path: /var/lib/mongo
+    data_path: /var/lib/mongo
 
 # Path want to put archives
-    backup_path: /root/archive-mongo-data
+    archive_path: /root/archive-mongo-data
 
 # # of archives want to keep
-    narchives: 2
+    n_archives: 2
