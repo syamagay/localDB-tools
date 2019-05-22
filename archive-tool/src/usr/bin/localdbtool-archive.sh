@@ -7,6 +7,19 @@
 # Description: Archive mongo data
 #################################
 
+# Variables for SLACK app
+header="Content-type: application/json"
+url="https://hooks.slack.com/services/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"
+
+message_type="ERROR"
+message="ARCHIVE FAILED!"
+TIME="`date +"%Y-%m-%d %H:%M:%S"`"
+data="{\"text\":\"
+        [$message_type] $message from $HOSTNAME
+        TIME: $TIME
+    \"}"
+
+
 function usage() {
     echo -e "Usage) ./bin/localdbtool-archive.sh --config <...>"
     echo -e "\t-h -help"
@@ -85,7 +98,14 @@ fi
 
 mkdir -p $archive_path
 
-tar zcvf ${archive_path}/mongo_`date +%y%m%d_%H%M%S`.tar.gz ${data_path}
+tar zcvf ${archive_path}/mongo_`date +%y%m%d_%H%M%S`.tar.gz ${data_path} \
+    && (echo -e "$TIME, succeed" >> /var/log/localdbtool-archive.log) \
+    || (curl -X POST -H "$header" --data "$data" $url \
+        && echo -e "$RED $message_type $NC $message" \
+        && echo -e "$TIME, $message_type $message" >> /var/log/localdbtool-archive.log \
+        && exit 1
+    )
+
 
 # Delete over numbers of archives
 nn=$(echo $n_archives+1 | bc)
