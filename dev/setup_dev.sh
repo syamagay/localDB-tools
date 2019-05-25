@@ -8,4 +8,5 @@
 #################################
 
 echo -e "Setup for local DB tools dev"
-export PYTHONPATH="$PWD/imports:$PYTHONPATH"
+export PYTHONPATH="$PWD"
+#export PYTHONPATH="$PWD/imports:$PYTHONPATH"

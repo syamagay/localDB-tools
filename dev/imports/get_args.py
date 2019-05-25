@@ -34,6 +34,7 @@ def getArgs():
     parser.add_argument("--musername", help="Master Server User Name", type=str)
     parser.add_argument("--mpassword", help="Master Server User Password", type=str)
     parser.add_argument("--dbVersion", "-d", help="DB Version", type=float, default="1.")
+    parser.add_argument("--sync-opt", help="Synchronization option", type=str)
     args = parser.parse_args()
 
     #if args.menu[0] not in menus: # Check menu
@@ -43,12 +44,16 @@ def getArgs():
     # Overwrite arguments from config file
     if args.config is not None:
         conf = readConfig(args.config)    # Read from config file
-        if "host" in conf["mongoDB"]:       args.host = conf["mongoDB"]["host"]
-        if "port" in conf["mongoDB"]:       args.port = conf["mongoDB"]["port"]
-        if "username" in conf["mongoDB"]:   args.username = conf["mongoDB"]["username"]
-        if "password" in conf["mongoDB"]:   args.password = conf["mongoDB"]["password"]
-        if "host" in conf["flask"]:         args.fhost = conf["flask"]["host"]
-        if "port" in conf["flask"]:         args.fport = conf["flask"]["port"]
-        if "dbv" in conf["sw"]:             args.dbv = conf["sw"]["dbv"]
+        if "local" in conf:
+            if "host" in conf["local"]:         args.host = conf["local"]["host"]
+            if "port" in conf["local"]:         args.port = conf["local"]["port"]
+            if "username" in conf["local"]:     args.username = conf["local"]["username"]
+            if "password" in conf["local"]:     args.password = conf["local"]["password"]
+        if "master" in conf:
+            if "host" in conf["master"]:        args.mhost = conf["master"]["host"]
+            if "port" in conf["master"]:        args.mport = conf["master"]["port"]
+            if "username" in conf["master"]:    args.musername = conf["master"]["username"]
+            if "password" in conf["master"]:    args.mpassword = conf["master"]["password"]
+        if "dbVersion" in conf:                 args.dbVersion = conf["dbVersion"]
 
     return args

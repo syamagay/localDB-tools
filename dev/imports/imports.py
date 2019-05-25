@@ -29,9 +29,9 @@ import pprint
 # Sticky
 #sys.path.append(os.getcwd())
 
-# imports
-from get_args import getArgs
-from progress_bar import printProgressBar
-from query_yes_no import queryYesNo
+# modules in imports
+from imports.get_args import getArgs #
+from imports.progress_bar import printProgressBar #
+from imports.query_yes_no import queryYesNo #
 
 TOOLNAME = "[LocalDB Tool] "
