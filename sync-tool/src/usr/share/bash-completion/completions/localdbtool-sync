@@ -12,7 +12,7 @@
 _localdbtool_sync() {
     local cur prev cword
     _get_comp_words_by_ref -n : cur prev cword
-  
+
     if [ "${cword}" -eq 1 ]; then
         COMPREPLY=( $(compgen -W "--config --host --port --username --password --mhost --mport --musername --mpassword" -- "${cur}") )
     elif [ "${cword}" -eq 2 ]; then
@@ -22,5 +22,12 @@ _localdbtool_sync() {
         else
             COMPREPLY=( $(compgen -W "--host --port --username --password --mhost --mport --musername --mpassword" -- "${cur}") )
         fi
+    elif [ "${cword}" -eq 3 ]; then
+        if [ "${prev}" = "--sync-opt" ]; then
+            COMPREPLY=( $(compgen -W "commit push fetch pull" -- "${cur}") )
+        else
+            COMPREPLY=( $(compgen -W "--host --port --username --password --mhost --mport --musername --mpassword" -- "${cur}") )
+        fi
     fi
 }
+complete -F _localdbtool_sync localdbtool-sync.py

@@ -16,9 +16,10 @@ local:
 
 # master is the server where to synchronize the data
 master:
-    #host: 127.0.0.1
-    #port: 27017
+    host: master-host
+    port: 27017
     #username: tokyotech
     #password: ihatepassword
 
+# Other
 dbVersion: 1
