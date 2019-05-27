@@ -45,15 +45,15 @@ while [ ! -z $1 ]; do
             config_path=$2
             shift
             ;;
-        -a | --archive_path)
-            archive_path=$2
-            shift
-            ;;
-        -d | --data_path)
+        -d | --data-path)
             data_path=$2
             shift
             ;;
-        -n | --n_archives)
+        -a | --archive-path)
+            archive_path=$2
+            shift
+            ;;
+        -n | --n-archives)
             n_archives=$2
             shift
             ;;
@@ -99,8 +99,8 @@ fi
 mkdir -p $archive_path
 
 tar zcvf ${archive_path}/mongo_`date +%y%m%d_%H%M%S`.tar.gz ${data_path} \
-    && (echo -e "$TIME, succeed" >> /var/log/localdbtool-archive.log) \
-    || (curl -X POST -H "$header" --data "$data" $url \
+    && (echo $? && echo -e "$TIME, succeed" >> /var/log/localdbtool-archive.log) \
+    || (echo $? && curl -X POST -H "$header" --data "$data" $url \
         && echo -e "$RED $message_type $NC $message" \
         && echo -e "$TIME, $message_type $message" >> /var/log/localdbtool-archive.log \
         && exit 1
