@@ -632,7 +632,7 @@ def fill_results():
                                'filename': data['title'] })
         # Change scheme
         afterconfig = {}
-        if 'afterCfg' in thisComponentTestRun:
+        if not thisComponentTestRun.get('afterCfg','...')=='...':
             query = { '_id': ObjectId(thisComponentTestRun['afterCfg']) }
             config_data = yarrdb.config.find_one( query )
             fs.get(ObjectId(config_data['data_id'])).read()
@@ -640,7 +640,7 @@ def fill_results():
                                  "code"     : config_data['data_id'],
                                  "configid" : thisComponentTestRun['afterCfg'] })
         beforeconfig = {}
-        if 'beforeCfg' in thisComponentTestRun:
+        if not thisComponentTestRun.get('beforeCfg','...')=='...':
             query = { '_id': ObjectId(thisComponentTestRun['beforeCfg']) }
             config_data = yarrdb.config.find_one( query )
             fs.get(ObjectId(config_data['data_id'])).read()
@@ -814,7 +814,6 @@ def fill_roots():
 
     results = []
     for mapType in thisRun.get('plots',[]):
-        print( session['plotList'] )
         if not session['plotList'][mapType].get('HistoType') == 2: continue
         url = {} 
         for i in ['1', '2']:
