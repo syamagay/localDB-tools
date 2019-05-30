@@ -17,9 +17,9 @@ args = getArgs()
 if args.username : url = 'mongodb://' + args.username + ':' + args.password + '@' + args.host + ':' + str(args.port) 
 else :             url = 'mongodb://'                                             + args.host + ':' + str(args.port) 
 client = MongoClient( url )
-yarrdb = client[args.db]
+localdb = client[args.db]
 copydb = client['{}_copy'.format(args.db)]
-fs = gridfs.GridFS( yarrdb )
+fs = gridfs.GridFS( localdb )
 dbv = args.version
 olddbv = args.oldversion
 
@@ -80,7 +80,7 @@ def write_log( text ):
     log_file.write( datetime.datetime.now().strftime( '%Y-%m-%dT%H:%M:%S {}\n'.format(text) ) )
 
 def update_mod(collection, query):
-    entries = yarrdb[collection].find( query )
+    entries = localdb[collection].find( query )
     timestamp = datetime.datetime.utcnow()
     for entry in entries:
         query = { '_id': entry['_id'] }
@@ -88,8 +88,8 @@ def update_mod(collection, query):
             rev = entry['sys']['rev']+1
         else:
             rev = 0
-            yarrdb[collection].update( query, { '$set': { 'sys': { 'cts': timestamp } }})
-        yarrdb[collection].update(query, 
+            localdb[collection].update( query, { '$set': { 'sys': { 'cts': timestamp } }})
+        localdb[collection].update(query, 
             { 
                 '$set': { 
                     'sys.rev'  : int(rev), 
@@ -99,7 +99,7 @@ def update_mod(collection, query):
         ) 
 
 def update_ver(collection, query, ver):
-    yarrdb[collection].update( query, { '$set': { 'dbVersion': ver }}, multi=True )
+    localdb[collection].update( query, { '$set': { 'dbVersion': ver }}, multi=True )
 
 def is_png(b):
     return bool(re.match(br"^\x89\x50\x4e\x47\x0d\x0a\x1a\x0a", b[:8]))
@@ -128,7 +128,7 @@ print( '# This is the stage of step3. Confirm' )
 print( '# It must be run after step2. Convert' )
 print( ' ' )
 query = { 'dbVersion': dbv }
-if yarrdb.component.find( query ).count() == 0:
+if localdb.component.find( query ).count() == 0:
     print( '# There are no component with "dbVersion: {0}" in DB : {1}.'.format(dbv, args.db) )
     print( '# Conversion might not have been finished.' )
     print( '# Run "python convert.py --config ../../conf.yml" to convert the scheme of DB.' )
@@ -154,23 +154,23 @@ if answer == 'y' :
         write_log( '[Confirmation] component' )
         write_log( '[Start]' )
         query = { 'componentType': { '$ne': 'Module' } }
-        chip_entries = yarrdb.component.find( query )
+        chip_entries = localdb.component.find( query )
         chipIds = []
         for chip in chip_entries:
             chipIds.append( str(chip['_id']) )
         for chipId in chipIds:
             query = { 'child': chipId }
-            child_entries = yarrdb.childParentRelation.find( query )
+            child_entries = localdb.childParentRelation.find( query )
             if child_entries.count() > 1:
                 parents = []
                 for cpr in child_entries:
                     query = { '_id': ObjectId(cpr['parent']) }
-                    thisModule = yarrdb.component.find_one( query )
+                    thisModule = localdb.component.find_one( query )
                     parents.append({ 'serialNumber': thisModule['serialNumber'], 'children': thisModule['children'], '_id': cpr['parent'] })
                 final_answer = ''
                 while final_answer == '':
                     query = { '_id': ObjectId(chipId) }
-                    thisChip = yarrdb.component.find_one( query )
+                    thisChip = localdb.component.find_one( query )
                     print( '# The chip {} has more than one parent module'.format(thisChip['serialNumber']) )
                     print( '# Select one from the list.' )
                     print( ' ' )
@@ -207,57 +207,57 @@ if answer == 'y' :
                     for parent in parents:
                         if not parents.index(parent) == parent_num:
                             query = { 'component': parent['_id'] }
-                            run_entries = yarrdb.componentTestRun.find( query )
+                            run_entries = localdb.componentTestRun.find( query )
                             for run in run_entries:
                                 query = { 'component': parent_id, 'testRun': run['testRun'] }
-                                if not yarrdb.componentTestRun.find( query ):
+                                if not localdb.componentTestRun.find( query ):
                                     query = { '_id': run['_id'] }
-                                    yarrdb.componentTestRun.update( query, 
+                                    localdb.componentTestRun.update( query, 
                                                                     { '$set': { 'component': parent_id } }) #UPDATE
                                     update_mod( 'componentTestRun', query ) #UPDATE
                                     write_log( '\t\t[Update] {0:<7}: {1:<20} -> {2:<20}'.format(run['runNumber'], parent['serialNumber'], parents[parent_num]['serialNumber']) )
                                 else:
                                     if 'attachments' in run:
                                         query = { '_id': run['_id'] }
-                                        yarrdb.componentTestRun.update( query, 
+                                        localdb.componentTestRun.update( query, 
                                                                         { '$set': { 'component': parent_id } }) #UPDATE
                                         update_mod( 'componentTestRun', query ) #UPDATE
                                         write_log( '\t\t[Update] {0:<7}: {1:<20} -> {2:<20}'.format(run['runNumber'], parent['serialNumber'], parents[parent_num]['serialNumber']) )
                                     else:
                                         query = { '_id': run['_id'] }
-                                        yarrdb.componentTestRun.remove( query )
+                                        localdb.componentTestRun.remove( query )
                                         write_log( '\t\t[Remove] {0:<7}: {1:<20}'.format(run['runNumber'], parent['serialNumber']) )
                             query = { 'parent': parent['_id'] }
-                            child_entries = yarrdb.childParentRelation.find( query )
+                            child_entries = localdb.childParentRelation.find( query )
                             for child in child_entries:
                                 query = { '_id': ObjectId(child['child']) }
-                                thisChip = yarrdb.component.find_one( query )
+                                thisChip = localdb.component.find_one( query )
                                 query = { 'parent': parent_id, 'child': child['child'] }
-                                if yarrdb.childParentRelation.find_one( query ):
+                                if localdb.childParentRelation.find_one( query ):
                                     query = { '_id': child['_id'] }
-                                    yarrdb.childParentRelation.remove( query )
+                                    localdb.childParentRelation.remove( query )
                                     write_log( '\t\t[Remove] {0:<20} - {1:<20}'.format( thisChip['serialNumber'], parent['serialNumber']) )
                                 else:
                                     query = { '_id': child['_id'] }
-                                    yarrdb.childParentRelation.update( query,
+                                    localdb.childParentRelation.update( query,
                                                                        { '$set': { 'parent': parent_id }})
                                     write_log( '\t\t[Update] {0:<20} - {1:<20} -> {2:<20}'.format(thisChip['serialNumber'], parent['serialNumber'], parents[parent_num]['serialNumber']) )
                             query = { '_id': ObjectId(parent['_id']) }
-                            yarrdb.component.remove( query ) 
+                            localdb.component.remove( query ) 
                             write_log( '\t\t[Remove] {0:<20}'.format(parent['serialNumber']) )
         
                     query = { 'parent': parent_id }
-                    yarrdb.childParentRelation.update( query,
+                    localdb.childParentRelation.update( query,
                                                        { '$set': { 'status': 'active' }},
                                                        multi=True )
                     update_ver( 'childParentRelation', query, dbv ) #UPDATE
                     update_mod( 'childParentRelation', query ) #UPDATE
                     write_log( '\t\t[Update] {0:<20} - {1:<20}'.format(thisChip['serialNumber'], parents[parent_num]['serialNumber']) )
-                    children = yarrdb.childParentRelation.find( query ).count()
+                    children = localdb.childParentRelation.find( query ).count()
                     query = { '_id': ObjectId(parent_id) } 
-                    thisModule = yarrdb.component.find_one( query )
+                    thisModule = localdb.component.find_one( query )
                     if not thisModule['children'] == children:
-                        yarrdb.component.update( query,
+                        localdb.component.update( query,
                                                  { '$set': { 'children': children }} )
                     update_ver( 'component', query, dbv ) #UPDATE
                     update_mod( 'component', query ) #UPDATE
@@ -268,23 +268,23 @@ if answer == 'y' :
         
             if child_entries.count() == 0:
                 query = { '_id': ObjectId(chipId) }
-                thisChip = yarrdb.component.find_one( query )
+                thisChip = localdb.component.find_one( query )
                 query = { '_id': ObjectId(chipId) }
-                yarrdb.component.remove( query )
+                localdb.component.remove( query )
                 write_log( '[Not found/Delete] relational documents (run/cpr): {}'.format( thisChip['serialNumber'] ) )
         query = { 'componentType': 'Module' }
-        module_entries = yarrdb.component.find( query )
+        module_entries = localdb.component.find( query )
         moduleIds = []
         for module in module_entries:
             moduleIds.append( str(module['_id']) )
         for moduleId in moduleIds:
             query = { 'parent': moduleId }
-            child_entries = yarrdb.childParentRelation.find( query )
+            child_entries = localdb.childParentRelation.find( query )
             if child_entries.count() == 0:
                 query = { '_id': ObjectId(moduleId) }
-                thisModule = yarrdb.component.find_one( query )
+                thisModule = localdb.component.find_one( query )
                 query = { '_id': ObjectId(moduleId) }
-                yarrdb.component.remove( query )
+                localdb.component.remove( query )
                 write_log( '[Not found/Delete] relational documents (run/cpr): {}'.format( thisModule['serialNumber'] ) )
         write_log( '[Finish]' )
         print( '# Finish' )
@@ -297,24 +297,24 @@ if answer == 'y' :
         write_log( '================================================================' )
         write_log( '[Confirmation] stage' )
         write_log( '[Start]' )
-        runs = yarrdb.testRun.find()
+        runs = localdb.testRun.find()
         runIds = []
         for run in runs:
             runIds.append(str(run['_id']))
         stages = {}
         for runId in runIds:
             query = { '_id': ObjectId(runId) }
-            thisRun = yarrdb.testRun.find_one( query )
+            thisRun = localdb.testRun.find_one( query )
             stage = thisRun.get('stage', 'null')
             if stage in file_stages: continue
             write_log( '\t\t{0:^7}: {1:^20}'.format(thisRun['runNumber'], stage) )
             if not stage in stages:
                 stages.update({ stage: {} })
             query = { 'testRun': runId }
-            component_entries = yarrdb.componentTestRun.find( query )
+            component_entries = localdb.componentTestRun.find( query )
             for component in component_entries:
                 query = { 'componentType': 'Module', '_id': ObjectId(component['component']) }
-                thisComponent = yarrdb.component.find_one( query )
+                thisComponent = localdb.component.find_one( query )
                 if thisComponent:
                     if not thisComponent['serialNumber'] in stages[stage]:
                         stages[stage].update({ thisComponent['serialNumber']: { 'first': thisRun['startTime'], 'last': thisRun['startTime'] }})
@@ -376,13 +376,13 @@ if answer == 'y' :
                 write_log( '\t\t[Start]' )
                 for runId in runIds:
                     query = { '_id': ObjectId(runId) }
-                    thisRun = yarrdb.testRun.find_one( query )
+                    thisRun = localdb.testRun.find_one( query )
                     stage = thisRun.get('stage', 'null')
                     if stage in file_stages: continue
                     if stages[stage] == 'unknown': continue
                     user = thisRun['user_id']
-                    yarrdb.testRun.update( query, { '$push': { 'comments': { 'user_id': user, 'comment': 'The stage neme registered before is "{}"'.format(stage) }}})
-                    yarrdb.testRun.update( query, { '$set': { 'stage': stages[stage] }}) #UPDATE
+                    localdb.testRun.update( query, { '$push': { 'comments': { 'user_id': user, 'comment': 'The stage neme registered before is "{}"'.format(stage) }}})
+                    localdb.testRun.update( query, { '$set': { 'stage': stages[stage] }}) #UPDATE
                     update_mod( 'testRun', query ) #UPDATE
                     write_log( '\t\t[Update] {0:<7}: {1:<20} -> {2:<20}'.format(thisRun['runNumber'], stage, stages[stage]) )
                 write_log( '\t\t[Finish]' )
@@ -392,7 +392,7 @@ if answer == 'y' :
                 write_log( '\t\t[Start]' ) 
                 for runId in runIds:
                     query = { '_id': ObjectId(runId) }
-                    thisRun = yarrdb.testRun.find_one( query )
+                    thisRun = localdb.testRun.find_one( query )
                     stage = thisRun.get('stage','null')
                     if stage in file_stages: continue
                     write_log( '\t\t\t\t{0:^7}: {1:^20}'.format(thisRun['runNumber'], stage) )
@@ -422,7 +422,7 @@ if answer == 'y' :
         write_log( '[Confirmation] environment' )
         write_log( '[Start]' )
         
-        environments = yarrdb.environment.find()
+        environments = localdb.environment.find()
         envIds = []
         for env in environments:
             envIds.append(str(env['_id']))
@@ -432,9 +432,9 @@ if answer == 'y' :
             env_query = { '_id': ObjectId(envId),
                           'type': 'data' }
             cut_query = { 'sys': 0, 'type': 0, 'dbVersion': 0, '_id': 0 }
-            thisEnv = yarrdb.environment.find_one( env_query, cut_query )
+            thisEnv = localdb.environment.find_one( env_query, cut_query )
             query = { 'environment': envId }
-            thisRun = yarrdb.testRun.find_one( query )
+            thisRun = localdb.testRun.find_one( query )
             for env_key in thisEnv:
                 for data in thisEnv[env_key]:
                     description = data.get('description', 'null')
@@ -453,7 +453,7 @@ if answer == 'y' :
                             print( ' ' )
                             continue
                         description = answer
-                        yarrdb.environment.update( env_query,
+                        localdb.environment.update( env_query,
                                                    { '$set': { '{0}.0.description'.format(env_key): description }})
                         update_mod( 'environment', env_query ) #UPDATE
                         write_log( '\t\t[Update] {0:<7}: {1:<20} {2:<23}'.format(thisRun['runNumber'], env_key, description) )
@@ -514,19 +514,19 @@ if answer == 'y' :
                 for envId in envIds:
                     env_query = { '_id': ObjectId(envId), 'type': 'data' }
                     cut_query = { 'sys': 0, 'type': 0, 'dbVersion': 0, '_id': 0 }
-                    thisEnv = yarrdb.environment.find_one( env_query, cut_query )
+                    thisEnv = localdb.environment.find_one( env_query, cut_query )
                     for env_key in thisEnv:
                         if env_key in file_dcs: continue
                         if keys[env_key] == 'unknown': continue
                         env_dict = thisEnv[env_key][0]
-                        yarrdb.environment.update( env_query,
+                        localdb.environment.update( env_query,
                                                    { '$push': { keys[env_key]: env_dict }})
-                        yarrdb.environment.update( env_query,
+                        localdb.environment.update( env_query,
                                                    { '$unset': { env_key: '' }})
                         query = { 'environment': envId }
-                        thisRun = yarrdb.testRun.find_one( query )
+                        thisRun = localdb.testRun.find_one( query )
                         user = thisRun['user_id']
-                        yarrdb.testRun.update( query, { '$push': { 'comments': { 'user_id': user, 'comment': 'The environmental key registered before is "{}"'.format(env_key) }}})
+                        localdb.testRun.update( query, { '$push': { 'comments': { 'user_id': user, 'comment': 'The environmental key registered before is "{}"'.format(env_key) }}})
                         update_mod( 'environment', env_query ) #UPDATE
                         write_log( '\t\t[Update] {0:<7}: {1:<20} -> {2:<20}'.format(thisRun['runNumber'], env_key, keys[env_key]) )
                 mistake = False
@@ -537,9 +537,9 @@ if answer == 'y' :
                     env_query = { '_id': ObjectId(envId),
                               'type': 'data' }
                     cut_query = { 'sys': 0, 'type': 0, 'dbVersion': 0, '_id': 0 }
-                    thisEnv = yarrdb.environment.find_one( env_query, cut_query )
+                    thisEnv = localdb.environment.find_one( env_query, cut_query )
                     query = { 'environment': envId }
-                    thisRun = yarrdb.testRun.find_one( query )
+                    thisRun = localdb.testRun.find_one( query )
                     for env_key in thisEnv:
                         for data in thisEnv[env_key]:
                             description = data.get('description', 'null')
@@ -566,15 +566,15 @@ if answer == 'y' :
         print( '# Checking test data ...' )
         print( ' ' )
         query = { 'dbVersion': { '$ne': dbv } }
-        run_entries = yarrdb.testRun.find( query )
+        run_entries = localdb.testRun.find( query )
         write_log( '================================================================' )
         write_log( '[Confirmation] test run data' )
         write_log( '[Start]' )
         for run in run_entries:
             query = { 'testRun': str(run['_id']) }
-            if yarrdb.componentTestRun.find( query ).count() == 0:
+            if localdb.componentTestRun.find( query ).count() == 0:
                 query = { '_id': run['_id'] }
-                yarrdb.testRun.remove( query )
+                localdb.testRun.remove( query )
                 write_log( '[Not found/Delete] relational documents : {}'.format( run['runNumber'] ) )
         write_log( '[Finish]' )
         print( '# Finish' )
@@ -587,7 +587,7 @@ if answer == 'y' :
         print( '# Checking broken data ...' )
         print( ' ' )
         query = { 'dbVersion': { '$ne': dbv } }
-        run_entries = yarrdb.componentTestRun.find( query )
+        run_entries = localdb.componentTestRun.find( query )
         write_log( '================================================================' )
         write_log( '[Confirmation] broken files' )
         write_log( '[Start]' )
@@ -601,12 +601,12 @@ if answer == 'y' :
             for data in broken_data:
                 bin_data = fs.get( ObjectId( data['code'] )).read()
                 query = { '_id': ObjectId( data['code'] ) }
-                thisFile = yarrdb.fs.files.find_one( query )
+                thisFile = localdb.fs.files.find_one( query )
                 if not bin_data:
                     write_log( '\t\t[Not found/Delete] chunks data {0}_{1}: '.format(runNumber, thisFile['filename']) )
                     fs.delete( ObjectId(data['code']) )
                     query = { '_id': run['_id'] }
-                    yarrdb.componentTestRun.update( query, { '$pull': { 'broken': { 'code': data['code'] }}} )
+                    localdb.componentTestRun.update( query, { '$pull': { 'broken': { 'code': data['code'] }}} )
                     num = num + 1
                 else:
                     if is_png( bin_data ):
@@ -629,14 +629,14 @@ if answer == 'y' :
                         fin.close()
                     fs.delete( ObjectId(data['code']) )
                     query = { '_id': run['_id'] }
-                    yarrdb.componentTestRun.update( query, { '$pull': { 'broken': { 'code': data['code'] }}} )
+                    localdb.componentTestRun.update( query, { '$pull': { 'broken': { 'code': data['code'] }}} )
                     num = num + 1
         
             if broken_num == num:
                 query = { '_id': run['_id'] }
-                yarrdb.componentTestRun.update( query,
+                localdb.componentTestRun.update( query,
                                                 { '$unset': { 'broken' : '' }} )
-                yarrdb.componentTestRun.update( query,
+                localdb.componentTestRun.update( query,
                                                 { '$set': { 'dbVersion' : dbv }} )
                 write_log( '\t\t[Update] componentTestRun doc: ' + str(run['_id']) )
             else:
@@ -651,7 +651,7 @@ if answer == 'y' :
         print( '# Checking fs.files ...' )
         print( ' ' )
         query = { 'dbVersion': { '$ne': dbv } }
-        file_entries = yarrdb.fs.files.find( query )
+        file_entries = localdb.fs.files.find( query )
         file_num = file_entries.count()
         num = 0
         write_log( '================================================================' )
@@ -689,7 +689,7 @@ if answer == 'y' :
         print( '# Checking fs.chunks ...' )
         print( ' ' )
         query = { 'dbVersion': { '$ne': dbv } }
-        chunk_entries = yarrdb.fs.chunks.find( query )
+        chunk_entries = localdb.fs.chunks.find( query )
         chunk_num = chunk_entries.count()
         num = 0
         write_log( '================================================================' )
@@ -698,7 +698,7 @@ if answer == 'y' :
         write_log( 'Number Of Unupdated Data: {}'.format(chunk_num) )
         for chunks in chunk_entries:
             query = { '_id': chunks['files_id'] }
-            thisFile = yarrdb.fs.files.find_one( query )
+            thisFile = localdb.fs.files.find_one( query )
             bin_data = chunks['data']
             if thisFile:
                 if is_png( bin_data ): 
@@ -721,7 +721,7 @@ if answer == 'y' :
             else:
                 write_log( '[Not found/Delete] files data' )
                 query = { '_id': chunks['_id'] }
-                yarrdb.fs.chunks.remove( query )
+                localdb.fs.chunks.remove( query )
         print( '# Finish' )
         print( ' ' )
         
@@ -729,68 +729,68 @@ if answer == 'y' :
         confirmation = True
         print( '# Checking every collection ...' )
         print( ' ' )
-        cols = yarrdb.collection_names()
+        cols = localdb.collection_names()
         write_log( '================================================================' )
         write_log( '[Confirmation] unupdated document' )
         write_log( '[Start]' )
         # component
         col = 'component'
         write_log( 'Collection: {}'.format(col) )
-        write_log( '\t\tUnupdated documents: {0}'.format(yarrdb[col].find({ 'dbVersion': { '$ne': dbv } }).count()) )
-        if not yarrdb[col].find({ 'dbVersion': { '$ne': dbv } }).count() == 0: confirmation = False
+        write_log( '\t\tUnupdated documents: {0}'.format(localdb[col].find({ 'dbVersion': { '$ne': dbv } }).count()) )
+        if not localdb[col].find({ 'dbVersion': { '$ne': dbv } }).count() == 0: confirmation = False
         write_log( '\t\t{0:<15}: {1:^10} ---> {2:^10} {3:^6}'.format( 'Keyword', 'old (copy)', 'new (orig)', 'status' ))
-        write_log( '\t\t{0:<15}: {1:^10} ---> {2:^10} {3:^6}'.format( 'Document', copydb[col].find().count(), yarrdb[col].find().count(), copydb[col].find().count()==yarrdb[col].find().count() ))
+        write_log( '\t\t{0:<15}: {1:^10} ---> {2:^10} {3:^6}'.format( 'Document', copydb[col].find().count(), localdb[col].find().count(), copydb[col].find().count()==localdb[col].find().count() ))
         query = { 'componentType': 'Module' }
-        write_log( '\t\t{0:<15}: {1:^10} ---> {2:^10} {3:^6}'.format( 'Module', copydb[col].find( query ).count(), yarrdb[col].find( query ).count(), copydb[col].find( query ).count()==yarrdb[col].find( query ).count() ))
+        write_log( '\t\t{0:<15}: {1:^10} ---> {2:^10} {3:^6}'.format( 'Module', copydb[col].find( query ).count(), localdb[col].find( query ).count(), copydb[col].find( query ).count()==localdb[col].find( query ).count() ))
         query = { 'componentType': { '$ne': 'Module' } }
-        write_log( '\t\t{0:<15}: {1:^10} ---> {2:^10} {3:^6}'.format( 'Chip', copydb[col].find( query ).count(), yarrdb[col].find( query ).count(), copydb[col].find( query ).count()==yarrdb[col].find( query ).count() ))
+        write_log( '\t\t{0:<15}: {1:^10} ---> {2:^10} {3:^6}'.format( 'Chip', copydb[col].find( query ).count(), localdb[col].find( query ).count(), copydb[col].find( query ).count()==localdb[col].find( query ).count() ))
         old_query = { 'componentType': 'FE-I4B' }
         new_query = { 'chipType': 'FE-I4B', 'componentType': { '$ne': 'Module' } }
-        write_log( '\t\t{0:<15}: {1:^10} ---> {2:^10} {3:^6}'.format( 'FE-I4B', copydb[col].find( old_query ).count(), yarrdb[col].find( new_query ).count(), copydb[col].find(old_query).count()==yarrdb[col].find(new_query).count() ))
+        write_log( '\t\t{0:<15}: {1:^10} ---> {2:^10} {3:^6}'.format( 'FE-I4B', copydb[col].find( old_query ).count(), localdb[col].find( new_query ).count(), copydb[col].find(old_query).count()==localdb[col].find(new_query).count() ))
         old_query = { 'componentType': 'RD53A' }
         new_query = { 'chipType': 'RD53A', 'componentType': { '$ne': 'Module' } }
-        write_log( '\t\t{0:<15}: {1:^10} ---> {2:^10} {3:^6}'.format( 'RD53A', copydb[col].find( old_query ).count(), yarrdb[col].find( new_query ).count(), copydb[col].find(old_query).count()==yarrdb[col].find(new_query).count() ))
+        write_log( '\t\t{0:<15}: {1:^10} ---> {2:^10} {3:^6}'.format( 'RD53A', copydb[col].find( old_query ).count(), localdb[col].find( new_query ).count(), copydb[col].find(old_query).count()==localdb[col].find(new_query).count() ))
         write_log( '----------------------------------------------------------------' )
         
         # childParentRelation
         col = 'childParentRelation'
         write_log( 'Collection: {}'.format(col) )
-        write_log( '\t\tUnupdated documents: {0}'.format(yarrdb[col].find({ 'dbVersion': { '$ne': dbv } }).count()) )
-        if not yarrdb[col].find({ 'dbVersion': { '$ne': dbv } }).count() == 0: confirmation = False
+        write_log( '\t\tUnupdated documents: {0}'.format(localdb[col].find({ 'dbVersion': { '$ne': dbv } }).count()) )
+        if not localdb[col].find({ 'dbVersion': { '$ne': dbv } }).count() == 0: confirmation = False
         write_log( '\t\t{0:<15}: {1:^10} ---> {2:^10} {3:^6}'.format( 'Keyword', 'old (copy)', 'new (orig)', 'status' ))
-        write_log( '\t\t{0:<15}: {1:^10} ---> {2:^10} {3:^6}'.format( 'Document', copydb[col].find().count(), yarrdb[col].find().count(), copydb[col].find().count()==yarrdb[col].find().count() ))
+        write_log( '\t\t{0:<15}: {1:^10} ---> {2:^10} {3:^6}'.format( 'Document', copydb[col].find().count(), localdb[col].find().count(), copydb[col].find().count()==localdb[col].find().count() ))
         query = { 'status': 'active' }
-        write_log( '\t\t{0:<15}: {1:^10} ---> {2:^10} {3:^6}'.format( 'Active', copydb[col].find().count(), yarrdb[col].find( query ).count(), copydb[col].find().count()==yarrdb[col].find( query ).count() ))
+        write_log( '\t\t{0:<15}: {1:^10} ---> {2:^10} {3:^6}'.format( 'Active', copydb[col].find().count(), localdb[col].find( query ).count(), copydb[col].find().count()==localdb[col].find( query ).count() ))
         write_log( '----------------------------------------------------------------' )
         
         # componentTestRun
         col = 'componentTestRun'
         write_log( 'Collection: {}'.format(col) )
-        write_log( '\t\tUnupdated documents: {0}'.format(yarrdb[col].find({ 'dbVersion': { '$ne': dbv } }).count()) )
-        if not yarrdb[col].find({ 'dbVersion': { '$ne': dbv } }).count() == 0: confirmation = False
+        write_log( '\t\tUnupdated documents: {0}'.format(localdb[col].find({ 'dbVersion': { '$ne': dbv } }).count()) )
+        if not localdb[col].find({ 'dbVersion': { '$ne': dbv } }).count() == 0: confirmation = False
         write_log( '\t\t{0:<35}: {1:^10} ---> {2:^10} {3:^6}'.format( 'Keyword', 'old (copy)', 'new (orig)', 'status' ))
-        write_log( '\t\t{0:<35}: {1:^10} ---> {2:^10} {3:^6}'.format( 'Document', copydb[col].find().count(), yarrdb[col].find().count(), '---' ))
-        component_entries = yarrdb.component.find()
+        write_log( '\t\t{0:<35}: {1:^10} ---> {2:^10} {3:^6}'.format( 'Document', copydb[col].find().count(), localdb[col].find().count(), '---' ))
+        component_entries = localdb.component.find()
         componentIds = []
         for component in component_entries:
             componentIds.append( str(component['_id']) )
         for componentId in componentIds:
             query = { '_id': ObjectId(componentId) }
-            thisComponent = yarrdb.component.find_one( query )
+            thisComponent = localdb.component.find_one( query )
             query = { 'component': componentId }
             if thisComponent['componentType'] == 'Module':
-                write_log( '\t\tscan entries ({0:^20}): {1:^10} ---> {2:^10} {3:^6}'.format( thisComponent['serialNumber'], copydb[col].find( query ).count(), yarrdb[col].find( query ).count(), '---' ))
+                write_log( '\t\tscan entries ({0:^20}): {1:^10} ---> {2:^10} {3:^6}'.format( thisComponent['serialNumber'], copydb[col].find( query ).count(), localdb[col].find( query ).count(), '---' ))
             else:
-                write_log( '\t\tscan entries ({0:^20}): {1:^10} ---> {2:^10} {3:^6}'.format( thisComponent['serialNumber'], copydb[col].find( query ).count(), yarrdb[col].find( query ).count(), copydb[col].find( query ).count()==yarrdb[col].find( query ).count() ))
+                write_log( '\t\tscan entries ({0:^20}): {1:^10} ---> {2:^10} {3:^6}'.format( thisComponent['serialNumber'], copydb[col].find( query ).count(), localdb[col].find( query ).count(), copydb[col].find( query ).count()==localdb[col].find( query ).count() ))
         write_log( '----------------------------------------------------------------' )
         
         # testRun
         col = 'testRun'
         write_log( 'Collection: {}'.format(col) )
-        write_log( '\t\tUnupdated documents: {0}'.format(yarrdb[col].find({ 'dbVersion': { '$ne': dbv } }).count()) )
-        if not yarrdb[col].find({ 'dbVersion': { '$ne': dbv } }).count() == 0: confirmation = False
+        write_log( '\t\tUnupdated documents: {0}'.format(localdb[col].find({ 'dbVersion': { '$ne': dbv } }).count()) )
+        if not localdb[col].find({ 'dbVersion': { '$ne': dbv } }).count() == 0: confirmation = False
         write_log( '\t\t{0:<15}: {1:^10} ---> {2:^10} {3:^6}'.format( 'Keyword', 'old (copy)', 'new (orig)', 'status' ))
-        write_log( '\t\t{0:<15}: {1:^10} ---> {2:^10} {3:^6}'.format( 'Document', copydb[col].find().count(), yarrdb[col].find().count(), '---' ))
+        write_log( '\t\t{0:<15}: {1:^10} ---> {2:^10} {3:^6}'.format( 'Document', copydb[col].find().count(), localdb[col].find().count(), '---' ))
         run_entries = copydb.testRun.find()
         runIds = []
         testRuns = []
@@ -804,66 +804,66 @@ if answer == 'y' :
             if not doc in testRuns: 
                 testRuns.append( doc )
                 if thisRun.get('display', False): display += 1
-        write_log( '\t\t{0:<15}: {1:^10} ---> {2:^10} {3:^6}'.format( 'testRuns', len(testRuns), yarrdb[col].find().count(), len(testRuns)==yarrdb[col].find().count() ))
+        write_log( '\t\t{0:<15}: {1:^10} ---> {2:^10} {3:^6}'.format( 'testRuns', len(testRuns), localdb[col].find().count(), len(testRuns)==localdb[col].find().count() ))
         query = { 'display': True }
-        write_log( '\t\t{0:<15}: {1:^10} ---> {2:^10} {3:^6}'.format( 'display', display, yarrdb[col].find( query ).count(), len(testRuns)==yarrdb[col].find().count() ))
+        write_log( '\t\t{0:<15}: {1:^10} ---> {2:^10} {3:^6}'.format( 'display', display, localdb[col].find( query ).count(), len(testRuns)==localdb[col].find().count() ))
         query = { 'environment': { '$exists': True } }
-        write_log( '\t\t{0:<15}: {1:^10} ---> {2:^10} {3:^6}'.format( 'environment', yarrdb[col].find( query ).count(), yarrdb.environment.find().count(), yarrdb[col].find( query ).count()==yarrdb.environment.find().count() ))
+        write_log( '\t\t{0:<15}: {1:^10} ---> {2:^10} {3:^6}'.format( 'environment', localdb[col].find( query ).count(), localdb.environment.find().count(), localdb[col].find( query ).count()==localdb.environment.find().count() ))
         write_log( '----------------------------------------------------------------' )
         
         # fs.files
         col = 'fs.files'
         write_log( 'Collection: {}'.format(col) )
-        write_log( '\t\tUnupdated documents: {0}'.format(yarrdb[col].find({ 'dbVersion': { '$ne': dbv } }).count()) )
-        if not yarrdb[col].find({ 'dbVersion': { '$ne': dbv } }).count() == 0: confirmation = False
+        write_log( '\t\tUnupdated documents: {0}'.format(localdb[col].find({ 'dbVersion': { '$ne': dbv } }).count()) )
+        if not localdb[col].find({ 'dbVersion': { '$ne': dbv } }).count() == 0: confirmation = False
         write_log( '\t\t{0:<15}: {1:^10} ---> {2:^10} {3:^6}'.format( 'Keyword', 'old (copy)', 'new (orig)', 'status' ))
-        write_log( '\t\t{0:<15}: {1:^10} ---> {2:^10} {3:^6}'.format( 'Document', copydb[col].find().count(), yarrdb[col].find().count(), '---' ))
+        write_log( '\t\t{0:<15}: {1:^10} ---> {2:^10} {3:^6}'.format( 'Document', copydb[col].find().count(), localdb[col].find().count(), '---' ))
         write_log( '----------------------------------------------------------------' )
         
         # fs.chunks
         col = 'fs.chunks'
         write_log( 'Collection: {}'.format(col) )
-        write_log( '\t\tUnupdated documents: {0}'.format(yarrdb[col].find({ 'dbVersion': { '$ne': dbv } }).count()) )
-        if not yarrdb[col].find({ 'dbVersion': { '$ne': dbv } }).count() == 0: confirmation = False
+        write_log( '\t\tUnupdated documents: {0}'.format(localdb[col].find({ 'dbVersion': { '$ne': dbv } }).count()) )
+        if not localdb[col].find({ 'dbVersion': { '$ne': dbv } }).count() == 0: confirmation = False
         write_log( '\t\t{0:<15}: {1:^10} ---> {2:^10} {3:^6}'.format( 'Keyword', 'old (copy)', 'new (orig)', 'status' ))
-        write_log( '\t\t{0:<15}: {1:^10} ---> {2:^10} {3:^6}'.format( 'Document', copydb[col].find().count(), yarrdb[col].find().count(), '---' ))
+        write_log( '\t\t{0:<15}: {1:^10} ---> {2:^10} {3:^6}'.format( 'Document', copydb[col].find().count(), localdb[col].find().count(), '---' ))
         write_log( '----------------------------------------------------------------' )
         
         # emulate basic function
         write_log( 'Emulation' )
         write_log( '\t\t[Start]' )
         query = { 'componentType': 'Module' }
-        module_entries = yarrdb.component.find( query )
+        module_entries = localdb.component.find( query )
         moduleIds = []
         for module in module_entries:
             moduleIds.append( str(module['_id']) )
         for moduleId in moduleIds:
             query = { '_id': ObjectId(moduleId) }
-            thisModule = yarrdb.component.find_one( query )
+            thisModule = localdb.component.find_one( query )
             query = { 'parent': moduleId }
-            child_entries = yarrdb.childParentRelation.find( query )
+            child_entries = localdb.childParentRelation.find( query )
             if not thisModule['children'] == child_entries.count():
                 write_log( '\t\t[WARNING] Not match the number of children: {}'.format(thisModule['serialNumber']) )
                 write_log( '\t\t          The module has children: {} in component document'.format(thisModule['children']) )
                 write_log( '\t\t          The child entries connected by CPrelation document'.format( child_entries.count() ) )
                 confirmation = False
             query = { 'component': moduleId }
-            run_entries = yarrdb.componentTestRun.find( query )
+            run_entries = localdb.componentTestRun.find( query )
             for child in child_entries:
                 query = { '_id': ObjectId(child['child']) }
-                thisChip = yarrdb.component.find_one( query )
+                thisChip = localdb.component.find_one( query )
                 if not thisChip:
                     write_log( '\t\t[WARNING] Not found chip: {0} - {1}'.format(thisModule['serialNumber'], child['chipId']) )
                     confirmation = False
                 query = { 'component': child['child'] }
-                if not yarrdb.componentTestRun.find( query ).count() == run_entries.count():
+                if not localdb.componentTestRun.find( query ).count() == run_entries.count():
                     write_log( '\t\t[WARNING] Not match the number of testRun: {0} (chipId: {1})'.format(thisModule['serialNumber'], child['chipId']) )
                     write_log( '\t\t          The module has test entries: {}'.format( run_entries.count() ) )
-                    write_log( '\t\t          The chip has test entries: {}'.format( yarrdb.componentTestRun.find( query ).count() ) )
+                    write_log( '\t\t          The chip has test entries: {}'.format( localdb.componentTestRun.find( query ).count() ) )
                     confirmation = False
             for run in run_entries:
                 query = { '_id': ObjectId(run['testRun']) }
-                thisRun = yarrdb.testRun.find_one( query )
+                thisRun = localdb.testRun.find_one( query )
                 if not thisRun:
                     write_log( '\t\t[WARNING] Not found testRun: {0} - {1}'.format(thisModule['serialNumber'], run['runNumber']) )
                     confirmation = False
@@ -890,23 +890,23 @@ if answer == 'y' :
         write_log( '[Confirmation] component' )
         write_log( '[Start]' )
         query = { 'componentType': { '$ne': 'Module' } }
-        chip_entries = yarrdb.component.find( query )
+        chip_entries = localdb.component.find( query )
         chipIds = []
         for chip in chip_entries:
             chipIds.append( str(chip['_id']) )
         for chipId in chipIds:
             query = { 'child': chipId }
-            child_entries = yarrdb.childParentRelation.find( query )
+            child_entries = localdb.childParentRelation.find( query )
             if child_entries.count() > 1:
                 parents = []
                 for cpr in child_entries:
                     query = { '_id': ObjectId(cpr['parent']) }
-                    thisModule = yarrdb.component.find_one( query )
+                    thisModule = localdb.component.find_one( query )
                     parents.append({ 'serialNumber': thisModule['serialNumber'], 'children': thisModule['children'], '_id': cpr['parent'] })
                 final_answer = ''
                 while final_answer == '':
                     query = { '_id': ObjectId(chipId) }
-                    thisChip = yarrdb.component.find_one( query )
+                    thisChip = localdb.component.find_one( query )
                     print( '# The chip {} has more than one parent module'.format(thisChip['serialNumber']) )
                     print( '# Select one from the list.' )
                     print( ' ' )
@@ -943,57 +943,57 @@ if answer == 'y' :
                     for parent in parents:
                         if not parents.index(parent) == parent_num:
                             query = { 'component': parent['_id'] }
-                            run_entries = yarrdb.componentTestRun.find( query )
+                            run_entries = localdb.componentTestRun.find( query )
                             for run in run_entries:
                                 query = { 'component': parent_id, 'testRun': run['testRun'] }
-                                if not yarrdb.componentTestRun.find( query ):
+                                if not localdb.componentTestRun.find( query ):
                                     query = { '_id': run['_id'] }
-                                    yarrdb.componentTestRun.update( query, 
+                                    localdb.componentTestRun.update( query, 
                                                                     { '$set': { 'component': parent_id } }) #UPDATE
                                     update_mod( 'componentTestRun', query ) #UPDATE
                                     write_log( '\t\t[Update] {0:<7}: {1:<20} -> {2:<20}'.format(run['runNumber'], parent['serialNumber'], parents[parent_num]['serialNumber']) )
                                 else:
                                     if 'attachments' in run:
                                         query = { '_id': run['_id'] }
-                                        yarrdb.componentTestRun.update( query, 
+                                        localdb.componentTestRun.update( query, 
                                                                         { '$set': { 'component': parent_id } }) #UPDATE
                                         update_mod( 'componentTestRun', query ) #UPDATE
                                         write_log( '\t\t[Update] {0:<7}: {1:<20} -> {2:<20}'.format(run['runNumber'], parent['serialNumber'], parents[parent_num]['serialNumber']) )
                                     else:
                                         query = { '_id': run['_id'] }
-                                        yarrdb.componentTestRun.remove( query )
+                                        localdb.componentTestRun.remove( query )
                                         write_log( '\t\t[Remove] {0:<7}: {1:<20}'.format(run['runNumber'], parent['serialNumber']) )
                             query = { 'parent': parent['_id'] }
-                            child_entries = yarrdb.childParentRelation.find( query )
+                            child_entries = localdb.childParentRelation.find( query )
                             for child in child_entries:
                                 query = { '_id': ObjectId(child['child']) }
-                                thisChip = yarrdb.component.find_one( query )
+                                thisChip = localdb.component.find_one( query )
                                 query = { 'parent': parent_id, 'child': child['child'] }
-                                if yarrdb.childParentRelation.find_one( query ):
+                                if localdb.childParentRelation.find_one( query ):
                                     query = { '_id': child['_id'] }
-                                    yarrdb.childParentRelation.remove( query )
+                                    localdb.childParentRelation.remove( query )
                                     write_log( '\t\t[Remove] {0:<20} - {1:<20}'.format( thisChip['serialNumber'], parent['serialNumber']) )
                                 else:
                                     query = { '_id': child['_id'] }
-                                    yarrdb.childParentRelation.update( query,
+                                    localdb.childParentRelation.update( query,
                                                                        { '$set': { 'parent': parent_id }})
                                     write_log( '\t\t[Update] {0:<20} - {1:<20} -> {2:<20}'.format(thisChip['serialNumber'], parent['serialNumber'], parents[parent_num]['serialNumber']) )
                             query = { '_id': ObjectId(parent['_id']) }
-                            yarrdb.component.remove( query ) 
+                            localdb.component.remove( query ) 
                             write_log( '\t\t[Remove] {0:<20}'.format(parent['serialNumber']) )
         
                     query = { 'parent': parent_id }
-                    yarrdb.childParentRelation.update( query,
+                    localdb.childParentRelation.update( query,
                                                        { '$set': { 'status': 'active' }},
                                                        multi=True )
                     update_ver( 'childParentRelation', query, dbv ) #UPDATE
                     update_mod( 'childParentRelation', query ) #UPDATE
                     write_log( '\t\t[Update] {0:<20} - {1:<20}'.format(thisChip['serialNumber'], parents[parent_num]['serialNumber']) )
-                    children = yarrdb.childParentRelation.find( query ).count()
+                    children = localdb.childParentRelation.find( query ).count()
                     query = { '_id': ObjectId(parent_id) } 
-                    thisModule = yarrdb.component.find_one( query )
+                    thisModule = localdb.component.find_one( query )
                     if not thisModule['children'] == children:
-                        yarrdb.component.update( query,
+                        localdb.component.update( query,
                                                  { '$set': { 'children': children }} )
                     update_ver( 'component', query, dbv ) #UPDATE
                     update_mod( 'component', query ) #UPDATE
@@ -1004,23 +1004,23 @@ if answer == 'y' :
         
             if child_entries.count() == 0:
                 query = { '_id': ObjectId(chipId) }
-                thisChip = yarrdb.component.find_one( query )
+                thisChip = localdb.component.find_one( query )
                 query = { '_id': ObjectId(chipId) }
-                yarrdb.component.remove( query )
+                localdb.component.remove( query )
                 write_log( '[Not found/Delete] relational documents (run/cpr): {}'.format( thisChip['serialNumber'] ) )
         query = { 'componentType': 'Module' }
-        module_entries = yarrdb.component.find( query )
+        module_entries = localdb.component.find( query )
         moduleIds = []
         for module in module_entries:
             moduleIds.append( str(module['_id']) )
         for moduleId in moduleIds:
             query = { 'parent': moduleId }
-            child_entries = yarrdb.childParentRelation.find( query )
+            child_entries = localdb.childParentRelation.find( query )
             if child_entries.count() == 0:
                 query = { '_id': ObjectId(moduleId) }
-                thisModule = yarrdb.component.find_one( query )
+                thisModule = localdb.component.find_one( query )
                 query = { '_id': ObjectId(moduleId) }
-                yarrdb.component.remove( query )
+                localdb.component.remove( query )
                 write_log( '[Not found/Delete] relational documents (run/cpr): {}'.format( thisModule['serialNumber'] ) )
         write_log( '[Finish]' )
         print( '# Finish' )
@@ -1033,24 +1033,24 @@ if answer == 'y' :
         write_log( '================================================================' )
         write_log( '[Confirmation] stage' )
         write_log( '[Start]' )
-        runs = yarrdb.testRun.find()
+        runs = localdb.testRun.find()
         runIds = []
         for run in runs:
             runIds.append(str(run['_id']))
         stages = {}
         for runId in runIds:
             query = { '_id': ObjectId(runId) }
-            thisRun = yarrdb.testRun.find_one( query )
+            thisRun = localdb.testRun.find_one( query )
             stage = thisRun.get('stage', 'null')
             if stage in file_stages: continue
             write_log( '\t\t{0:^7}: {1:^20}'.format(thisRun['runNumber'], stage) )
             if not stage in stages:
                 stages.update({ stage: {} })
             query = { 'testRun': runId }
-            component_entries = yarrdb.componentTestRun.find( query )
+            component_entries = localdb.componentTestRun.find( query )
             for component in component_entries:
                 query = { 'componentType': 'Module', '_id': ObjectId(component['component']) }
-                thisComponent = yarrdb.component.find_one( query )
+                thisComponent = localdb.component.find_one( query )
                 if thisComponent:
                     if not thisComponent['serialNumber'] in stages[stage]:
                         stages[stage].update({ thisComponent['serialNumber']: { 'first': thisRun['startTime'], 'last': thisRun['startTime'] }})
@@ -1112,13 +1112,13 @@ if answer == 'y' :
                 write_log( '\t\t[Start]' )
                 for runId in runIds:
                     query = { '_id': ObjectId(runId) }
-                    thisRun = yarrdb.testRun.find_one( query )
+                    thisRun = localdb.testRun.find_one( query )
                     stage = thisRun.get('stage', 'null')
                     if stage in file_stages: continue
                     if stages[stage] == 'unknown': continue
                     user = thisRun['user_id']
-                    yarrdb.testRun.update( query, { '$push': { 'comments': { 'user_id': user, 'comment': 'The stage neme registered before is "{}"'.format(stage) }}})
-                    yarrdb.testRun.update( query, { '$set': { 'stage': stages[stage] }}) #UPDATE
+                    localdb.testRun.update( query, { '$push': { 'comments': { 'user_id': user, 'comment': 'The stage neme registered before is "{}"'.format(stage) }}})
+                    localdb.testRun.update( query, { '$set': { 'stage': stages[stage] }}) #UPDATE
                     update_mod( 'testRun', query ) #UPDATE
                     write_log( '\t\t[Update] {0:<7}: {1:<20} -> {2:<20}'.format(thisRun['runNumber'], stage, stages[stage]) )
                 write_log( '\t\t[Finish]' )
@@ -1128,7 +1128,7 @@ if answer == 'y' :
                 write_log( '\t\t[Start]' ) 
                 for runId in runIds:
                     query = { '_id': ObjectId(runId) }
-                    thisRun = yarrdb.testRun.find_one( query )
+                    thisRun = localdb.testRun.find_one( query )
                     stage = thisRun.get('stage','null')
                     if stage in file_stages: continue
                     write_log( '\t\t\t\t{0:^7}: {1:^20}'.format(thisRun['runNumber'], stage) )
@@ -1158,7 +1158,7 @@ if answer == 'y' :
         write_log( '[Confirmation] environment' )
         write_log( '[Start]' )
         
-        environments = yarrdb.environment.find()
+        environments = localdb.environment.find()
         envIds = []
         for env in environments:
             envIds.append(str(env['_id']))
@@ -1168,9 +1168,9 @@ if answer == 'y' :
             env_query = { '_id': ObjectId(envId),
                           'type': 'data' }
             cut_query = { 'sys': 0, 'type': 0, 'dbVersion': 0, '_id': 0 }
-            thisEnv = yarrdb.environment.find_one( env_query, cut_query )
+            thisEnv = localdb.environment.find_one( env_query, cut_query )
             query = { 'environment': envId }
-            thisRun = yarrdb.testRun.find_one( query )
+            thisRun = localdb.testRun.find_one( query )
             for env_key in thisEnv:
                 for data in thisEnv[env_key]:
                     description = data.get('description', 'null')
@@ -1189,7 +1189,7 @@ if answer == 'y' :
                             print( ' ' )
                             continue
                         description = answer
-                        yarrdb.environment.update( env_query,
+                        localdb.environment.update( env_query,
                                                    { '$set': { '{0}.0.description'.format(env_key): description }})
                         update_mod( 'environment', env_query ) #UPDATE
                         write_log( '\t\t[Update] {0:<7}: {1:<20} {2:<23}'.format(thisRun['runNumber'], env_key, description) )
@@ -1250,19 +1250,19 @@ if answer == 'y' :
                 for envId in envIds:
                     env_query = { '_id': ObjectId(envId), 'type': 'data' }
                     cut_query = { 'sys': 0, 'type': 0, 'dbVersion': 0, '_id': 0 }
-                    thisEnv = yarrdb.environment.find_one( env_query, cut_query )
+                    thisEnv = localdb.environment.find_one( env_query, cut_query )
                     for env_key in thisEnv:
                         if env_key in file_dcs: continue
                         if keys[env_key] == 'unknown': continue
                         env_dict = thisEnv[env_key][0]
-                        yarrdb.environment.update( env_query,
+                        localdb.environment.update( env_query,
                                                    { '$push': { keys[env_key]: env_dict }})
-                        yarrdb.environment.update( env_query,
+                        localdb.environment.update( env_query,
                                                    { '$unset': { env_key: '' }})
                         query = { 'environment': envId }
-                        thisRun = yarrdb.testRun.find_one( query )
+                        thisRun = localdb.testRun.find_one( query )
                         user = thisRun['user_id']
-                        yarrdb.testRun.update( query, { '$push': { 'comments': { 'user_id': user, 'comment': 'The environmental key registered before is "{}"'.format(env_key) }}})
+                        localdb.testRun.update( query, { '$push': { 'comments': { 'user_id': user, 'comment': 'The environmental key registered before is "{}"'.format(env_key) }}})
                         update_mod( 'environment', env_query ) #UPDATE
                         write_log( '\t\t[Update] {0:<7}: {1:<20} -> {2:<20}'.format(thisRun['runNumber'], env_key, keys[env_key]) )
                 mistake = False
@@ -1273,9 +1273,9 @@ if answer == 'y' :
                     env_query = { '_id': ObjectId(envId),
                               'type': 'data' }
                     cut_query = { 'sys': 0, 'type': 0, 'dbVersion': 0, '_id': 0 }
-                    thisEnv = yarrdb.environment.find_one( env_query, cut_query )
+                    thisEnv = localdb.environment.find_one( env_query, cut_query )
                     query = { 'environment': envId }
-                    thisRun = yarrdb.testRun.find_one( query )
+                    thisRun = localdb.testRun.find_one( query )
                     for env_key in thisEnv:
                         for data in thisEnv[env_key]:
                             description = data.get('description', 'null')
@@ -1302,15 +1302,15 @@ if answer == 'y' :
         print( '# Checking test data ...' )
         print( ' ' )
         query = { 'dbVersion': { '$ne': dbv } }
-        run_entries = yarrdb.testRun.find( query )
+        run_entries = localdb.testRun.find( query )
         write_log( '================================================================' )
         write_log( '[Confirmation] test run data' )
         write_log( '[Start]' )
         for run in run_entries:
             query = { 'testRun': str(run['_id']) }
-            if yarrdb.componentTestRun.find( query ).count() == 0:
+            if localdb.componentTestRun.find( query ).count() == 0:
                 query = { '_id': run['_id'] }
-                yarrdb.testRun.remove( query )
+                localdb.testRun.remove( query )
                 write_log( '[Not found/Delete] relational documents : {}'.format( run['runNumber'] ) )
         write_log( '[Finish]' )
         print( '# Finish' )
@@ -1323,7 +1323,7 @@ if answer == 'y' :
         print( '# Checking broken data ...' )
         print( ' ' )
         query = { 'dbVersion': { '$ne': dbv } }
-        run_entries = yarrdb.componentTestRun.find( query )
+        run_entries = localdb.componentTestRun.find( query )
         write_log( '================================================================' )
         write_log( '[Confirmation] broken files' )
         write_log( '[Start]' )
@@ -1337,12 +1337,12 @@ if answer == 'y' :
             for data in broken_data:
                 bin_data = fs.get( ObjectId( data['code'] )).read()
                 query = { '_id': ObjectId( data['code'] ) }
-                thisFile = yarrdb.fs.files.find_one( query )
+                thisFile = localdb.fs.files.find_one( query )
                 if not bin_data:
                     write_log( '\t\t[Not found/Delete] chunks data {0}_{1}: '.format(runNumber, thisFile['filename']) )
                     fs.delete( ObjectId(data['code']) )
                     query = { '_id': run['_id'] }
-                    yarrdb.componentTestRun.update( query, { '$pull': { 'broken': { 'code': data['code'] }}} )
+                    localdb.componentTestRun.update( query, { '$pull': { 'broken': { 'code': data['code'] }}} )
                     num = num + 1
                 else:
                     if is_png( bin_data ):
@@ -1365,14 +1365,14 @@ if answer == 'y' :
                         fin.close()
                     fs.delete( ObjectId(data['code']) )
                     query = { '_id': run['_id'] }
-                    yarrdb.componentTestRun.update( query, { '$pull': { 'broken': { 'code': data['code'] }}} )
+                    localdb.componentTestRun.update( query, { '$pull': { 'broken': { 'code': data['code'] }}} )
                     num = num + 1
         
             if broken_num == num:
                 query = { '_id': run['_id'] }
-                yarrdb.componentTestRun.update( query,
+                localdb.componentTestRun.update( query,
                                                 { '$unset': { 'broken' : '' }} )
-                yarrdb.componentTestRun.update( query,
+                localdb.componentTestRun.update( query,
                                                 { '$set': { 'dbVersion' : dbv }} )
                 write_log( '\t\t[Update] componentTestRun doc: ' + str(run['_id']) )
             else:
@@ -1387,7 +1387,7 @@ if answer == 'y' :
         print( '# Checking fs.files ...' )
         print( ' ' )
         query = { 'dbVersion': { '$ne': dbv } }
-        file_entries = yarrdb.fs.files.find( query )
+        file_entries = localdb.fs.files.find( query )
         file_num = file_entries.count()
         num = 0
         write_log( '================================================================' )
@@ -1425,7 +1425,7 @@ if answer == 'y' :
         print( '# Checking fs.chunks ...' )
         print( ' ' )
         query = { 'dbVersion': { '$ne': dbv } }
-        chunk_entries = yarrdb.fs.chunks.find( query )
+        chunk_entries = localdb.fs.chunks.find( query )
         chunk_num = chunk_entries.count()
         num = 0
         write_log( '================================================================' )
@@ -1434,7 +1434,7 @@ if answer == 'y' :
         write_log( 'Number Of Unupdated Data: {}'.format(chunk_num) )
         for chunks in chunk_entries:
             query = { '_id': chunks['files_id'] }
-            thisFile = yarrdb.fs.files.find_one( query )
+            thisFile = localdb.fs.files.find_one( query )
             bin_data = chunks['data']
             if thisFile:
                 if is_png( bin_data ): 
@@ -1457,7 +1457,7 @@ if answer == 'y' :
             else:
                 write_log( '[Not found/Delete] files data' )
                 query = { '_id': chunks['_id'] }
-                yarrdb.fs.chunks.remove( query )
+                localdb.fs.chunks.remove( query )
         print( '# Finish' )
         print( ' ' )
         
@@ -1465,126 +1465,126 @@ if answer == 'y' :
         confirmation = True
         print( '# Checking every collection ...' )
         print( ' ' )
-        cols = yarrdb.collection_names()
+        cols = localdb.collection_names()
         write_log( '================================================================' )
         write_log( '[Confirmation] unupdated document' )
         write_log( '[Start]' )
         # component
         col = 'component'
         write_log( 'Collection: {}'.format(col) )
-        write_log( '\t\tUnupdated documents: {0}'.format(yarrdb[col].find({ 'dbVersion': { '$ne': dbv } }).count()) )
-        if not yarrdb[col].find({ 'dbVersion': { '$ne': dbv } }).count() == 0: confirmation = False
+        write_log( '\t\tUnupdated documents: {0}'.format(localdb[col].find({ 'dbVersion': { '$ne': dbv } }).count()) )
+        if not localdb[col].find({ 'dbVersion': { '$ne': dbv } }).count() == 0: confirmation = False
         write_log( '\t\t{0:<15}: {1:^10} ---> {2:^10} {3:^6}'.format( 'Keyword', 'old (copy)', 'new (orig)', 'status' ))
-        write_log( '\t\t{0:<15}: {1:^10} ---> {2:^10} {3:^6}'.format( 'Document', copydb[col].find().count(), yarrdb[col].find().count(), copydb[col].find().count()==yarrdb[col].find().count() ))
+        write_log( '\t\t{0:<15}: {1:^10} ---> {2:^10} {3:^6}'.format( 'Document', copydb[col].find().count(), localdb[col].find().count(), copydb[col].find().count()==localdb[col].find().count() ))
         query = { 'componentType': 'Module' }
-        write_log( '\t\t{0:<15}: {1:^10} ---> {2:^10} {3:^6}'.format( 'Module', copydb[col].find( query ).count(), yarrdb[col].find( query ).count(), copydb[col].find( query ).count()==yarrdb[col].find( query ).count() ))
+        write_log( '\t\t{0:<15}: {1:^10} ---> {2:^10} {3:^6}'.format( 'Module', copydb[col].find( query ).count(), localdb[col].find( query ).count(), copydb[col].find( query ).count()==localdb[col].find( query ).count() ))
         query = { 'componentType': { '$ne': 'Module' } }
-        write_log( '\t\t{0:<15}: {1:^10} ---> {2:^10} {3:^6}'.format( 'Chip', copydb[col].find( query ).count(), yarrdb[col].find( query ).count(), copydb[col].find( query ).count()==yarrdb[col].find( query ).count() ))
+        write_log( '\t\t{0:<15}: {1:^10} ---> {2:^10} {3:^6}'.format( 'Chip', copydb[col].find( query ).count(), localdb[col].find( query ).count(), copydb[col].find( query ).count()==localdb[col].find( query ).count() ))
         query = { 'chipType': 'FE-I4B', 'componentType': { '$ne': 'Module' } }
-        write_log( '\t\t{0:<15}: {1:^10} ---> {2:^10} {3:^6}'.format( 'FE-I4B', copydb[col].find( query ).count(), yarrdb[col].find( query ).count(), copydb[col].find(query).count()==yarrdb[col].find(query).count() ))
+        write_log( '\t\t{0:<15}: {1:^10} ---> {2:^10} {3:^6}'.format( 'FE-I4B', copydb[col].find( query ).count(), localdb[col].find( query ).count(), copydb[col].find(query).count()==localdb[col].find(query).count() ))
         query = { 'chipType': 'RD53A', 'componentType': { '$ne': 'Module' } }
-        write_log( '\t\t{0:<15}: {1:^10} ---> {2:^10} {3:^6}'.format( 'RD53A', copydb[col].find( query ).count(), yarrdb[col].find( query ).count(), copydb[col].find(query).count()==yarrdb[col].find(query).count() ))
+        write_log( '\t\t{0:<15}: {1:^10} ---> {2:^10} {3:^6}'.format( 'RD53A', copydb[col].find( query ).count(), localdb[col].find( query ).count(), copydb[col].find(query).count()==localdb[col].find(query).count() ))
         write_log( '----------------------------------------------------------------' )
         
         # childParentRelation
         col = 'childParentRelation'
         write_log( 'Collection: {}'.format(col) )
-        write_log( '\t\tUnupdated documents: {0}'.format(yarrdb[col].find({ 'dbVersion': { '$ne': dbv } }).count()) )
-        if not yarrdb[col].find({ 'dbVersion': { '$ne': dbv } }).count() == 0: confirmation = False
+        write_log( '\t\tUnupdated documents: {0}'.format(localdb[col].find({ 'dbVersion': { '$ne': dbv } }).count()) )
+        if not localdb[col].find({ 'dbVersion': { '$ne': dbv } }).count() == 0: confirmation = False
         write_log( '\t\t{0:<15}: {1:^10} ---> {2:^10} {3:^6}'.format( 'Keyword', 'old (copy)', 'new (orig)', 'status' ))
-        write_log( '\t\t{0:<15}: {1:^10} ---> {2:^10} {3:^6}'.format( 'Document', copydb[col].find().count(), yarrdb[col].find().count(), copydb[col].find().count()==yarrdb[col].find().count() ))
+        write_log( '\t\t{0:<15}: {1:^10} ---> {2:^10} {3:^6}'.format( 'Document', copydb[col].find().count(), localdb[col].find().count(), copydb[col].find().count()==localdb[col].find().count() ))
         query = { 'status': 'active' }
-        write_log( '\t\t{0:<15}: {1:^10} ---> {2:^10} {3:^6}'.format( 'Active', copydb[col].find().count(), yarrdb[col].find( query ).count(), copydb[col].find().count()==yarrdb[col].find( query ).count() ))
+        write_log( '\t\t{0:<15}: {1:^10} ---> {2:^10} {3:^6}'.format( 'Active', copydb[col].find().count(), localdb[col].find( query ).count(), copydb[col].find().count()==localdb[col].find( query ).count() ))
         write_log( '----------------------------------------------------------------' )
         
         # componentTestRun
         col = 'componentTestRun'
         write_log( 'Collection: {}'.format(col) )
-        write_log( '\t\tUnupdated documents: {0}'.format(yarrdb[col].find({ 'dbVersion': { '$ne': dbv } }).count()) )
-        if not yarrdb[col].find({ 'dbVersion': { '$ne': dbv } }).count() == 0: confirmation = False
+        write_log( '\t\tUnupdated documents: {0}'.format(localdb[col].find({ 'dbVersion': { '$ne': dbv } }).count()) )
+        if not localdb[col].find({ 'dbVersion': { '$ne': dbv } }).count() == 0: confirmation = False
         write_log( '\t\t{0:<35}: {1:^10} ---> {2:^10} {3:^6}'.format( 'Keyword', 'old (copy)', 'new (orig)', 'status' ))
-        write_log( '\t\t{0:<35}: {1:^10} ---> {2:^10} {3:^6}'.format( 'Document', copydb[col].find().count(), yarrdb[col].find().count(), '---' ))
-        component_entries = yarrdb.component.find()
+        write_log( '\t\t{0:<35}: {1:^10} ---> {2:^10} {3:^6}'.format( 'Document', copydb[col].find().count(), localdb[col].find().count(), '---' ))
+        component_entries = localdb.component.find()
         componentIds = []
         for component in component_entries:
             componentIds.append( str(component['_id']) )
         for componentId in componentIds:
             query = { '_id': ObjectId(componentId) }
-            thisComponent = yarrdb.component.find_one( query )
+            thisComponent = localdb.component.find_one( query )
             query = { 'component': componentId }
             if thisComponent['componentType'] == 'Module':
-                write_log( '\t\tscan entries ({0:^20}): {1:^10} ---> {2:^10} {3:^6}'.format( thisComponent['serialNumber'], copydb[col].find( query ).count(), yarrdb[col].find( query ).count(), '---' ))
+                write_log( '\t\tscan entries ({0:^20}): {1:^10} ---> {2:^10} {3:^6}'.format( thisComponent['serialNumber'], copydb[col].find( query ).count(), localdb[col].find( query ).count(), '---' ))
             else:
-                write_log( '\t\tscan entries ({0:^20}): {1:^10} ---> {2:^10} {3:^6}'.format( thisComponent['serialNumber'], copydb[col].find( query ).count(), yarrdb[col].find( query ).count(), copydb[col].find( query ).count()==yarrdb[col].find( query ).count() ))
+                write_log( '\t\tscan entries ({0:^20}): {1:^10} ---> {2:^10} {3:^6}'.format( thisComponent['serialNumber'], copydb[col].find( query ).count(), localdb[col].find( query ).count(), copydb[col].find( query ).count()==localdb[col].find( query ).count() ))
         write_log( '----------------------------------------------------------------' )
         
         # testRun
         col = 'testRun'
         write_log( 'Collection: {}'.format(col) )
-        write_log( '\t\tUnupdated documents: {0}'.format(yarrdb[col].find({ 'dbVersion': { '$ne': dbv } }).count()) )
-        if not yarrdb[col].find({ 'dbVersion': { '$ne': dbv } }).count() == 0: confirmation = False
+        write_log( '\t\tUnupdated documents: {0}'.format(localdb[col].find({ 'dbVersion': { '$ne': dbv } }).count()) )
+        if not localdb[col].find({ 'dbVersion': { '$ne': dbv } }).count() == 0: confirmation = False
         write_log( '\t\t{0:<15}: {1:^10} ---> {2:^10} {3:^6}'.format( 'Keyword', 'old (copy)', 'new (orig)', 'status' ))
-        write_log( '\t\t{0:<15}: {1:^10} ---> {2:^10} {3:^6}'.format( 'Document', copydb[col].find().count(), yarrdb[col].find().count(), '---' ))
-        write_log( '\t\t{0:<15}: {1:^10} ---> {2:^10} {3:^6}'.format( 'testRuns', copydb[col].find().count(), yarrdb[col].find().count(), copydb[col].find().count()==yarrdb[col].find().count() ))
+        write_log( '\t\t{0:<15}: {1:^10} ---> {2:^10} {3:^6}'.format( 'Document', copydb[col].find().count(), localdb[col].find().count(), '---' ))
+        write_log( '\t\t{0:<15}: {1:^10} ---> {2:^10} {3:^6}'.format( 'testRuns', copydb[col].find().count(), localdb[col].find().count(), copydb[col].find().count()==localdb[col].find().count() ))
         query = { 'display': True }
-        write_log( '\t\t{0:<15}: {1:^10} ---> {2:^10} {3:^6}'.format( 'display', copydb[col].find( query ).count(), yarrdb[col].find( query ).count(), copydb[col].find(query).count()==yarrdb[col].find(query).count() ))
+        write_log( '\t\t{0:<15}: {1:^10} ---> {2:^10} {3:^6}'.format( 'display', copydb[col].find( query ).count(), localdb[col].find( query ).count(), copydb[col].find(query).count()==localdb[col].find(query).count() ))
         query = { 'environment': { '$exists': True } }
-        write_log( '\t\t{0:<15}: {1:^10} ---> {2:^10} {3:^6}'.format( 'environment', yarrdb[col].find( query ).count(), yarrdb.environment.find().count(), yarrdb[col].find( query ).count()==yarrdb.environment.find().count() ))
+        write_log( '\t\t{0:<15}: {1:^10} ---> {2:^10} {3:^6}'.format( 'environment', localdb[col].find( query ).count(), localdb.environment.find().count(), localdb[col].find( query ).count()==localdb.environment.find().count() ))
         write_log( '----------------------------------------------------------------' )
         
         # fs.files
         col = 'fs.files'
         write_log( 'Collection: {}'.format(col) )
-        write_log( '\t\tUnupdated documents: {0}'.format(yarrdb[col].find({ 'dbVersion': { '$ne': dbv } }).count()) )
-        if not yarrdb[col].find({ 'dbVersion': { '$ne': dbv } }).count() == 0: confirmation = False
+        write_log( '\t\tUnupdated documents: {0}'.format(localdb[col].find({ 'dbVersion': { '$ne': dbv } }).count()) )
+        if not localdb[col].find({ 'dbVersion': { '$ne': dbv } }).count() == 0: confirmation = False
         write_log( '\t\t{0:<15}: {1:^10} ---> {2:^10} {3:^6}'.format( 'Keyword', 'old (copy)', 'new (orig)', 'status' ))
-        write_log( '\t\t{0:<15}: {1:^10} ---> {2:^10} {3:^6}'.format( 'Document', copydb[col].find().count(), yarrdb[col].find().count(), '---' ))
+        write_log( '\t\t{0:<15}: {1:^10} ---> {2:^10} {3:^6}'.format( 'Document', copydb[col].find().count(), localdb[col].find().count(), '---' ))
         write_log( '----------------------------------------------------------------' )
         
         # fs.chunks
         col = 'fs.chunks'
         write_log( 'Collection: {}'.format(col) )
-        write_log( '\t\tUnupdated documents: {0}'.format(yarrdb[col].find({ 'dbVersion': { '$ne': dbv } }).count()) )
-        if not yarrdb[col].find({ 'dbVersion': { '$ne': dbv } }).count() == 0: confirmation = False
+        write_log( '\t\tUnupdated documents: {0}'.format(localdb[col].find({ 'dbVersion': { '$ne': dbv } }).count()) )
+        if not localdb[col].find({ 'dbVersion': { '$ne': dbv } }).count() == 0: confirmation = False
         write_log( '\t\t{0:<15}: {1:^10} ---> {2:^10} {3:^6}'.format( 'Keyword', 'old (copy)', 'new (orig)', 'status' ))
-        write_log( '\t\t{0:<15}: {1:^10} ---> {2:^10} {3:^6}'.format( 'Document', copydb[col].find().count(), yarrdb[col].find().count(), '---' ))
+        write_log( '\t\t{0:<15}: {1:^10} ---> {2:^10} {3:^6}'.format( 'Document', copydb[col].find().count(), localdb[col].find().count(), '---' ))
         write_log( '----------------------------------------------------------------' )
         
         # emulate basic function
         write_log( 'Emulation' )
         write_log( '\t\t[Start]' )
         query = { 'componentType': 'Module' }
-        module_entries = yarrdb.component.find( query )
+        module_entries = localdb.component.find( query )
         moduleIds = []
         for module in module_entries:
             moduleIds.append( str(module['_id']) )
         for moduleId in moduleIds:
             query = { '_id': ObjectId(moduleId) }
-            thisModule = yarrdb.component.find_one( query )
+            thisModule = localdb.component.find_one( query )
             query = { 'parent': moduleId }
-            child_entries = yarrdb.childParentRelation.find( query )
+            child_entries = localdb.childParentRelation.find( query )
             if not thisModule['children'] == child_entries.count():
                 write_log( '\t\t[WARNING] Not match the number of children: {}'.format(thisModule['serialNumber']) )
                 write_log( '\t\t          The module has children: {} in component document'.format(thisModule['children']) )
                 write_log( '\t\t          The child entries connected by CPrelation document'.format( child_entries.count() ) )
                 confirmation = False
             query = { 'component': moduleId }
-            run_entries = yarrdb.componentTestRun.find( query )
+            run_entries = localdb.componentTestRun.find( query )
             for child in child_entries:
                 query = { '_id': ObjectId(child['child']) }
-                thisChip = yarrdb.component.find_one( query )
+                thisChip = localdb.component.find_one( query )
                 if not thisChip:
                     write_log( '\t\t[WARNING] Not found chip: {0} - {1}'.format(thisModule['serialNumber'], child['chipId']) )
                     confirmation = False
                 query = { 'component': child['child'] }
-                if not yarrdb.componentTestRun.find( query ).count() == run_entries.count():
+                if not localdb.componentTestRun.find( query ).count() == run_entries.count():
                     write_log( '\t\t[WARNING] Not match the number of testRun: {0} (chipId: {1})'.format(thisModule['serialNumber'], child['chipId']) )
                     write_log( '\t\t          The module has test entries: {}'.format( run_entries.count() ) )
-                    write_log( '\t\t          The chip has test entries: {}'.format( yarrdb.componentTestRun.find( query ).count() ) )
+                    write_log( '\t\t          The chip has test entries: {}'.format( localdb.componentTestRun.find( query ).count() ) )
                     confirmation = False
             for run in run_entries:
                 query = { '_id': ObjectId(run['testRun']) }
-                thisRun = yarrdb.testRun.find_one( query )
+                thisRun = localdb.testRun.find_one( query )
                 if not thisRun:
                     write_log( '\t\t[WARNING] Not found testRun: {0} - {1}'.format(thisModule['serialNumber'], run['runNumber']) )
                     confirmation = False

@@ -15,7 +15,7 @@ def getArgs():
     parser.add_argument("--config", "-f",   help="Config file path", type=str)
     parser.add_argument("--host",           help="Host",             type=str, default="localhost")
     parser.add_argument("--port",           help="Port",             type=int, default=27017)
-    parser.add_argument("--db",             help="Db",               type=str, default="yarrdb")
+    parser.add_argument("--db",             help="Db",               type=str, default="localdb")
     parser.add_argument("--userdb",         help="Userdb",           type=str, default="userdb")
     parser.add_argument("--version",        help="DB Version",       type=int)
     parser.add_argument("--oldversion",     help="old DB Version",   type=float)

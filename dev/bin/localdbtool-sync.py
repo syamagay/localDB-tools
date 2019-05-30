@@ -155,7 +155,7 @@ def sync():
     server_names = ["Local", "Master"]
 
     clients = [MongoClient(local_url), MongoClient(master_url)]
-    dbs = [clients[0]["yarrdb"], clients[1]["yarrdb"]]
+    dbs = [clients[0]["localdb"], clients[1]["localdb"]]
     dbs_sync = [clients[0]["ldbtool"], clients[1]["ldbtool"]]
 
     last_time_default = dateutil.parser.parse("2000-7-20T1:00:00.000Z")

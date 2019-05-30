@@ -248,7 +248,7 @@ def sync():
     server_names = ["local", "master"]
 
     # DBs
-    dbs = {"local": MongoClient(local_url)["yarrdb"], "master": MongoClient(master_url)["yarrdb"]}
+    dbs = {"local": MongoClient(local_url)["localdb"], "master": MongoClient(master_url)["localdb"]}
     dbs_sync = {"local": MongoClient(local_url)["ldbtool"], "master": MongoClient(master_url)["ldbtool"]}
 
     # Set default time

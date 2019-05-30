@@ -3,10 +3,9 @@
 mongoDB:
     host: 127.0.0.1 # IP address running mongoDB
     port: 27017     # port number running mongoDB
-    db: yarrdb      # yarr database name
+    db: localdb     # local database name
     userdb: userdb  # user database name
     version: 1
-    oldversion: 0.5
 
     # For user authentication
     #username: viewer     # username of account with administrator authority in mongoDB

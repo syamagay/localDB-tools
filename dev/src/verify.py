@@ -23,10 +23,10 @@ def verify():
     if args.username is None:
         local_url = "mongodb://" + args.host + ":" + args.port
     else:
-        local_url = "mongodb://" + args.username + ":" + args.password + "@" + args.host + ":" + args.port + "/yarrdb"
+        local_url = "mongodb://" + args.username + ":" + args.password + "@" + args.host + ":" + args.port + "/localdb"
     print(local_url)
     client = MongoClient(local_url)
-    db = client["yarrdb"]
+    db = client["localdb"]
 
     ##
     # Get modules info

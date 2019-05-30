@@ -56,11 +56,11 @@ _DIRS = [UPLOAD_DIR, STATIC_DIR, THUMBNAIL_DIR, JSON_DIR]
 args = getArgs()
 _MONGO_URL = 'mongodb://' + args.host + ':' + str(args.port) 
 client = MongoClient(_MONGO_URL)
-yarrdb = client[args.db]
+localdb = client[args.db]
 if args.username:
-    yarrdb.authenticate(args.username, args.password)
+    localdb.authenticate(args.username, args.password)
 userdb = client[args.userdb]
-fs = gridfs.GridFS(yarrdb)
+fs = gridfs.GridFS(localdb)
 
 #####
 _EXTENSIONS = ['png', 'jpeg', 'jpg', 'JPEG', 'jpe', 'jfif', 'pjpeg', 'pjp', 'gif']
@@ -141,8 +141,8 @@ def clean_dir(dir_name):
     os.mkdir(dir_name)
 
 def update_mod(collection, query):
-    yarrdb[collection].update(query, 
-                                {'$set': {'sys.rev': int(yarrdb[collection].find_one(query)['sys']['rev']+1), 
+    localdb[collection].update(query, 
+                                {'$set': {'sys.rev': int(localdb[collection].find_one(query)['sys']['rev']+1), 
                                           'sys.mts': datetime.datetime.utcnow()}}, 
                                 multi=True)
 
@@ -227,7 +227,7 @@ def fill_photos(thisComponent, code):
 def fill_summary():
 
     query = { '_id': ObjectId(session['this']) } 
-    thisComponent = yarrdb.component.find_one(query)
+    thisComponent = localdb.component.find_one(query)
     chipType = thisComponent['chipType']
     serialNumber = thisComponent['serialNumber']
 
@@ -236,10 +236,10 @@ def fill_summary():
     entries = {}
     # pick runs with 'display: True' for each stage
     query = { 'component': session['this'] }
-    ctr_entries = yarrdb.componentTestRun.find( query )
+    ctr_entries = localdb.componentTestRun.find( query )
     for thisComponentTestRun in ctr_entries:
         query = { '_id': ObjectId(thisComponentTestRun['testRun']) }
-        thisRun = yarrdb.testRun.find_one( query )
+        thisRun = localdb.testRun.find_one( query )
         if 'stage' in thisRun:
             stage = thisRun['stage']
             if not stage in entries:
@@ -258,11 +258,11 @@ def fill_summary():
             scandict.update({scan: {}})
             if entries[stage][scan]:
                 query = { '_id': entries[stage][scan] }
-                thisRun = yarrdb.testRun.find_one(query)
+                thisRun = localdb.testRun.find_one(query)
                 query = { '_id': ObjectId(thisRun['user_id']) }
-                thisUser = yarrdb.user.find_one( query )
+                thisUser = localdb.user.find_one( query )
                 query = { 'component': session['this'], 'testRun': str(entries[stage][scan]) }
-                thisComponentTestRun = yarrdb.componentTestRun.find_one(query)
+                thisComponentTestRun = localdb.componentTestRun.find_one(query)
                 for mapType in listset.scan[chipType][scan]:
                     mapDict = {}
                     mapDict.update({'mapType': mapType[0]})
@@ -329,7 +329,7 @@ def fill_summary_test():
 
     stage = session['stage']
     query = {'_id': ObjectId(session.get('this'))}
-    thisComponent = yarrdb.component.find_one(query)
+    thisComponent = localdb.component.find_one(query)
 
     # first step in add summary function: make current summary plots as thumbnail
     if not session['summaryList']['before']:
@@ -345,10 +345,10 @@ def fill_summary_test():
             session['summaryList']['after'].update({scan: {'runId': None}})
 
             query = {'component': session.get('this'), 'stage': stage, 'testType': scan}
-            run_entries = yarrdb.componentTestRun.find(query)
+            run_entries = localdb.componentTestRun.find(query)
             for componentTestRun in run_entries:
                 query = {'_id': ObjectId(componentTestRun['testRun'])}
-                thisRun = yarrdb.testRun.find_one(query)
+                thisRun = localdb.testRun.find_one(query)
                 if thisRun.get('display'): 
                     session['summaryList']['before'][scan].update({'runId': str(thisRun['_id'])})
                     session['summaryList']['after'][scan].update({'runId': str(thisRun['_id'])})
@@ -386,7 +386,7 @@ def fill_summary_test():
             
             if session['summaryList']['after'][scan]['runId']:
                 query = {'_id': ObjectId(session['summaryList']['after'][scan]['runId'])}
-                thisRun = yarrdb.testRun.find_one(query)
+                thisRun = localdb.testRun.find_one(query)
 
                 make_plot(str(thisRun['_id']))
 
@@ -432,9 +432,9 @@ def fill_summary_test():
                 if session['summaryList'][ab][scan]['runId']:
 
                     query = {'_id': ObjectId(session['summaryList'][ab][scan]['runId'])}
-                    thisRun = yarrdb.testRun.find_one(query)
+                    thisRun = localdb.testRun.find_one(query)
                     query = {'testRun': session['summaryList'][ab][scan]['runId']}
-                    thisComponentTestRun = yarrdb.componentTestRun.find_one(query)
+                    thisComponentTestRun = localdb.componentTestRun.find_one(query)
                     env_dict = fill_env(thisComponentTestRun)
 
                     datadict = {'1': '_Dist', '2': ''}
@@ -483,13 +483,13 @@ def grade_module(moduleId):
     scoreIndex.update({ 'module': {} })
 
     query = { '_id': ObjectId(moduleId) }
-    thisModule = yarrdb.component.find_one( query )
+    thisModule = localdb.component.find_one( query )
 
     query = { 'parent': moduleId }
-    child_entries = yarrdb.childParentRelation.find( query )
+    child_entries = localdb.childParentRelation.find( query )
     for child in child_entries:
         query = { '_id': ObjectId(child['child']) }
-        thisChip = yarrdb.component.find_one( query )
+        thisChip = localdb.component.find_one( query )
         if 'chipId' in thisChip['serialNumber']:
             scoreIndex.update({ str(thisChip['serialNumber'].split('chipId')[1]): {} })
         else:
@@ -498,14 +498,14 @@ def grade_module(moduleId):
     entries = {}
     for stage in listset.stage:
         query = { 'component': moduleId, 'stage': stage }
-        run_entries = yarrdb.componentTestRun.find( query )
+        run_entries = localdb.componentTestRun.find( query )
         if run_entries.count() == 0: continue
 
         scoreIndex.update({ 'stage': stage })
 
         for run in run_entries:
             query = { '_id': ObjectId(run['testRun']), 'display': True }
-            thisRun = yarrdb.testRun.find_one( query )
+            thisRun = localdb.testRun.find_one( query )
             if thisRun:
                 entries.update({ thisRun['testType']: str(thisRun['_id']) }) 
         break
@@ -550,21 +550,21 @@ def fill_resultIndex():
 
     chips = []
     query = { 'parent': session['this'] }
-    child_entries = yarrdb.childParentRelation.find( query )
+    child_entries = localdb.childParentRelation.find( query )
     for child in child_entries:
         chips.append({ 'component': child['child'] })
 
     query = { 'component': session['this'] }
-    run_entries = yarrdb.componentTestRun.find( query )
+    run_entries = localdb.componentTestRun.find( query )
     for run in run_entries:
         query = { '_id': ObjectId(run['testRun']) }
-        thisRun = yarrdb.testRun.find_one(query)
+        thisRun = localdb.testRun.find_one(query)
 
         if chips == []:
             result = 'attachments' in run
         else:
             query = { '$or': chips }
-            chip_run_entries = yarrdb.componentTestRun.find( query )
+            chip_run_entries = localdb.componentTestRun.find( query )
             result = True in [ 'attachments' in chip_run for chip_run in chip_run_entries ]
 
         stage = thisRun.get('stage','null')
@@ -617,9 +617,9 @@ def fill_results():
     if session.get('runId'):
         query = { 'component': session['this'], 
                   'testRun'  : session['runId'] }
-        thisComponentTestRun = yarrdb.componentTestRun.find_one(query)
+        thisComponentTestRun = localdb.componentTestRun.find_one(query)
         query = { '_id': ObjectId(session['runId']) }
-        thisRun = yarrdb.testRun.find_one(query)
+        thisRun = localdb.testRun.find_one(query)
 
         plots = []
         data_entries = thisComponentTestRun.get('attachments', [])
@@ -634,7 +634,7 @@ def fill_results():
         afterconfig = {}
         if not thisComponentTestRun.get('afterCfg','...')=='...':
             query = { '_id': ObjectId(thisComponentTestRun['afterCfg']) }
-            config_data = yarrdb.config.find_one( query )
+            config_data = localdb.config.find_one( query )
             fs.get(ObjectId(config_data['data_id'])).read()
             afterconfig.update({ "filename" : config_data['filename'],
                                  "code"     : config_data['data_id'],
@@ -642,14 +642,14 @@ def fill_results():
         beforeconfig = {}
         if not thisComponentTestRun.get('beforeCfg','...')=='...':
             query = { '_id': ObjectId(thisComponentTestRun['beforeCfg']) }
-            config_data = yarrdb.config.find_one( query )
+            config_data = localdb.config.find_one( query )
             fs.get(ObjectId(config_data['data_id'])).read()
             beforeconfig.update({ "filename" : config_data['filename'],
                                   "code"     : config_data['data_id'],
                                   "configid" : thisComponentTestRun['beforeCfg'] })
 
         query = { '_id': ObjectId(thisRun['user_id']) }
-        user = yarrdb.user.find_one( query )
+        user = localdb.user.find_one( query )
         results.update({ 'testType'    : thisRun['testType'],
                          'runNumber'   : thisRun['runNumber'],
                          'comments'    : list(thisRun['comments']),
@@ -681,28 +681,28 @@ def write_dat(runId):
         with open(jsonFile,         'w') as f: json.dump(jsonData_default, f, indent=4)
  
     query = { '_id': ObjectId(runId) }
-    thisRun = yarrdb.testRun.find_one(query)
+    thisRun = localdb.testRun.find_one(query)
 
     chipIds = {}
     chipIdNums = []
 
     chips = []
     query = [{ 'parent': session['this'] }, { 'child': session['this'] }]
-    child_entries = yarrdb.childParentRelation.find({'$or': query})
+    child_entries = localdb.childParentRelation.find({'$or': query})
     for child in child_entries:
         chips.append({ 'component': child['child'] })
         query = { '_id': ObjectId(child['child']) }
-        thisChip = yarrdb.component.find_one( query )
+        thisChip = localdb.component.find_one( query )
         chipIds.update({ child['child']: { 'chipId': str(thisChip['chipId']),
                                            'name':   thisChip['name'] }})
         chipIdNums.append( str(thisChip['chipId']) )
 
     query = { 'testRun': str(thisRun['_id']) }
-    run_entries = yarrdb.componentTestRun.find(query)
+    run_entries = localdb.componentTestRun.find(query)
 
     for run in run_entries:
         query = { '_id': ObjectId(run['testRun']) }
-        chiprun = yarrdb.testRun.find_one(query)
+        chiprun = localdb.testRun.find_one(query)
 
         data_entries = chiprun.get('attachments')
         for data in data_entries:
@@ -717,7 +717,7 @@ def write_dat(runId):
 # make plot using PyROOT
 def make_plot(runId):
     query = { '_id': ObjectId(runId) }
-    thisRun = yarrdb.testRun.find_one( query )
+    thisRun = localdb.testRun.find_one( query )
 
     if DOROOT:
         root.uuid = str(session.get('uuid','localuser'))
@@ -744,11 +744,11 @@ def make_plot(runId):
 def write_dat_for_component(componentId, runId):
 
     query = { 'testRun': runId, 'component': componentId }
-    thisComponentTestRun = yarrdb.componentTestRun.find_one( query )
+    thisComponentTestRun = localdb.componentTestRun.find_one( query )
     if not thisComponentTestRun: return
 
     query = { '_id': ObjectId(componentId) }
-    thisComponent = yarrdb.component.find_one( query )
+    thisComponent = localdb.component.find_one( query )
     chipId = thisComponent['chipId']
     for data in thisComponentTestRun.get('attachments', []):
         if data['contentType'] == 'dat':
@@ -762,7 +762,7 @@ def write_dat_for_component(componentId, runId):
 
 def make_plot_for_run(componentId, runId):
     query = { '_id': ObjectId(runId) }
-    thisRun = yarrdb.testRun.find_one( query )
+    thisRun = localdb.testRun.find_one( query )
     if session.get('rootType'):
         mapType = session['mapType']
         if session['rootType'] == 'set':
@@ -778,7 +778,7 @@ def make_plot_for_run(componentId, runId):
         for mapType in thisRun.get('plots',[]):
             session['plotList'].update({mapType: {'draw': True, 'chipIds': []}})
         query = [{ 'parent': componentId }, { 'child': componentId }]
-        child_entries = yarrdb.childParentRelation.find({'$or': query})
+        child_entries = localdb.childParentRelation.find({'$or': query})
         for child in child_entries:
             write_dat_for_component( child['child'], runId )
 
@@ -810,7 +810,7 @@ def fill_roots():
     root.uuid = str(session.get('uuid','localuser'))
     make_plot_for_run( session['this'], session['runId'] )
     query = { '_id': ObjectId(session['runId']) }
-    thisRun = yarrdb.testRun.find_one(query)
+    thisRun = localdb.testRun.find_one(query)
 
     results = []
     for mapType in thisRun.get('plots',[]):

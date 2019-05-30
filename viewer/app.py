@@ -56,7 +56,7 @@ class PrefixMiddleware(object):
             start_response('404', [('Content-Type', 'text/plain')])
             return ['This url does not belong to the app.'.encode()]
 
-app.wsgi_app = PrefixMiddleware(app.wsgi_app, prefix='/yarrdb')
+app.wsgi_app = PrefixMiddleware(app.wsgi_app, prefix='/localdb')
 # static
 app.register_blueprint(static.app)
 # secret_key

@@ -17,8 +17,8 @@ args = getArgs()
 if args.username : url = 'mongodb://' + args.username + ':' + args.password + '@' + args.host + ':' + str(args.port) 
 else :             url = 'mongodb://'                                             + args.host + ':' + str(args.port) 
 client = MongoClient( url )
-yarrdb = client[args.db]
-fs = gridfs.GridFS( yarrdb )
+localdb = client[args.db]
+fs = gridfs.GridFS( localdb )
 dbv = args.version
 olddbv = args.oldversion
 
@@ -60,7 +60,7 @@ def write_log( text ):
     log_file.write( datetime.datetime.now().strftime( '%Y-%m-%dT%H:%M:%S {}\n'.format(text) ) )
 
 def update_mod(collection, query):
-    entries = yarrdb[collection].find( query )
+    entries = localdb[collection].find( query )
     timestamp = datetime.datetime.utcnow()
     for entry in entries:
         query = { '_id': entry['_id'] }
@@ -68,8 +68,8 @@ def update_mod(collection, query):
             rev = entry['sys']['rev']+1
         else:
             rev = 0
-            yarrdb[collection].update( query, { '$set': { 'sys': { 'cts': timestamp } }})
-        yarrdb[collection].update(query, 
+            localdb[collection].update( query, { '$set': { 'sys': { 'cts': timestamp } }})
+        localdb[collection].update(query, 
             { 
                 '$set': { 
                     'sys.rev'  : int(rev), 
@@ -79,7 +79,7 @@ def update_mod(collection, query):
         ) 
 
 def update_ver(collection, query, ver):
-    yarrdb[collection].update( query, { '$set': { 'dbVersion': ver }}, multi=True )
+    localdb[collection].update( query, { '$set': { 'dbVersion': ver }}, multi=True )
 
 def is_png(b):
     return bool(re.match(br"^\x89\x50\x4e\x47\x0d\x0a\x1a\x0a", b[:8]))
@@ -115,10 +115,10 @@ if answer == 'y' :
         ### Function
         def set_institution(address, user_id):
             query = { '_id': ObjectId(user_id) }
-            thisUser = yarrdb.user.find_one( query )
+            thisUser = localdb.user.find_one( query )
             inst_doc = { 'institution': 'null', 'address': address, 'name': thisUser['userName'] }
-            if yarrdb.institution.find_one( inst_doc ): return
-            inst_id = yarrdb.institution.insert( inst_doc ) 
+            if localdb.institution.find_one( inst_doc ): return
+            inst_id = localdb.institution.insert( inst_doc ) 
             query = { '_id': inst_id }
             update_mod( 'institution', query )
             update_ver( 'institution', query, dbv )
@@ -127,7 +127,7 @@ if answer == 'y' :
         def set_user(doc):  #for old-v
             if 'user_id' in doc:
                 query = { '_id': ObjectId(doc['user_id']) }
-                user = yarrdb.user.find_one( query )
+                user = localdb.user.find_one( query )
                 return user
         
             if 'userIdentity' in doc:
@@ -142,23 +142,23 @@ if answer == 'y' :
                 'userIdentity': 'default',
                 'userType'    : 'readWrite'
             }
-            user = yarrdb.user.find_one( user_doc )
+            user = localdb.user.find_one( user_doc )
             if user: return user
         
-            user_id = yarrdb.user.insert( user_doc )
+            user_id = localdb.user.insert( user_doc )
             query = { '_id': user_id }
             update_ver( 'user', query, dbv )
             update_mod( 'user', query )
             write_log( '\t\t [Insert] user doc: {}'.format(name) ) 
             set_institution(institution, user_id)
             query = { '_id': user_id }
-            user = yarrdb.user.find_one( query )
+            user = localdb.user.find_one( query )
             return user
         
         def set_env(thisCtr, tr_id): 
             if not 'environments' in thisCtr: return ''
             tr_query = { '_id': ObjectId(tr_id) }
-            thisRun = yarrdb.testRun.find_one( tr_query )
+            thisRun = localdb.testRun.find_one( tr_query )
             if 'environment' in thisRun: return ''
             date = thisRun['startTime']
             environments = thisCtr['environments']
@@ -198,7 +198,7 @@ if answer == 'y' :
                                 'description': description 
                             })
         
-            env_id = yarrdb.environment.insert( env_doc ) 
+            env_id = localdb.environment.insert( env_doc ) 
             query = { '_id': env_id }
             update_ver( 'environment', query, dbv )
             update_mod( 'environment', query ) 
@@ -207,7 +207,7 @@ if answer == 'y' :
         
         def update_testrun(thisCtr, user, plots):
             tr_query = { '_id': ObjectId(thisCtr['testRun']) }
-            thisRun = yarrdb.testRun.find_one( tr_query )
+            thisRun = localdb.testRun.find_one( tr_query )
             doc = { 
                 'testType' : thisRun['testType'],
                 'runNumber': thisRun['runNumber'],
@@ -215,7 +215,7 @@ if answer == 'y' :
                 'user_id'  : str(user['_id']),
                 'dbVersion': dbv 
             } 
-            thisTestRun = yarrdb.testRun.find_one( doc )
+            thisTestRun = localdb.testRun.find_one( doc )
             if not thisTestRun:
                 stage = thisCtr.get('stage', 'null')
                 if not stage in file_stages: write_log( '\t\t[WARNING] Undefined this stage: {}'.format(stage) )
@@ -233,11 +233,11 @@ if answer == 'y' :
                     'plots'       : plots,
                     'display'     : thisRun.get('display',False)
                 })  
-                tr_id = yarrdb.testRun.insert( doc ) 
+                tr_id = localdb.testRun.insert( doc ) 
                 env_id = set_env( thisCtr, str(tr_id) )
                 query = { '_id': tr_id }
                 if not env_id == '':
-                    yarrdb.testRun.update( query, { '$set': { 'environment': str(env_id) }})
+                    localdb.testRun.update( query, { '$set': { 'environment': str(env_id) }})
                 update_ver( 'testRun', query, dbv ) 
                 update_mod( 'testRun', query ) 
                 write_log( '\t\t[Insert] testRun doc: {0}'.format(thisRun['runNumber']) )
@@ -245,15 +245,15 @@ if answer == 'y' :
                 tr_id = thisTestRun['_id']
                 query = { '_id': tr_id }
                 if len(plots) > thisTestRun['plots']:
-                    yarrdb.testRun.update( query, { '$set': { 'plots': plots }} )
+                    localdb.testRun.update( query, { '$set': { 'plots': plots }} )
                 if thisRun.get('display', False) and not thisTestRun['display']:
-                    yarrdb.testRun.update( query, { '$set': { 'display': thisRun['display'] }} ) 
+                    localdb.testRun.update( query, { '$set': { 'display': thisRun['display'] }} ) 
                 env_id = set_env( thisCtr, str(tr_id) )
                 if not env_id == '':
-                    yarrdb.testRun.update( query, { '$set': { 'environment': str(env_id) }})
+                    localdb.testRun.update( query, { '$set': { 'environment': str(env_id) }})
         
             if not thisRun.get('dbVersion', '') == dbv:
-                yarrdb.testRun.remove( tr_query ) #REMOVE
+                localdb.testRun.remove( tr_query ) #REMOVE
                 write_log( '\t\t[Delete] testRun doc: {0}'.format(thisRun['runNumber']) )
         
             return tr_id
@@ -264,7 +264,7 @@ if answer == 'y' :
             binary = fs.get(ObjectId(code)).read()
             shaHashed = hashlib.sha256(binary).hexdigest()
             json_data = json.loads(binary) 
-            doc = yarrdb.fs.files.find_one({ 'dbVersion': dbv, 'hash': shaHashed })
+            doc = localdb.fs.files.find_one({ 'dbVersion': dbv, 'hash': shaHashed })
             if doc:
                 fs.delete( ObjectId(code) )
                 code = str(doc['_id'])
@@ -285,7 +285,7 @@ if answer == 'y' :
                     chipId = json_data[chipType]['Parameter']['chipId']
                 elif chipType == 'RD53A':
                     chipId = json_data[chipType]['Parameter']['ChipId']
-            config_id = yarrdb.config.insert({
+            config_id = localdb.config.insert({
                 'filename' : 'chipCfg.json',
                 'chipType' : chipType,
                 'title'    : 'chipCfg',
@@ -296,7 +296,7 @@ if answer == 'y' :
             update_ver( 'config', query, dbv )
             update_mod( 'config', query )
             write_log( '\t\t\t\t\t\t[Delete/Insert] config doc: chipCfg.json' )
-            yarrdb.componentTestRun.update( ctr_query, { '$set': { '{}Cfg'.format(contentType): str(config_id) }}) 
+            localdb.componentTestRun.update( ctr_query, { '$set': { '{}Cfg'.format(contentType): str(config_id) }}) 
         
             return chipId
         
@@ -312,7 +312,7 @@ if answer == 'y' :
             binary = fs.get(ObjectId(code)).read()
             fs.delete( ObjectId(code) )
             code = fs.put( binary, filename='{0}.{1}'.format(filename, contentType) ) 
-            yarrdb.componentTestRun.update( ctr_query, { 
+            localdb.componentTestRun.update( ctr_query, { 
                 '$push': { 
                     'attachments': { 
                         'code'       : str(code),
@@ -336,7 +336,7 @@ if answer == 'y' :
         
         def for_broken(attachment, ctr_query):
             code = attachment['code']
-            yarrdb.componentTestRun.update( ctr_query, { 
+            localdb.componentTestRun.update( ctr_query, { 
                 '$push': { 
                     'broken' : { 
                         'key'        : attachment['filename'],
@@ -370,13 +370,13 @@ if answer == 'y' :
             'componentType' : 'Module',
             'dbVersion'     : { '$ne': dbv } 
         }
-        module_entries = yarrdb.component.find( query )
+        module_entries = localdb.component.find( query )
         moduleid_entries = []
         for module in module_entries:
             moduleid_entries.append( str(module['_id']) )
         for moduleid in moduleid_entries:
             query = { '_id': ObjectId(moduleid) }
-            module = yarrdb.component.find_one( query )
+            module = localdb.component.find_one( query )
         
             mo_serialNumber = module['serialNumber']
             mo_query = { '_id': module['_id'] }
@@ -388,16 +388,16 @@ if answer == 'y' :
         
             query = { 'component': str(module['_id']),
                       'dbVersion': { '$ne': dbv } }
-            run_entries = yarrdb.componentTestRun.find( query )
+            run_entries = localdb.componentTestRun.find( query )
             runid_entries = []
             for run in run_entries:
                 runid_entries.append( str(run['_id']) )
             for runid in runid_entries:
                 ctr_query = { '_id': ObjectId(runid) }
-                thisCtr = yarrdb.componentTestRun.find_one( query )
+                thisCtr = localdb.componentTestRun.find_one( query )
                 write_log( '\t\tComponentTestRun: #{}'.format( thisCtr['runNumber'] ) )
                 tr_query = { '_id': ObjectId(thisCtr['testRun']) }
-                thisRun = yarrdb.testRun.find_one( tr_query )
+                thisRun = localdb.testRun.find_one( tr_query )
                 user = set_user( thisRun ) 
         
                 ### attachments
@@ -438,11 +438,11 @@ if answer == 'y' :
                 ### testRun
                 tr_id = update_testrun( thisCtr, user, plots ) 
         
-                yarrdb.componentTestRun.update( ctr_query,
+                localdb.componentTestRun.update( ctr_query,
                                                 { '$set': { 'tx'       : -1,
                                                             'rx'       : -1,
                                                             'testRun'  : str(tr_id) }}) 
-                yarrdb.componentTestRun.update( ctr_query,
+                localdb.componentTestRun.update( ctr_query,
                                                 { '$unset': { 'stage': '',
                                                               'environments': '' }} ) 
                 if (maybe_broken):
@@ -454,16 +454,16 @@ if answer == 'y' :
         
             # modify chip documents
             query = { 'parent': str(module['_id']) }
-            child_entries = yarrdb.childParentRelation.find( query )
+            child_entries = localdb.childParentRelation.find( query )
             childid_entries = []
             for child in child_entries:
                 childid_entries.append( str(child['_id']) )
             chip_num = len(childid_entries)
             for childid in childid_entries:
                 query = { '_id': ObjectId(childid) }
-                child = yarrdb.childParentRelation.find_one( query )
+                child = localdb.childParentRelation.find_one( query )
                 ch_query = { '_id': ObjectId(child['child']) }
-                chip = yarrdb.component.find_one( ch_query )
+                chip = localdb.component.find_one( ch_query )
                 ### convert chip - testRun (if registered)
                 write_log( 'Chip: {}'.format( chip['serialNumber'] ) )
         
@@ -474,17 +474,17 @@ if answer == 'y' :
                 ### componentTestRun (chip)
                 query = { 'component': str(chip['_id']),
                           'dbVersion': { '$ne': dbv } }
-                run_entries = yarrdb.componentTestRun.find( query )
+                run_entries = localdb.componentTestRun.find( query )
                 if not run_entries.count() == 0:
                     runid_entries = []
                     for run in run_entries:
                         runid_entries.append( str(run['_id']) )
                     for runid in runid_entries:
                         ctr_query = { '_id': ObjectId(runid) }
-                        thisCtr = yarrdb.componentTestRun.find_one( ctr_query )
+                        thisCtr = localdb.componentTestRun.find_one( ctr_query )
                         write_log( '\t\tComponentTestRun: #{}'.format( thisCtr['runNumber'] ) )
                         tr_query = { '_id': ObjectId(thisCtr['testRun']) }
-                        thisRun = yarrdb.testRun.find_one( tr_query )
+                        thisRun = localdb.testRun.find_one( tr_query )
                         user = set_user( thisRun ) #user
         
                         ### attachments
@@ -525,11 +525,11 @@ if answer == 'y' :
                         ### testRun
                         tr_id = update_testrun( thisCtr, user, plots ) 
         
-                        yarrdb.componentTestRun.update( ctr_query,
+                        localdb.componentTestRun.update( ctr_query,
                                                         { '$set': { 'tx'       : -1,
                                                                     'rx'       : -1,
                                                                     'testRun'  : str(tr_id) }}) 
-                        yarrdb.componentTestRun.update( ctr_query,
+                        localdb.componentTestRun.update( ctr_query,
                                                         { '$unset': { 'stage': '',
                                                                       'environments': '' }} )   
                         if (maybe_broken):
@@ -541,7 +541,7 @@ if answer == 'y' :
         
                         ### insert module - testRun (if registered)
                         query = { 'component': str(mo_query['_id']), 'testRun': str(tr_id) }
-                        mo_ctr = yarrdb.componentTestRun.find_one( query )
+                        mo_ctr = localdb.componentTestRun.find_one( query )
                         if not mo_ctr:
                             mo_ctr_doc = { 
                                 'component': str(mo_query['_id']),
@@ -555,7 +555,7 @@ if answer == 'y' :
                                 'tx'       : -1,
                                 'rx'       : -1 
                             }
-                            mo_ctr_id = yarrdb.componentTestRun.insert( mo_ctr_doc )
+                            mo_ctr_id = localdb.componentTestRun.insert( mo_ctr_doc )
                             query = { '_id': mo_ctr_id }
                             update_ver( 'componentTestRun', query, dbv )
                             update_mod( 'componentTestRun', query )
@@ -563,15 +563,15 @@ if answer == 'y' :
                 else:
                     query = { 'component': str(chip['_id']),
                               'dbVersion': dbv }
-                    run_entries = yarrdb.componentTestRun.find( query )
+                    run_entries = localdb.componentTestRun.find( query )
                     if not run_entries.count() == 0:
                         for run in run_entries:
                             ### insert module - testRun (if registered)
                             query = { 'component': str(mo_query['_id']), 'testRun': run['testRun'] }
-                            mo_ctr = yarrdb.componentTestRun.find_one( query )
+                            mo_ctr = localdb.componentTestRun.find_one( query )
                             if not mo_ctr:
                                 query = { '_id': ObjectId(run['testRun']) }
-                                thisRun = yarrdb.testRun.find_one( query )
+                                thisRun = localdb.testRun.find_one( query )
                                 mo_ctr_doc = { 
                                     'component': str(mo_query['_id']),
                                     'testRun'  : run['testRun'],
@@ -584,7 +584,7 @@ if answer == 'y' :
                                     'tx'       : -1,
                                     'rx'       : -1,
                                 }
-                                mo_ctr_id = yarrdb.componentTestRun.insert( mo_ctr_doc )
+                                mo_ctr_id = localdb.componentTestRun.insert( mo_ctr_doc )
                                 query = { '_id': mo_ctr_id }
                                 update_ver( 'componentTestRun', query, dbv )
                                 update_mod( 'componentTestRun', query )
@@ -602,13 +602,13 @@ if answer == 'y' :
                 ### component (chip)
                 if not chip.get('dbVersion') == dbv:
                     user = set_user( chip ) #user
-                    yarrdb.component.update( ch_query,
+                    localdb.component.update( ch_query,
                                              { '$set': { 'address'      : user['institution'],
                                                          'user_id'      : str(user['_id']),
                                                          'componentType': 'Front-end Chip',
                                                          'chipType'     : chipType,
                                                          'chipId'       : int(chipId) }} ) 
-                    yarrdb.component.update( ch_query,
+                    localdb.component.update( ch_query,
                                              { '$unset': { 'institution' : '',
                                                            'userIdentity': '' }} )         
                     update_ver( 'component', ch_query, dbv ) 
@@ -616,7 +616,7 @@ if answer == 'y' :
         
                 ### childParentRelation
                 cpr_query = { '_id': child['_id'] } 
-                yarrdb.childParentRelation.update( cpr_query, { 
+                localdb.childParentRelation.update( cpr_query, { 
                     '$set': { 
                         'status': 'active',
                         'chipId': int(chipId) 
@@ -627,27 +627,27 @@ if answer == 'y' :
         
             ### confirmation
             query = { 'component': str(mo_query['_id']) }
-            run_entries = yarrdb.componentTestRun.find( query )
+            run_entries = localdb.componentTestRun.find( query )
             run_list = []
             for run in run_entries:
                 run_list.append({ 'testRun': run['testRun'] })
             child_list = []
             for childid in childid_entries:
                 query = { '_id': ObjectId(childid) }
-                child = yarrdb.childParentRelation.find_one( query )
+                child = localdb.childParentRelation.find_one( query )
                 child_list.append({ 'component': child['child'] })
             if not run_list == [] and not child_list == []:
                 query = { '$and': [{'$or': child_list}, {'$or': run_list}] }
-                entries = yarrdb.componentTestRun.find(query).count()
+                entries = localdb.componentTestRun.find(query).count()
                 if not entries == len(child_list)*len(run_list):
                     write_log( 'All chips' )
                     for run in run_list:
                         query = { '_id': ObjectId(run['testRun']) }
-                        thisRun = yarrdb.testRun.find_one( query ) 
+                        thisRun = localdb.testRun.find_one( query ) 
                         for child in child_list:
                             query = { '_id': ObjectId(child['component']) }
                             query = { 'component': child['component'], 'testRun': run['testRun'] }
-                            ch_ctr = yarrdb.componentTestRun.find_one( query )
+                            ch_ctr = localdb.componentTestRun.find_one( query )
                             if not ch_ctr:
                                 ch_ctr_doc = { 
                                     'component': child['component'],
@@ -661,19 +661,19 @@ if answer == 'y' :
                                     'tx'       : -1,
                                     'rx'       : -1
                                 }
-                                ch_ctr_id = yarrdb.componentTestRun.insert( ch_ctr_doc )
+                                ch_ctr_id = localdb.componentTestRun.insert( ch_ctr_doc )
                                 query = { '_id': ch_ctr_id }
                                 update_ver( 'componentTestRun', query, dbv )
                                 update_mod( 'componentTestRun', query )
                                 write_log( '\t\t[Insert] componentTestRun doc: {0} - {1}'.format(chip['serialNumber'], thisRun['runNumber']) )
             ### component (module)
             user = set_user( module ) #user
-            yarrdb.component.update( mo_query,
+            localdb.component.update( mo_query,
                                      { '$set': { 'address' : user['institution'],
                                                  'chipType': chipType,
                                                  'children': chip_num,
                                                  'user_id' : str(user['_id']) }} ) 
-            yarrdb.component.update( mo_query,
+            localdb.component.update( mo_query,
                                      { '$unset': { 'institution' : '',
                                                    'userIdentity': '' }} )         
             query = { 'parent': str(mo_query['_id']), 'dbVersion': { '$ne': dbv } }
@@ -692,10 +692,10 @@ if answer == 'y' :
         ### Function
         def set_institution(address, user_id):
             query = { '_id': ObjectId(user_id) }
-            thisUser = yarrdb.user.find_one( query )
+            thisUser = localdb.user.find_one( query )
             inst_doc = { 'institution': 'null', 'address': address, 'name': thisUser['userName'] }
-            if yarrdb.institution.find_one( inst_doc ): return
-            inst_id = yarrdb.institution.insert( inst_doc ) 
+            if localdb.institution.find_one( inst_doc ): return
+            inst_id = localdb.institution.insert( inst_doc ) 
             query = { '_id': inst_id }
             update_mod( 'institution', query )
             update_ver( 'institution', query, dbv )
@@ -704,7 +704,7 @@ if answer == 'y' :
         def set_user(doc):  #for old-v
             if 'user_id' in doc:
                 query = { '_id': ObjectId(doc['user_id']) }
-                user = yarrdb.user.find_one( query )
+                user = localdb.user.find_one( query )
                 return user
         
             if 'userIdentity' in doc:
@@ -719,17 +719,17 @@ if answer == 'y' :
                 'userIdentity': 'default',
                 'userType'    : 'readWrite'
             }
-            user = yarrdb.user.find_one( user_doc )
+            user = localdb.user.find_one( user_doc )
             if user: return user
         
-            user_id = yarrdb.user.insert( user_doc )
+            user_id = localdb.user.insert( user_doc )
             query = { '_id': user_id }
             update_ver( 'user', query, dbv )
             update_mod( 'user', query )
             write_log( '\t\t [Insert] user doc: {}'.format(name) ) 
             set_institution(institution, user_id)
             query = { '_id': user_id }
-            user = yarrdb.user.find_one( query )
+            user = localdb.user.find_one( query )
             return user
         
         def set_env( thisRun ):
@@ -740,7 +740,7 @@ if answer == 'y' :
                 { 'date': { '$gt': start - datetime.timedelta(minutes=1) }}, 
                 { 'date': { '$lt': finish + datetime.timedelta(minutes=1) }} 
             ]}
-            environments = yarrdb.environment.find( query )
+            environments = localdb.environment.find( query )
             if environments.count() == 0: return ''
             env_doc = { 'type': 'data' }
             for env in environments:
@@ -779,7 +779,7 @@ if answer == 'y' :
                                 'description': description 
                             })
         
-            env_id = yarrdb.environment.insert( env_doc ) 
+            env_id = localdb.environment.insert( env_doc ) 
             query = { '_id': env_id }
             update_ver( 'environment', query, dbv )
             update_mod( 'environment', query ) 
@@ -791,14 +791,14 @@ if answer == 'y' :
             if thisRun['dbVersion'] == dbv: return
             query = { '_id': thisRun['_id'] }
             if not env_id == '':
-                yarrdb.testRun.update( query, { '$set': { 'environment': str(env_id) }})
+                localdb.testRun.update( query, { '$set': { 'environment': str(env_id) }})
             update_ver( 'testRun', query, dbv )
             update_mod( 'testRun', query )
             set_institution(thisRun['address'], thisRun['user_id'])
         
         def for_json(code):
             query = { '_id': ObjectId(code) }
-            json_data = yarrdb.json.find_one( query )
+            json_data = localdb.json.find_one( query )
             filename = json_data['filename']
             title = json_data['title']
             chipType = json_data['chipType']
@@ -810,14 +810,14 @@ if answer == 'y' :
             binary = binary_image.read()
             shaHash = hashlib.sha256(binary)
             shaHashed = shaHash.hexdigest()
-            data_doc = yarrdb.fs.files.find_one({ 'dbVersion': dbv, 'hash': shaHashed })
+            data_doc = localdb.fs.files.find_one({ 'dbVersion': dbv, 'hash': shaHashed })
             if data_doc:
                 data = str(data_doc['_id'])
             else:
                 data = fs.put( binary, filename=filename )   
                 f_query = { '_id': data }
                 c_query = { 'files_id': data }
-                yarrdb.fs.files.update( f_query,
+                localdb.fs.files.update( f_query,
                                         { '$set': { 'hash': shaHashed }})
                 update_ver( 'fs.files', f_query, dbv ) 
                 update_mod( 'fs.files', f_query ) 
@@ -831,7 +831,7 @@ if answer == 'y' :
                 'format'  : 'fs.files',
                 'data_id' : str(data) 
             }
-            config_id = yarrdb.config.insert( config_doc )
+            config_id = localdb.config.insert( config_doc )
             query = { '_id': config_id }
             update_ver( 'config', query, dbv )
             update_mod( 'config', query )
@@ -843,7 +843,7 @@ if answer == 'y' :
             code = attachment['code']
             binary = fs.get(ObjectId(code)).read()
             fs.delete( ObjectId(code) )
-            yarrdb.componentTestRun.update( ctr_query, { 
+            localdb.componentTestRun.update( ctr_query, { 
                 '$pull': { 
                     'attachments': { 
                         'code': code 
@@ -852,7 +852,7 @@ if answer == 'y' :
             }) 
             code = fs.put( binary, filename=attachment['filename'] ) 
             attachment.update({ 'code': str(code) })
-            yarrdb.componentTestRun.update( ctr_query, { 
+            localdb.componentTestRun.update( ctr_query, { 
                 '$push': { 
                     'attachments': attachment
                 }
@@ -868,7 +868,7 @@ if answer == 'y' :
         def for_dat( attachment, ctr_query ):
             code = attachment['code']
             query = { '_id': ObjectId(code) }
-            thisData = yarrdb.dat.find_one( query )
+            thisData = localdb.dat.find_one( query )
             thisDat = thisData['data']
             path = './tmp.dat'
             with open(path, 'w') as f:
@@ -898,10 +898,10 @@ if answer == 'y' :
                         f.write('\n')
             binary_image = open(path, 'rb')
             binary = binary_image.read()
-            yarrdb.componentTestRun.update( ctr_query, { '$pull': { 'attachments': { 'code': code }}}) 
+            localdb.componentTestRun.update( ctr_query, { '$pull': { 'attachments': { 'code': code }}}) 
             code = fs.put( binary, filename=thisData['filename'] )  
             attachment.update({ 'code': str(code) })
-            yarrdb.componentTestRun.update( ctr_query, { '$push': { 'attachments': attachment }})
+            localdb.componentTestRun.update( ctr_query, { '$push': { 'attachments': attachment }})
             query = { '_id': code }
             update_ver( 'fs.files', query, dbv )
             update_mod( 'fs.files', query )
@@ -925,13 +925,13 @@ if answer == 'y' :
             'componentType' : 'Module',
             'dbVersion'     : { '$ne': dbv } 
         }
-        module_entries = yarrdb.component.find( query )
+        module_entries = localdb.component.find( query )
         moduleid_entries = []
         for module in module_entries:
             moduleid_entries.append( str(module['_id']) )
         for moduleid in moduleid_entries:
             query = { '_id': ObjectId(moduleid) }
-            module = yarrdb.component.find_one( query )
+            module = localdb.component.find_one( query )
         
             mo_serialNumber = module['serialNumber']
             mo_query = { '_id': module['_id'] }
@@ -943,13 +943,13 @@ if answer == 'y' :
         
             query = { 'component': str(module['_id']),
                       'dbVersion': { '$ne': dbv } }
-            run_entries = yarrdb.componentTestRun.find( query )
+            run_entries = localdb.componentTestRun.find( query )
             runid_entries = []
             for run in run_entries:
                 runid_entries.append( str(run['_id']) )
             for runid in runid_entries:
                 ctr_query = { '_id': ObjectId(runid) }
-                thisCtr = yarrdb.componentTestRun.find_one( query )
+                thisCtr = localdb.componentTestRun.find_one( query )
                 write_log( '\t\tComponentTestRun: #{}'.format( thisCtr['runNumber'] ) )
                 attachments = thisCtr.get('attachments',[])
                 write_log( '\t\t\t\tAttachments:' )
@@ -962,21 +962,21 @@ if answer == 'y' :
         
                 if thisCtr.get('afterCfg', False):
                     config_id = for_json( thisCtr['afterCfg'] )
-                    yarrdb.componentTestRun.update( ctr_query, { '$set': { 'afterCfg': str(config_id) }}) 
+                    localdb.componentTestRun.update( ctr_query, { '$set': { 'afterCfg': str(config_id) }}) 
                 if thisCtr.get('beforeCfg', False):
                     config_id = for_json( thisCtr['beforeCfg'] )
-                    yarrdb.componentTestRun.update( ctr_query, { '$set': { 'beforeCfg': str(config_id) }}) 
+                    localdb.componentTestRun.update( ctr_query, { '$set': { 'beforeCfg': str(config_id) }}) 
         
                 ### testRun
                 tr_query = { '_id': ObjectId(thisCtr['testRun']) }
-                thisRun = yarrdb.testRun.find_one( tr_query )
+                thisRun = localdb.testRun.find_one( tr_query )
                 if thisRun['dbVersion'] == dbv: continue
                 if thisRun.get('ctrlCfg', False):
                     config_id = for_json( thisRun['ctrlCfg'] )
-                    yarrdb.componentTestRun.update( tr_query, { '$set': { 'ctrlCfg': str(config_id) }}) 
+                    localdb.componentTestRun.update( tr_query, { '$set': { 'ctrlCfg': str(config_id) }}) 
                 if thisRun.get('scanCfg', False):
                     config_id = for_json( thisRun['scanCfg'] )
-                    yarrdb.componentTestRun.update( tr_query, { '$set': { 'scanCfg': str(config_id) }}) 
+                    localdb.componentTestRun.update( tr_query, { '$set': { 'scanCfg': str(config_id) }}) 
                 update_testrun( thisRun ) 
                 set_institution(module['address'], module['user_id'])
                 update_ver( 'componentTestRun', ctr_query, dbv ) 
@@ -984,16 +984,16 @@ if answer == 'y' :
         
             # modify chip documents
             query = { 'parent': str(module['_id']) }
-            child_entries = yarrdb.childParentRelation.find( query )
+            child_entries = localdb.childParentRelation.find( query )
             childid_entries = []
             for child in child_entries:
                 childid_entries.append( str(child['_id']) )
             chip_num = len(childid_entries)
             for childid in childid_entries:
                 query = { '_id': ObjectId(childid) }
-                child = yarrdb.childParentRelation.find_one( query )
+                child = localdb.childParentRelation.find_one( query )
                 ch_query = { '_id': ObjectId(child['child']) }
-                chip = yarrdb.component.find_one( ch_query )
+                chip = localdb.component.find_one( ch_query )
                 ### convert chip - testRun (if registered)
                 write_log( 'Chip: {}'.format( chip['serialNumber'] ) )
         
@@ -1002,14 +1002,14 @@ if answer == 'y' :
                 ### componentTestRun (chip)
                 query = { 'component': str(chip['_id']),
                           'dbVersion': { '$ne': dbv } }
-                run_entries = yarrdb.componentTestRun.find( query )
+                run_entries = localdb.componentTestRun.find( query )
                 if not run_entries.count() == 0:
                     runid_entries = []
                     for run in run_entries:
                         runid_entries.append( str(run['_id']) )
                     for runid in runid_entries:
                         ctr_query = { '_id': ObjectId(runid) }
-                        thisCtr = yarrdb.componentTestRun.find_one( ctr_query )
+                        thisCtr = localdb.componentTestRun.find_one( ctr_query )
                         write_log( '\t\tComponentTestRun: #{}'.format( thisCtr['runNumber'] ) )
                         attachments = thisCtr.get('attachments',[])
                         write_log( '\t\t\t\tAttachments:' ) 
@@ -1021,28 +1021,28 @@ if answer == 'y' :
                                 for_data( attachment, ctr_query ) 
                         if thisCtr.get('afterCfg', False):
                             config_id = for_json( thisCtr['afterCfg'] )
-                            yarrdb.componentTestRun.update( ctr_query, { '$set': { 'afterCfg': str(config_id) }}) 
+                            localdb.componentTestRun.update( ctr_query, { '$set': { 'afterCfg': str(config_id) }}) 
                         if thisCtr.get('beforeCfg', False):
                             config_id = for_json( thisCtr['beforeCfg'] )
-                            yarrdb.componentTestRun.update( ctr_query, { '$set': { 'beforeCfg': str(config_id) }}) 
+                            localdb.componentTestRun.update( ctr_query, { '$set': { 'beforeCfg': str(config_id) }}) 
             
                         ### testRun
                         tr_query = { '_id': ObjectId(thisCtr['testRun']) }
-                        thisRun = yarrdb.testRun.find_one( tr_query )
+                        thisRun = localdb.testRun.find_one( tr_query )
                         if thisRun['dbVersion'] == dbv: continue
                         if thisRun.get('ctrlCfg', False):
                             config_id = for_json( thisRun['ctrlCfg'] )
-                            yarrdb.componentTestRun.update( tr_query, { '$set': { 'ctrlCfg': str(config_id) }}) 
+                            localdb.componentTestRun.update( tr_query, { '$set': { 'ctrlCfg': str(config_id) }}) 
                         if thisRun.get('scanCfg', False):
                             config_id = for_json( thisRun['scanCfg'] )
-                            yarrdb.componentTestRun.update( tr_query, { '$set': { 'scanCfg': str(config_id) }}) 
+                            localdb.componentTestRun.update( tr_query, { '$set': { 'scanCfg': str(config_id) }}) 
                         update_testrun( thisRun ) 
                         update_ver( 'componentTestRun', ctr_query, dbv ) 
                         update_mod( 'componentTestRun', ctr_query, dbv ) 
         
                         ### insert module - testRun (if registered)
                         query = { 'component': str(mo_query['_id']), 'testRun': str(tr_query['_id']) }
-                        mo_ctr = yarrdb.componentTestRun.find_one( query )
+                        mo_ctr = localdb.componentTestRun.find_one( query )
                         if not mo_ctr:
                             mo_ctr_doc = { 
                                 'component': str(mo_query['_id']),
@@ -1056,7 +1056,7 @@ if answer == 'y' :
                                 'tx'       : -1,
                                 'rx'       : -1 
                             }
-                            mo_ctr_id = yarrdb.componentTestRun.insert( mo_ctr_doc )
+                            mo_ctr_id = localdb.componentTestRun.insert( mo_ctr_doc )
                             query = { '_id': mo_ctr_id }
                             update_ver( 'componentTestRun', query, dbv )
                             update_mod( 'componentTestRun', query )
@@ -1064,15 +1064,15 @@ if answer == 'y' :
                 else:
                     query = { 'component': str(chip['_id']),
                               'dbVersion': dbv }
-                    run_entries = yarrdb.componentTestRun.find( query )
+                    run_entries = localdb.componentTestRun.find( query )
                     if not run_entries.count() == 0:
                         for run in run_entries:
                             ### insert module - testRun (if registered)
                             query = { 'component': str(mo_query['_id']), 'testRun': run['testRun'] }
-                            mo_ctr = yarrdb.componentTestRun.find_one( query )
+                            mo_ctr = localdb.componentTestRun.find_one( query )
                             if not mo_ctr:
                                 query = { '_id': ObjectId(run['testRun']) }
-                                thisRun = yarrdb.testRun.find_one( query )
+                                thisRun = localdb.testRun.find_one( query )
                                 mo_ctr_doc = { 
                                     'component': str(mo_query['_id']),
                                     'testRun'  : run['testRun'],
@@ -1085,7 +1085,7 @@ if answer == 'y' :
                                     'tx'       : -1,
                                     'rx'       : -1,
                                 }
-                                mo_ctr_id = yarrdb.componentTestRun.insert( mo_ctr_doc )
+                                mo_ctr_id = localdb.componentTestRun.insert( mo_ctr_doc )
                                 query = { '_id': mo_ctr_id }
                                 update_ver( 'componentTestRun', query, dbv )
                                 update_mod( 'componentTestRun', query )
@@ -1094,14 +1094,14 @@ if answer == 'y' :
         
                 ### component (chip)
                 if not chip.get('dbVersion') == dbv:
-                    yarrdb.component.update( ch_query, { '$unset': { 'name' : '' }})
+                    localdb.component.update( ch_query, { '$unset': { 'name' : '' }})
                     update_ver( 'component', ch_query, dbv ) 
                     update_mod( 'component', ch_query )
                     set_institution(chip['address'], chip['user_id'])
         
                     ### childParentRelation
                     cpr_query = { '_id': child['_id'] } 
-                    yarrdb.childParentRelation.update( cpr_query, {
+                    localdb.childParentRelation.update( cpr_query, {
                         '$set': { 
                             'status': 'active',
                             'chipId': int(chipId) 
@@ -1112,27 +1112,27 @@ if answer == 'y' :
         
             ### confirmation
             query = { 'component': str(mo_query['_id']) }
-            run_entries = yarrdb.componentTestRun.find( query )
+            run_entries = localdb.componentTestRun.find( query )
             run_list = []
             for run in run_entries:
                 run_list.append({ 'testRun': run['testRun'] })
             child_list = []
             for childid in childid_entries:
                 query = { '_id': ObjectId(childid) }
-                child = yarrdb.childParentRelation.find_one( query )
+                child = localdb.childParentRelation.find_one( query )
                 child_list.append({ 'component': child['child'] })
             if not run_list == [] and not child_list == []:
                 query = { '$and': [{'$or': child_list}, {'$or': run_list}] }
-                entries = yarrdb.componentTestRun.find(query).count()
+                entries = localdb.componentTestRun.find(query).count()
                 if not entries == len(child_list)*len(run_list):
                     write_log( 'All chips' )
                     for run in run_list:
                         query = { '_id': ObjectId(run['testRun']) }
-                        thisRun = yarrdb.testRun.find_one( query ) 
+                        thisRun = localdb.testRun.find_one( query ) 
                         for child in child_list:
                             query = { '_id': ObjectId(child['component']) }
                             query = { 'component': child['component'], 'testRun': run['testRun'] }
-                            ch_ctr = yarrdb.componentTestRun.find_one( query )
+                            ch_ctr = localdb.componentTestRun.find_one( query )
                             if not ch_ctr:
                                 ch_ctr_doc = { 
                                     'component': child['component'],
@@ -1146,36 +1146,36 @@ if answer == 'y' :
                                     'tx'       : -1,
                                     'rx'       : -1
                                 }
-                                ch_ctr_id = yarrdb.componentTestRun.insert( ch_ctr_doc )
+                                ch_ctr_id = localdb.componentTestRun.insert( ch_ctr_doc )
                                 query = { '_id': ch_ctr_id }
                                 update_ver( 'componentTestRun', query, dbv )
                                 update_mod( 'componentTestRun', query )
                                 write_log( '\t\t[Insert] componentTestRun doc: {0} - {1}'.format(chip['serialNumber'], thisRun['runNumber']) )
             ### component (module)
-            yarrdb.component.update( mo_query, { '$set': { 'children': chip_num }} )
+            localdb.component.update( mo_query, { '$set': { 'children': chip_num }} )
             query = { 'parent': str(mo_query['_id']), 'dbVersion': { '$ne': dbv } }
             update_ver( 'component', mo_query, dbv ) 
             update_mod( 'component', mo_query )  
             write_log( '[Finish] Module: {}'.format(mo_serialNumber) )
             print( datetime.datetime.now().strftime( '\t%Y-%m-%dT%H:%M:%S Done.') )
         
-        for data in yarrdb.json.find():
+        for data in localdb.json.find():
             query = { '_id': data['_id'] }
             filename = data['filename']
-            yarrdb.json.remove( query ) 
+            localdb.json.remove( query ) 
             write_log( '[Delete] json doc: {0}'.format(filename) )
-        yarrdb.drop_collection( 'json' )
-        for data in yarrdb.dat.find():
+        localdb.drop_collection( 'json' )
+        for data in localdb.dat.find():
             query = { '_id': data['_id'] }
             filename = data['filename']
-            yarrdb.dat.remove( query ) 
+            localdb.dat.remove( query ) 
             write_log( '[Delete] dat doc: {0}'.format(filename) )
-        yarrdb.drop_collection( 'dat' )
-        for data in yarrdb.environment.find():
+        localdb.drop_collection( 'dat' )
+        for data in localdb.environment.find():
             if data['dbVersion'] == dbv: continue
             query = { '_id': data['_id'] }
             key = data['key']
-            yarrdb.environment.remove( query ) 
+            localdb.environment.remove( query ) 
             write_log( '[Delete] env doc: {0}'.format(key) )
         
         finish_update_time = datetime.datetime.now() 

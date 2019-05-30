@@ -27,9 +27,9 @@ args = getArgs()
 if args.username : url = 'mongodb://' + args.username + ':' + args.password + '@' + args.host + ':' + str(args.port) 
 else :             url = 'mongodb://'                                             + args.host + ':' + str(args.port) 
 client  = MongoClient( url )
-yarrdb  = client[args.db]
+localdb  = client[args.db]
 userdb = client[args.userdb]
-fs = gridfs.GridFS( yarrdb )
+fs = gridfs.GridFS( localdb )
 
 ##### scanList #####
 scanList = { 'FE-I4B': [ 'digitalscan', 'analogscan', 'thresholdscan', 'totscan', 'noisescan', 'selftrigger' ],
@@ -54,8 +54,8 @@ def clean_dir( dir_name ) :
     os.mkdir( dir_name )
 
 def update_mod( collection, query ) :
-    yarrdb[collection].update( query, 
-                               { '$set' : { 'sys.rev' : int( yarrdb[collection].find_one( query )['sys']['rev'] + 1 ), 
+    localdb[collection].update( query, 
+                               { '$set' : { 'sys.rev' : int( localdb[collection].find_one( query )['sys']['rev'] + 1 ), 
                                             'sys.mts' : datetime.datetime.utcnow() }}, 
                                  multi=True )
 def input_v( message ) :
@@ -130,26 +130,26 @@ while serialNumber == '' :
     serialNumber = input_v( '# Enter serial number of module >> ' ) 
 
 query = { 'serialNumber' : serialNumber }
-if not yarrdb.component.find( query ).count() == 1 :
+if not localdb.component.find( query ).count() == 1 :
     print( '[EXIT] Not found module ' + serialNumber )
     sys.exit()     
 
-thisComponent = yarrdb.component.find_one( query )
+thisComponent = localdb.component.find_one( query )
 chips = []
 componentId = str(thisComponent['_id'])
 chipType = thisComponent['chipType']
 query = { 'parent': componentId }
-child_entries = yarrdb.childParentRelation.find( query )
+child_entries = localdb.childParentRelation.find( query )
 for child in child_entries :
     chips.append({ 'component': child['child'] })
 
 ### select stage
 query = { 'component': componentId }
-run_entries = yarrdb.componentTestRun.find( query )
+run_entries = localdb.componentTestRun.find( query )
 stages = []
 for run in run_entries :
     query = { '_id': ObjectId(run['testRun']) }
-    thisRun = yarrdb.testRun.find_one( query )
+    thisRun = localdb.testRun.find_one( query )
     stages.append( thisRun.get('stage') )
 stages = list(set(stages))
 
@@ -198,10 +198,10 @@ for scan in scanList.get(chipType,[]):
     summaryList['after' ].update({ scan: {} })
     #query = { 'component': componentId, 'stage' : stage, 'testType' : scan }
     query = { 'component': componentId, 'testType': scan }
-    run_entries = yarrdb.componentTestRun.find( query )
+    run_entries = localdb.componentTestRun.find( query )
     for run in run_entries:
         query = { '_id': ObjectId(run['testRun']) }
-        thisRun = yarrdb.testRun.find_one( query )
+        thisRun = localdb.testRun.find_one( query )
         if not thisRun['stage'] == stage: continue
         runDoc = { 'runId':str(thisRun['_id']), 'datetime': thisRun['startTime'], 'runNumber': thisRun['runNumber'] }
         runEntries[scan].append( runDoc ) 
@@ -254,9 +254,9 @@ while answer == '' :
     print( '--------------------------- run number list ({0:^19}) ---------------------------'.format( scan ) )
     for entry in runEntries[scan] :
         query = { '_id': ObjectId(entry['runId']) }
-        thisRun = yarrdb.testRun.find_one( query )
+        thisRun = localdb.testRun.find_one( query )
         query = { '_id': ObjectId(thisRun['user_id']) }
-        thisUser = yarrdb.user.find_one( query )
+        thisUser = localdb.user.find_one( query )
         print( ' {0:<3} runNumber : {1:^5} userName : {2:^20} institution : {3:^20} '.format( str(runEntries[scan].index( entry ))+',', str(entry['runNumber'])+',', thisUser['userName']+',', thisUser['institution'] ))
     print( ' ' )
     run_num = ''
@@ -352,17 +352,17 @@ for scan in scanList.get(chipType,[]):
     thisRun = summaryList['after'][scan]
     thisRunId = thisRun['runId']
     query = { '_id': ObjectId(thisRunId) }
-    thisRun = yarrdb.testRun.find_one( query )
+    thisRun = localdb.testRun.find_one( query )
     for mapType in thisRun.get('plots',[]):
         plotList[scan].update({ mapType: { 'draw': True, 'chipIds': [] }})
 
     for thisChip in chips:
         query = { 'testRun': thisRunId, 'component': thisChip['component'] }
-        thisComponentTestRun = yarrdb.componentTestRun.find_one( query )
+        thisComponentTestRun = localdb.componentTestRun.find_one( query )
         if not thisComponentTestRun: continue
     
         query = { '_id': ObjectId(thisChip['component']) }
-        thisComponent = yarrdb.component.find_one( query )
+        thisComponent = localdb.component.find_one( query )
         chipId = thisComponent['chipId']
         for data in thisComponentTestRun.get('attachments'):
             if data['contentType'] == 'dat':
@@ -408,9 +408,9 @@ for scan in scanList.get(chipType,[]):
 
         ### add attachments into module TestRun
         query = { '_id': ObjectId(runId) }
-        thisRun = yarrdb.testRun.find_one( query )
+        thisRun = localdb.testRun.find_one( query )
         query = { 'component': componentId, 'testRun': runId }
-        thisComponentTestRun = yarrdb.componentTestRun.find_one( query )
+        thisComponentTestRun = localdb.componentTestRun.find_one( query )
 
         for mapType in plotList[scan] :
             if not plotList[scan][mapType]['HistoType'] == 2 : continue
@@ -423,7 +423,7 @@ for scan in scanList.get(chipType,[]):
                 for attachment in thisComponentTestRun.get('attachments',[]):
                     if filename == attachment.get('title'):
                         fs.delete( ObjectId(attachment.get('code')) )
-                        yarrdb.componentTestRun.update( query, { '$pull': { 'attachments': { 'code': attachment.get('code') }}}) 
+                        localdb.componentTestRun.update( query, { '$pull': { 'attachments': { 'code': attachment.get('code') }}}) 
                         print( 'Info in <componentTestRun>: code {} has been pulled'.format( str(attachment.get('code')) ) )
 
                 filepath = '{0}/localuser/plot/{1}_{2}_{3}.png'.format(TMP_DIR, str(thisRun['testType']), mapType, i)
@@ -433,17 +433,17 @@ for scan in scanList.get(chipType,[]):
                     #TODO confirm the reliability of the hash value
                     md5 = hashlib.md5(binary).hexdigest() 
                     f_query = { 'md5': md5 }
-                    if yarrdb.fs.files.find_one( query ): 
-                        image = yarrdb.fs.files.find_one( query )['_id']
+                    if localdb.fs.files.find_one( query ): 
+                        image = localdb.fs.files.find_one( query )['_id']
                     else: 
                         image = fs.put( binary, filename='{}.png'.format(filename) )
                         f_query = { '_id': image }
                         c_query = { 'files_id': image }
-                        thisFile = yarrdb.fs.files.find_one( f_query )
-                        yarrdb.fs.files.update( f_query, { '$set': { 'dbVersion': 0 }} )
-                        yarrdb.fs.chunks.update( c_query, { '$set': { 'dbVersion': 0 }}, multi=True )
+                        thisFile = localdb.fs.files.find_one( f_query )
+                        localdb.fs.files.update( f_query, { '$set': { 'dbVersion': 0 }} )
+                        localdb.fs.chunks.update( c_query, { '$set': { 'dbVersion': 0 }}, multi=True )
                     binary_image.close()
-                    yarrdb.componentTestRun.update( query, { '$push': { 'attachments' : { 'code'       : str(image),
+                    localdb.componentTestRun.update( query, { '$push': { 'attachments' : { 'code'       : str(image),
                                                                                           'dateTime'   : datetime.datetime.utcnow(),
                                                                                           'title'      : filename,
                                                                                           'description': 'describe',
@@ -454,12 +454,12 @@ for scan in scanList.get(chipType,[]):
     ### remove 'display : True' in current summary run
     if summaryList['before'][scan] :
         query = { '_id': ObjectId(summaryList['before'][scan]['runId']) }
-        thisRun = yarrdb.testRun.find_one( query )
+        thisRun = localdb.testRun.find_one( query )
         u_query = { '_id': ObjectId(thisRun['user_id']) }
-        thisUser = yarrdb.user.find_one( u_query )
-        yarrdb.testRun.update( query, { '$set'  : { 'display' : False }}, multi=True )
+        thisUser = localdb.user.find_one( u_query )
+        localdb.testRun.update( query, { '$set'  : { 'display' : False }}, multi=True )
         print( 'Info in <testRun>: run number {} has been set to false'.format( thisRun['runNumber'] ) )
-        yarrdb.testRun.update( query, { '$push': { 'comments': { 'user_id'    : str(thisUser['_id']),
+        localdb.testRun.update( query, { '$push': { 'comments': { 'user_id'    : str(thisUser['_id']),
                                                                  'comment'    : comments[scan], 
                                                                  'after'      : runId,
                                                                  'datetime'   : datetime.datetime.utcnow(), 
@@ -468,22 +468,22 @@ for scan in scanList.get(chipType,[]):
         update_mod( 'testRun', query ) 
  
     query = { 'component': componentId, 'testType' : scan }
-    entries = yarrdb.componentTestRun.find( query )
+    entries = localdb.componentTestRun.find( query )
     for entry in entries :
         query = { '_id': ObjectId(entry['testRun']) }
-        thisRun = yarrdb.testRun.find_one( query )
+        thisRun = localdb.testRun.find_one( query )
         if not thisRun['stage'] == stage: continue
         if thisRun.get('display') :
             query = { '_id': thisRun['_id'] }
-            yarrdb.testRun.update( query, { '$set': { 'display': False }} )
+            localdb.testRun.update( query, { '$set': { 'display': False }} )
             print( 'Info in <testRun>: run number {} has been set to false'.format( thisRun['runNumber'] ) )
             update_mod( 'testRun', query )
 
     # add 'display : True' in selected run
     if summaryList['after'][scan]:
         query = { '_id': ObjectId(summaryList['after'][scan]['runId']) }
-        thisRun = yarrdb.testRun.find_one( query )
-        yarrdb.testRun.update( query, { '$set': { 'display': True }}, multi=True )
+        thisRun = localdb.testRun.find_one( query )
+        localdb.testRun.update( query, { '$set': { 'display': True }}, multi=True )
         print( 'Info in <testRun>: run number {} has been set to true'.format( thisRun['runNumber'] ) )
         update_mod( 'testRun', query ) 
     print( '--------------- done ---------------' )

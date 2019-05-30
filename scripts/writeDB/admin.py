@@ -19,7 +19,7 @@ args    = getArgs()            # Get command line arguments
 if args.username : url = "mongodb://" + args.username + ":" + args.password + "@" + args.host + ":" + str(args.port) 
 else :             url = "mongodb://"                                             + args.host + ":" + str(args.port) 
 client  = MongoClient( url )
-yarrdb  = client[args.db]
+localdb  = client[args.db]
 userdb = client[args.userdb]
 
 ##### function #####

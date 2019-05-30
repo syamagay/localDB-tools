@@ -91,7 +91,7 @@ status in 19.02.2019
   $ python app.py --config conf.yml
   ```
 
-  You can check viewer by typing localhost:5000/yarrdb or (IPADDRESS):5000/yarrdb/ , or (IPADDRESS)/yarrdb/ if you use apache system.
+  You can check viewer by typing localhost:5000/localdb or (IPADDRESS):5000/localdb/ , or (IPADDRESS)/localdb/ if you use apache system.
   
 # Helpful Information
 

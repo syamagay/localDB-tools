@@ -14,7 +14,7 @@ def summary():
     print(args.dbVersion)
 
     mongo = MongoClient("mongodb://" + args.host + ":" + args.port)
-    db = mongo['yarrdb']
+    db = mongo['localdb']
 
     # Basic info
     print("[LocalDB] DB summary")
