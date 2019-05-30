@@ -45,9 +45,11 @@
               {% if not "total" in stage_results['scan'][scan] %}
               <td scope="col" class="text-center">
               {% elif stage_results['scan'][scan]['total'] == 1 %}
-              <td scope="col" class="text-center" style="background: #e2ffd8">
+              {# <td scope="col" class="text-center" style="background: #e2ffd8"> #}
+              <td scope="col" class="text-center">
               {% else %}
-              <td scope="col" class="text-center" style="background: #ffe5e1">
+              {# <td scope="col" class="text-center" style="background: #ffe5e1"> #}
+              <td scope="col" class="text-center">
               {% endif %}
                 {{ summary['mapType'] }}
               </td>

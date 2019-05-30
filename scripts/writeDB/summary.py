@@ -30,6 +30,7 @@ client  = MongoClient( url )
 localdb  = client[args.db]
 userdb = client[args.userdb]
 fs = gridfs.GridFS( localdb )
+dbv = args.version
 
 ##### scanList #####
 scanList = { 'FE-I4B': [ 'digitalscan', 'analogscan', 'thresholdscan', 'totscan', 'noisescan', 'selftrigger' ],
@@ -129,7 +130,7 @@ serialNumber = ''
 while serialNumber == '' :
     serialNumber = input_v( '# Enter serial number of module >> ' ) 
 
-query = { 'serialNumber' : serialNumber }
+query = { 'serialNumber' : serialNumber, 'dbVersion': dbv }
 if not localdb.component.find( query ).count() == 1 :
     print( '[EXIT] Not found module ' + serialNumber )
     sys.exit()     
