@@ -1,0 +1,9 @@
+arguments
+Flask
+Flask-PyMongo
+pdf2image
+Pillow
+prettytable
+pymongo
+python-dateutil
+PyYAML
