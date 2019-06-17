@@ -10,7 +10,15 @@
 from __future__ import print_function # Use print() in python2 and 3
 import os, sys, imp
 
-module_names = ["yaml", "argparse", "pymongo", "bson", "prettytable", "uuid", "dateutil", "pprint", "datetime"]
+module_names = []
+requirement_file = "../requirements.txt"
+if os.path.isfile(requirement_file):
+    for line in open(requirement_file):
+        if line[0] != '#':
+            module_names.append(line.strip())
+else:
+    print("ERROR! Cannot open 'requirements.txt'")
+    exit(1)
 
 print("[LDB] Welcome to Local Database Tools!")
 
