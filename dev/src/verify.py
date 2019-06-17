@@ -7,7 +7,7 @@
 # Description: Verify integrity of data in DB
 #################################
 
-from imports import * # Omajinai
+from imports.imports import * # Omajinai
 
 def verify():
     # Get username and hostname
@@ -21,19 +21,20 @@ def verify():
     # DB
     local_url = "mongodb://localhost"
     if args.username is None:
-        local_url = "mongodb://" + args.host + ":" + args.port
+        local_url = "mongodb://" + args.host + ":" + str(args.port)
     else:
-        local_url = "mongodb://" + args.username + ":" + args.password + "@" + args.host + ":" + args.port + "/localdb"
+        local_url = "mongodb://" + args.username + ":" + args.password + "@" + args.host + ":" + str(args.port) + "/localdb"
     print(local_url)
     client = MongoClient(local_url)
-    db = client["localdb"]
+    db = client["olddb"]
 
     ##
     # Get modules info
     query = {"componentType": "Module"}
     modules = db.component.find(query)
     nmodules = modules.count()
-    print("Found " + str(nmodules) + " modules!")
+    print("Found " + str(nmodules) + " modules!")#count of the module number
+    
     module_cnt = 1
     for module in modules:
         print("Verifying for module " + module["serialNumber"] + " (" + str(module_cnt) + "/" + str(nmodules) + ") ...")
