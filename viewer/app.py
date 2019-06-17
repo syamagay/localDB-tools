@@ -109,7 +109,7 @@ def show_modules_and_chips():
             chips.append({ '_id'          : str(thisChip['_id']),
                            'serialNumber' : thisChip['serialNumber'],
                            'componentType': thisChip['componentType'],
-                           'chipId'       : thisChip['chipId'],
+                           'chipId'       : thisChip.get('chipId',-1),
                            'datetime'     : set_time(thisChip['sys']['cts']),
                            'grade'        : {} }) 
 
@@ -166,7 +166,7 @@ def show_modules_and_chips_develop():
             chips.append({ '_id'          : str(thisChip['_id']),
                            'serialNumber' : thisChip['serialNumber'],
                            'componentType': thisChip['componentType'],
-                           'chipId'       : thisChip['chipId'],
+                           'chipId'       : thisChip.get('chipId',-1),
                            'datetime'     : set_time(thisChip['sys']['cts']),
                            'grade'        : score.get(chipId,{}) }) 
 

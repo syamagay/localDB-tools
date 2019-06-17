@@ -693,9 +693,9 @@ def write_dat(runId):
         chips.append({ 'component': child['child'] })
         query = { '_id': ObjectId(child['child']) }
         thisChip = localdb.component.find_one( query )
-        chipIds.update({ child['child']: { 'chipId': str(thisChip['chipId']),
+        chipIds.update({ child['child']: { 'chipId': str(thisChip.get('chipId',-1)),
                                            'name':   thisChip['name'] }})
-        chipIdNums.append( str(thisChip['chipId']) )
+        chipIdNums.append( str(thisChip.get('chipId',-1)) )
 
     query = { 'testRun': str(thisRun['_id']) }
     run_entries = localdb.componentTestRun.find(query)
@@ -749,7 +749,7 @@ def write_dat_for_component(componentId, runId):
 
     query = { '_id': ObjectId(componentId) }
     thisComponent = localdb.component.find_one( query )
-    chipId = thisComponent['chipId']
+    chipId = thisComponent.get('chipId',-1)
     for data in thisComponentTestRun.get('attachments', []):
         if data['contentType'] == 'dat':
             query = { '_id': ObjectId(data['code']) }
