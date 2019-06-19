@@ -1,3 +1,5 @@
+#!/usr/bin/env python3
+#coding:UTF-8
 #################################
 # Contacts: Arisa Kubota (akubota@hep.phys.titech.ac.jp)
 # Project: Yarr
@@ -16,6 +18,7 @@ import base64                          # Base64 encoding scheme
 import gridfs                          # gridfs system 
 import io
 import sys
+import yaml
 
 from flask            import Flask, request, redirect, url_for, render_template, session, make_response, jsonify
 from flask_pymongo    import PyMongo
@@ -29,6 +32,11 @@ sys.path.append( os.path.dirname(os.path.dirname(os.path.abspath(__file__)) ) )
 from scripts.src      import listset
 from scripts.src      import static
 from scripts.src.func import *
+
+# Config python logging
+# https://stackoverflow.com/questions/17743019/flask-logging-cannot-get-it-to-write-to-a-file
+import logging, logging.config
+logging.config.dictConfig(yaml.load(open('./configs/logging.yml')))
 
 if os.path.isdir( TMP_DIR ): 
     shutil.rmtree( TMP_DIR )
