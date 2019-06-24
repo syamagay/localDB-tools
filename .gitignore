@@ -21,6 +21,9 @@ pipinstall.py
 install_log
 static/*upload
 identity.json
+
+# logs, outputs
 *.log
+*.out
 
 # End of https://www.gitignore.io/api/virtualenv
