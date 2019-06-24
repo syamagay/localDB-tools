@@ -38,6 +38,10 @@ from scripts.src.func import *
 import logging, logging.config
 logging.config.dictConfig(yaml.load(open('./configs/logging.yml')))
 
+# Blue Prints
+from pages.callback   import callback_api
+
+
 if os.path.isdir( TMP_DIR ): 
     shutil.rmtree( TMP_DIR )
 os.mkdir( TMP_DIR )
@@ -47,6 +51,9 @@ for dir_ in _DIRS:
 
 # app 
 app = Flask( __name__ )
+
+# Regist Blue Prints
+app.register_blueprint(callback_api)
 
 # Prefix
 class PrefixMiddleware(object):
