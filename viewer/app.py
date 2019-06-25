@@ -21,7 +21,7 @@ import io
 import sys
 import yaml
 
-from flask            import Flask, request, redirect, url_for, render_template, session, make_response, jsonify
+from flask            import Flask, request, redirect, url_for, render_template, session, make_response, jsonify, send_file, send_from_directory
 from flask_pymongo    import PyMongo
 from pymongo          import MongoClient
 from bson.objectid    import ObjectId 
@@ -50,6 +50,9 @@ os.mkdir( TMP_DIR )
 _DIRS = [UPLOAD_DIR, STATIC_DIR, THUMBNAIL_DIR, JSON_DIR] 
 for dir_ in _DIRS:
     os.mkdir( dir_ )
+DAT_MIMETYPE = 'application/octet-stream'
+JSON_MIMETYPE = 'application/json'
+ZIP_MIMETYPE = 'application/zip'
 
 # app 
 app = Flask( __name__ )
@@ -93,6 +96,7 @@ usermongo = PyMongo(app, uri=MONGO_URL+'/'+args.userdb)
 usermongo.db.localdb.drop()
 fs = gridfs.GridFS(mongo.db)
 dbv=args.version
+
 
 # top page 
 @app.route('/', methods=['GET'])
@@ -206,6 +210,7 @@ def show_modules_and_chips_develop():
 
     return render_template( 'toppage.html', modules=modules )
 
+
 # component page 
 @app.route('/component', methods=['GET', 'POST'])
 def show_component():
@@ -245,6 +250,7 @@ def show_component():
         query = { '_id': ObjectId(child['child']) }
         thisChip = mongo.db.component.find_one( query )
         component_chips.append({ '_id'         : child['child'],
+                                 'chipId'      : child['chipId'],
                                  'serialNumber': thisChip['serialNumber'] })
 
     module = { '_id'         : ParentId,
@@ -265,6 +271,10 @@ def show_component():
     resultIndex  = fill_resultIndex() 
     results      = fill_results()     
     roots        = fill_roots()    
+
+    #Get child chips
+    cprelation = localdb.childParentRelation.find({'parent':session['this']})
+
 
     component.update({ '_id'         : session['this'],
                        'serialNumber': thisComponent['serialNumber'],
@@ -361,6 +371,7 @@ def select_summary():
     component = {}
     component_chips = []
     for child in child_entries:
+        print(child)
         query = { '_id': ObjectId(child['child']) }
         thisChip = mongo.db.component.find_one( query )
         component['componentType'] = thisChip['componentType']
@@ -580,12 +591,30 @@ def show_summary_selected():
 # download config file 
 @app.route('/download_config', methods=['GET'])
 def download_config() :
+    
     # get code of config file
     code = request.args.get( 'code' )
     json_data = jsonify( json.loads( fs.get( ObjectId(code)).read().decode('ascii') ) )
     response = make_response( json_data )
 
     return response
+
+@app.route('/config_downloader', methods=['GET'])
+def config_downloader() : 
+    configType = request.args.get( 'configType' )
+    ModuleName = request.args.get( 'ModuleName' )
+    downloadFileName =  str(ModuleName)+'_'+str(configType) + '.zip'
+    downloadFile = write_config(ModuleName,configType)
+    return send_file(downloadFile, as_attachment = True, attachment_filename = downloadFileName, mimetype = ZIP_MIMETYPE)
+
+@app.route('/data_downloader', methods=['GET'])
+def data_downloader() : 
+    mapType = request.args.get( 'mapType' )
+    ModuleName = request.args.get( 'ModuleName' )
+    downloadFileName = str(ModuleName) + '_' + str(mapType) + '.zip'
+    downloadFile = get_data(ModuleName, mapType)    
+    return send_file(downloadFile, as_attachment = True, attachment_filename = downloadFileName, mimetype = ZIP_MIMETYPE)
+
 
 # tag method
 @app.route('/tag', methods=['GET'])

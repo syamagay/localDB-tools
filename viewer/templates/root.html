@@ -83,6 +83,7 @@ vertical-align: middle;
       <div class="col">
       {% for result in component['roots']['results'] %}
         <a data-toggle="collapse" aria-expanded="true" data-target='#{{ result['sortkey'] }}' aria-controls={{ result['sortkey'] }} href='#{{ result['sortkey'] }}' style="color: green;"><h4 style="font-size: 10pt;"><i class="fa fa-caret-right"></i> {{ result['mapType'] }} </h4></a>
+				<a href="{{ url_for('data_downloader',ModuleName=component['module']['serialNumber'], mapType=result['mapType'])}}">Download here</a>
         <div class="row align-items-center justify-content-space-evenly collapse show" id={{ result['sortkey'] }}>
           <div class="col-md-4">
             {% if result['urlDist'] %}
@@ -171,7 +172,8 @@ vertical-align: middle;
             	      <button type="submit" class="btn btn-outline-success btn-block" style="font-size:9pt;border:none;" name="root" value="make">
                       Make Histogram
                     </button>
-                  <tr>
+                    </td>
+                  </tr>
                 </tbody>
                 </form> 
               </table>

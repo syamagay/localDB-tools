@@ -10,6 +10,7 @@ import datetime
 import hashlib
 import gridfs # gridfs system 
 import io
+import zipfile
 
 from flask         import url_for, session  # use Flask scheme
 from pymongo       import MongoClient, DESCENDING  # use mongodb scheme
@@ -615,6 +616,8 @@ def fill_results():
     results = {}
 
     if session.get('runId'):
+        query = { '_id':ObjectId(session['this']) } 
+        thisComponent = localdb.component.find_one(query)
         query = { 'component': session['this'], 
                   'testRun'  : session['runId'] }
         thisComponentTestRun = localdb.componentTestRun.find_one(query)
@@ -630,23 +633,67 @@ def fill_results():
                 plots.append({ 'code'    : data['code'],
                                'url'     : url,
                                'filename': data['title'] })
+        
+         
         # Change scheme
-        afterconfig = {}
-        if not thisComponentTestRun.get('afterCfg','...')=='...':
-            query = { '_id': ObjectId(thisComponentTestRun['afterCfg']) }
+        ctrlconfig = {}
+        if not thisRun.get('ctrlCfg','...')=='...':
+            query = { '_id': ObjectId(thisRun['ctrlCfg']) }
             config_data = localdb.config.find_one( query )
-            fs.get(ObjectId(config_data['data_id'])).read()
-            afterconfig.update({ "filename" : config_data['filename'],
-                                 "code"     : config_data['data_id'],
-                                 "configid" : thisComponentTestRun['afterCfg'] })
-        beforeconfig = {}
-        if not thisComponentTestRun.get('beforeCfg','...')=='...':
-            query = { '_id': ObjectId(thisComponentTestRun['beforeCfg']) }
+            #fs.get(ObjectId(config_data['data_id'])).read()
+            ctrlconfig.update({ "filename" : config_data['filename'],
+                                "code"     : [config_data['data_id']],
+                                "configid" : [thisRun['ctrlCfg']] })
+        scanconfig = {}
+        if not thisRun.get('scanCfg','...')=='...':
+            query = { '_id': ObjectId(thisRun['scanCfg']) }
             config_data = localdb.config.find_one( query )
-            fs.get(ObjectId(config_data['data_id'])).read()
-            beforeconfig.update({ "filename" : config_data['filename'],
-                                  "code"     : config_data['data_id'],
-                                  "configid" : thisComponentTestRun['beforeCfg'] })
+            #fs.get(ObjectId(config_data['data_id'])).read()
+            scanconfig.update({ "filename" : config_data['filename'],
+                                "code"     : [config_data['data_id']],
+                                "configid" : [thisRun['scanCfg']] })
+
+        query = [{ 'parent': session['this'] }, { 'child': session['this'] }]
+        child_entries = localdb.childParentRelation.find({'$or': query})
+        chipId = []
+        after_code = []
+        after_configId = []
+        before_code = []
+        before_configId = []
+
+        for child in child_entries:
+            query = { 'component': child['child'], 'testRun': session['runId'] }
+            thisChipComponentTestRun = localdb.componentTestRun.find_one(query)
+            chipId.append(child['chipId'])
+
+            after_configId.append(thisChipComponentTestRun['afterCfg'])   
+         
+            query = { '_id': ObjectId(thisChipComponentTestRun['afterCfg']) }
+            config_data = localdb.config.find_one(query)
+            after_code.append(config_data['data_id'])
+
+            afterconfig = {}
+            if not thisChipComponentTestRun.get('afterCfg','...')=='...':
+                query = { '_id': ObjectId(thisChipComponentTestRun['afterCfg']) }
+                #fs.get(ObjectId(config_data['data_id'])).read()
+                afterconfig.update({ "filename" : config_data['filename'],
+                                     "code"     : after_code,
+                                     "chipId"   : chipId, 
+                                     "configid" : after_configId })
+
+            before_configId.append(thisChipComponentTestRun['beforeCfg'])   
+
+            query = { '_id': ObjectId(thisChipComponentTestRun['beforeCfg']) }
+            config_data = localdb.config.find_one(query)
+            before_code.append(config_data['data_id'])
+
+            beforeconfig = {}
+            if not thisChipComponentTestRun.get('beforeCfg','...')=='...':
+                #fs.get(ObjectId(config_data['data_id'])).read()
+                beforeconfig.update({ "filename" : config_data['filename'],
+                                      "code"     : before_code,
+                                      "chipId"   : chipId,
+                                      "configid" : before_configId })
 
         query = { '_id': ObjectId(thisRun['user_id']) }
         user = localdb.user.find_one( query )
@@ -658,10 +705,10 @@ def fill_results():
                          'institution' : user['institution'],
                          'userIdentity': user['userName'],
                          'plots'       : plots,
-                         'afterconfig' : afterconfig,
-                         'beforeconfig': beforeconfig }) 
+                         'config'      : { 'ctrlCfg': ctrlconfig, 'scanCfg': scanconfig, 'beforeCfg': beforeconfig, 'afterCfg': afterconfig }}) 
 
     return results
+
 
 # create dat file from dat data in attachments of run
 def write_dat(runId):
@@ -673,7 +720,7 @@ def write_dat(runId):
 
     dat_dir = TMP_DIR + '/' + str(session.get('uuid','localuser')) + '/dat'
     clean_dir(dat_dir)
-
+    
     jsonFile = JSON_DIR + '/{}_parameter.json'.format(session.get('uuid','localuser'))
     if not os.path.isfile( jsonFile ):
         jsonFile_default = './scripts/json/parameter_default.json'
@@ -713,7 +760,7 @@ def write_dat(runId):
                 f.write(fs.get(ObjectId(data['code'])).read())
                 f.close()
                 session['plotList'].update({mapType: {'draw': True, 'chips': chipIdNums}})
-
+ 
 # make plot using PyROOT
 def make_plot(runId):
     query = { '_id': ObjectId(runId) }
@@ -759,6 +806,7 @@ def write_dat_for_component(componentId, runId):
             f.close()
             if data['title'] in session['plotList']:
                 session['plotList'][data['title']]['chipIds'].append( chipId )
+
 
 def make_plot_for_run(componentId, runId):
     query = { '_id': ObjectId(runId) }
@@ -839,3 +887,72 @@ def fill_roots():
                    'results': results})
 
     return roots
+
+def get_data(ModuleName,mapType):
+
+    myzip = zipfile.ZipFile('{0}/{1}/dat/{2}_{3}.zip'.format(TMP_DIR, session.get('uuid','localuser'),ModuleName,mapType),'a')
+    for i in session['plotList'][mapType]['chipIds']:
+        myzip.write('{0}/{1}/dat/{2}-{3}.dat'.format(TMP_DIR, session.get('uuid','localuser'), i, mapType),'{0}_chip{1}_{2}.dat'.format(ModuleName,i,mapType))
+    myzip.close()
+    fileName = TMP_DIR + '/' + str(session.get('uuid','localuser')) + '/dat/' + str(ModuleName) + '_' + str(mapType) + '.zip'
+
+    return fileName
+
+def write_config(ModuleName,configType):
+    
+    config_dir = TMP_DIR + '/' + str(session.get('uuid','localuser')) + '/config'
+    clean_dir(config_dir)
+    myzip = zipfile.ZipFile('{0}/{1}/config/{2}_{3}.zip'.format(TMP_DIR, session.get('uuid','localuser'),ModuleName, configType),'a')
+
+    if session.get('runId'):
+        query = { '_id':ObjectId(session['this']) } 
+        thisComponent = localdb.component.find_one(query)
+        query = { 'component': session['this'], 
+                  'testRun'  : session['runId'] }
+        thisComponentTestRun = localdb.componentTestRun.find_one(query)
+        query = { '_id': ObjectId(session['runId']) }
+        thisRun = localdb.testRun.find_one(query)
+
+
+        # Change scheme
+        if configType == 'ctrlCfg' or configType == 'scanCfg':
+            if thisRun.get('scanCfg','...')=='...':
+                print('no config files')
+                pass
+            if not thisRun.get(configType,'...')=='...':
+                query = { '_id': ObjectId(thisRun[configType]) }
+                config_data = localdb.config.find_one( query )
+                filePath = '{0}/{1}/config/{2}_{3}.json'.format(TMP_DIR, session.get('uuid','localuser'),ModuleName, configType)
+                f = open(filePath, 'wb')
+                f.write(fs.get(ObjectId(config_data['data_id'])).read())
+                f.close()
+                
+                myzip.write('{0}/{1}/config/{2}_{3}.json'.format(TMP_DIR, session.get('uuid','localuser'),ModuleName, configType),'{0}_{1}.json'.format(ModuleName, configType))
+
+        elif configType == 'afterCfg' or 'beforeCfg':        
+            query = [{ 'parent': session['this'] }, { 'child': session['this'] }]
+            child_entries = localdb.childParentRelation.find({'$or': query})
+
+            for child in child_entries:
+                query = { 'component': child['child'], 'testRun': session['runId'] }
+                thisChipComponentTestRun = localdb.componentTestRun.find_one(query)
+                if not thisChipComponentTestRun.get(configType,'...')=='...':
+                    chipId = child['chipId']
+                    configId = thisChipComponentTestRun[configType] 
+             
+                    query = { '_id': ObjectId(configId) }
+                    config_data = localdb.config.find_one(query)
+
+                    filePath = '{0}/{1}/config/{2}_chip{3}_{4}.json'.format(TMP_DIR, session.get('uuid','localuser'),ModuleName, chipId, configType)
+                    f = open(filePath, 'wb')
+                    f.write(fs.get(ObjectId(config_data['data_id'])).read())
+                    f.close()
+                    
+                    myzip.write('{0}/{1}/config/{2}_chip{3}_{4}.json'.format(TMP_DIR, session.get('uuid','localuser'),ModuleName, chipId, configType),'{0}_chip{1}_{2}.json'.format(ModuleName, chipId, configType))
+        
+    myzip.close()
+    
+    fileName = TMP_DIR + '/' + str(session.get('uuid','localuser')) + '/config/' + str(ModuleName) + '_' + str(configType) + '.zip'
+    return fileName
+
+
