@@ -2,10 +2,7 @@
 # -*- coding: utf-8 -*
 # pages/callback.py
 PAGE_NAME = "CALLBACK"
-
-from flask import Blueprint, request
-from pymongo          import MongoClient
-from scripts.src.func import *
+from configs.imports import *
 
 callback_api = Blueprint('callback_api', __name__)
 

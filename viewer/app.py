@@ -7,6 +7,7 @@
 # Usage: python app.py --config conf.yml 
 # Date: Feb 2019
 ################################
+from configs import *
 
 # module
 import os
@@ -39,7 +40,8 @@ import logging, logging.config
 logging.config.dictConfig(yaml.load(open('./configs/logging.yml')))
 
 # Blue Prints
-from pages.callback   import callback_api
+from controllers.callback   import callback_api
+from controllers.component_dev   import component_dev_api
 
 
 if os.path.isdir( TMP_DIR ): 
@@ -54,6 +56,7 @@ app = Flask( __name__ )
 
 # Regist Blue Prints
 app.register_blueprint(callback_api)
+app.register_blueprint(component_dev_api)
 
 # Prefix
 class PrefixMiddleware(object):
