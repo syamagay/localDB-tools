@@ -668,14 +668,13 @@ def fill_results():
 
             after_configId.append(thisChipComponentTestRun['afterCfg'])   
          
-            query = { '_id': ObjectId(thisChipComponentTestRun['afterCfg']) }
-            config_data = localdb.config.find_one(query)
-            after_code.append(config_data['data_id'])
-
             afterconfig = {}
             if not thisChipComponentTestRun.get('afterCfg','...')=='...':
                 query = { '_id': ObjectId(thisChipComponentTestRun['afterCfg']) }
-                #fs.get(ObjectId(config_data['data_id'])).read()
+                config_data = localdb.config.find_one(query)
+                after_code.append(config_data['data_id'])
+
+                query = { '_id': ObjectId(thisChipComponentTestRun['afterCfg']) }
                 afterconfig.update({ "filename" : config_data['filename'],
                                      "code"     : after_code,
                                      "chipId"   : chipId, 
@@ -683,13 +682,12 @@ def fill_results():
 
             before_configId.append(thisChipComponentTestRun['beforeCfg'])   
 
-            query = { '_id': ObjectId(thisChipComponentTestRun['beforeCfg']) }
-            config_data = localdb.config.find_one(query)
-            before_code.append(config_data['data_id'])
-
+           
             beforeconfig = {}
             if not thisChipComponentTestRun.get('beforeCfg','...')=='...':
-                #fs.get(ObjectId(config_data['data_id'])).read()
+                query = { '_id': ObjectId(thisChipComponentTestRun['beforeCfg']) }
+                config_data = localdb.config.find_one(query)
+                before_code.append(config_data['data_id'])
                 beforeconfig.update({ "filename" : config_data['filename'],
                                       "code"     : before_code,
                                       "chipId"   : chipId,
@@ -916,9 +914,6 @@ def write_config(ModuleName,configType):
 
         # Change scheme
         if configType == 'ctrlCfg' or configType == 'scanCfg':
-            if thisRun.get('scanCfg','...')=='...':
-                print('no config files')
-                pass
             if not thisRun.get(configType,'...')=='...':
                 query = { '_id': ObjectId(thisRun[configType]) }
                 config_data = localdb.config.find_one( query )
