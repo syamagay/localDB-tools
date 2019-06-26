@@ -16,7 +16,6 @@ def getArgs():
     parser.add_argument("--host",           help="Host",             type=str, default="localhost")
     parser.add_argument("--port",           help="Port",             type=int, default=27017)
     parser.add_argument("--db",             help="Db",               type=str, default="localdb")
-    parser.add_argument("--userdb",         help="Userdb",           type=str, default="userdb")
     parser.add_argument("--version",        help="DB Version",       type=int)
     parser.add_argument("--oldversion",     help="old DB Version",   type=float)
     parser.add_argument("--username", "-u", help="User name",        type=str)
@@ -33,7 +32,6 @@ def getArgs():
         if "host"      in conf["mongoDB"]: args.host        = conf["mongoDB"]["host"]
         if "port"      in conf["mongoDB"]: args.port        = conf["mongoDB"]["port"]
         if "db"        in conf["mongoDB"]: args.db          = conf["mongoDB"]["db"]
-        if "userdb"    in conf["mongoDB"]: args.userdb      = conf["mongoDB"]["userdb"]
         if "version"   in conf["mongoDB"]: args.version     = conf["mongoDB"]["version"]
         if "oldversion"in conf["mongoDB"]: args.oldversion = conf["mongoDB"]["oldversion"]
         if "username"  in conf["mongoDB"]: args.username   = conf["mongoDB"]["username"]

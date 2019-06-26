@@ -22,11 +22,12 @@ from scripts.src.arguments import *  # Pass command line arguments into app.py
 from scripts.src import listset
 
 # PyROOT
-try: 
-    from scripts.src import root
-    DOROOT = True
-except: 
-    DOROOT = False 
+DOROOT = False
+#try: 
+#    from scripts.src import root
+#    DOROOT = True
+#except: 
+#    DOROOT = False 
 
 # directories 
 """
@@ -60,7 +61,6 @@ client = MongoClient(_MONGO_URL)
 localdb = client[args.db]
 if args.username:
     localdb.authenticate(args.username, args.password)
-userdb = client[args.userdb]
 fs = gridfs.GridFS(localdb)
 
 #####
@@ -93,28 +93,28 @@ def bin_to_image( typ, binary ):
 # user funtion
 def add_request(userinfo):
     password = hashlib.md5(userinfo[5].encode('utf-8')).hexdigest()
-    userdb.request.insert({ 'userName'   : userinfo[0],
-                            'firstName'  : userinfo[1],
-                            'lastName'   : userinfo[2],
-                            'email'      : userinfo[3],
-                            'institution': userinfo[4],
-                            'type'       : 'user', 
-                            'password'   : password })
+    localdb.request.insert({ 'userName'   : userinfo[0],
+                             'firstName'  : userinfo[1],
+                             'lastName'   : userinfo[2],
+                             'email'      : userinfo[3],
+                             'institution': userinfo[4],
+                             'type'       : 'user', 
+                             'password'   : password })
 def add_user(userinfo):
-    userdb.user.insert({ 'userName'   : userinfo['userName'],
-                         'firstName'  : userinfo['firstName'],
-                         'lastName'   : userinfo['lastName'],
-                         'authority'  : int(userinfo['authority']),
-                         'institution': userinfo['institution'],
-                         'type'       : userinfo['type'], 
-                         'email'      : userinfo['email'],
-                         'passWord'   : userinfo['password'] })
+    localdb.user.insert({ 'userName'   : userinfo['userName'],
+                          'firstName'  : userinfo['firstName'],
+                          'lastName'   : userinfo['lastName'],
+                          'authority'  : int(userinfo['authority']),
+                          'institution': userinfo['institution'],
+                          'type'       : userinfo['type'], 
+                          'email'      : userinfo['email'],
+                          'passWord'   : userinfo['password'] })
    
 def remove_request(userid):
-    userdb.request.remove({ '_id': ObjectId(userid) })
+    localdb.request.remove({ '_id': ObjectId(userid) })
 
 def remove_user(userid):
-    userdb.user.remove({ '_id': ObjectId(userid) })
+    localdb.user.remove({ '_id': ObjectId(userid) })
 
 def input_v(message):
     answer = ''
@@ -148,11 +148,11 @@ def update_mod(collection, query):
                                 multi=True)
 
 def count_photoNum():
-    if userdb.counter.find({'type': 'photoNumber'}).count() == 0:
-        userdb.counter.insert({'type': 'photoNumber', 'num': 1})
+    if localdb.counter.find({'type': 'photoNumber'}).count() == 0:
+        localdb.counter.insert({'type': 'photoNumber', 'num': 1})
     else:
-        userdb.counter.update({'type': 'photoNumber'}, {'$set': {'num': int(userdb.counter.find_one({'type': 'photoNumber'})['num']+1)}})
-    return int(userdb.counter.find_one({'type': 'photoNumber'})['num'])
+        localdb.counter.update({'type': 'photoNumber'}, {'$set': {'num': int(localdb.counter.find_one({'type': 'photoNumber'})['num']+1)}})
+    return int(localdb.counter.find_one({'type': 'photoNumber'})['num'])
 
 def set_time(date):
     DIFF_FROM_UTC = args.timezone 
@@ -290,7 +290,7 @@ def fill_summary():
                     mapList.append(mapDict)
 
                 #query = { 'resultId': str(entries[stage][scan]) }
-                #thisRunInLocal = userdb.localdb.find_one( query )
+                #thisRunInLocal = localdb.localdb.find_one( query )
                 #if thisRunInLocal:
                 #    count = thisRunInLocal['count']
                 #else:
@@ -301,7 +301,7 @@ def fill_summary():
                 #        count = root.countPix( scan, session['plotList'] )
                 #    document = { 'resultId': str(entries[stage][scan]),
                 #                 'count': count }
-                #    userdb.localdb.insert( document )
+                #    localdb.localdb.insert( document )
 
                 count = {}
                 scandict[scan].update({'runNumber':    thisRun['runNumber'],
@@ -519,7 +519,7 @@ def grade_module(moduleId):
             session['this'] = moduleId 
 
             query = { 'resultId': str(entries[scan]) }
-            thisRunInLocal = userdb.localdb.find_one( query )
+            thisRunInLocal = localdb.localdb.find_one( query )
             if thisRunInLocal:
                 count = thisRunInLocal['count']
             else:
@@ -530,7 +530,7 @@ def grade_module(moduleId):
                     count = root.countPix( scan, session['plotList'] )
                 document = { 'resultId': str(entries[scan]),
                              'count': count }
-                userdb.localdb.insert( document )
+                localdb.localdb.insert( document )
 
         for component in scoreIndex:
             if component == 'stage': continue
@@ -577,7 +577,7 @@ def fill_resultIndex():
         count = {}
         #TODO
         #query = { 'resultId': str(thisRun['_id']) }
-        #thisRunInLocal = userdb.localdb.find_one( query )
+        #thisRunInLocal = localdb.localdb.find_one( query )
         #if thisRunInLocal:
         #    count = thisRunInLocal['count']
         #else:
@@ -588,7 +588,7 @@ def fill_resultIndex():
         #        count = root.countPix( run.get('testType'), session['plotList'] )
         #    document = { 'resultId': str(thisRun['_id']),
         #                 'count': count }
-        #    userdb.localdb.insert( document )
+        #    localdb.localdb.insert( document )
         #TODO
 
         resultIndex[testType]['run'].append({ '_id'      : str(thisRun['_id']),

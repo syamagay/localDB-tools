@@ -92,8 +92,6 @@ else:
 url = "mongodb://" + args.host + ":" + str(args.port)
 print("Connecto to mongoDB server: " + url + "/" + args.db)
 mongo     = PyMongo(app, uri=MONGO_URL+'/'+args.db)
-usermongo = PyMongo(app, uri=MONGO_URL+'/'+args.userdb)
-usermongo.db.localdb.drop()
 fs = gridfs.GridFS(mongo.db)
 dbv=args.version
 
@@ -766,8 +764,6 @@ def edit_comment():
                                                                          'datetime': datetime.datetime.utcnow(), 
                                                                          'institution': session['institution'] } }} )
         update_mod( 'testRun', query )
-        #userquery = { 'userName': session['user_name'] }
-        #usermongo.db.user.update( userquery , { '$push': { 'commentTestRun': query }})
  
     forUrl = 'show_component'
 
@@ -798,8 +794,6 @@ def remove_comment():
         query = { '_id': ObjectId(run['testRun']) }
         mongo.db.testRun.update( query, { '$pull': { 'comments': { 'user': request.form.get( 'user' ) }}} )
         update_mod( 'testRun', query )
-        #userquery = { 'userName': request.form.get('user') }
-        #usermongo.db.user.update( userquery , { '$pull': { 'commentTestRun': query }})
 
     forUrl = 'show_component'
 
@@ -857,7 +851,7 @@ def remove_attachment():
 def login():
 
     query = { 'userName': request.form['username'] }
-    userName = usermongo.db.user.find_one( query )
+    userName = mongo.db.user.find_one( query )
     try:
         if hashlib.md5( request.form['password'].encode('utf-8') ).hexdigest() == userName['passWord']:
             session['logged_in'] = True
@@ -896,7 +890,7 @@ def signup():
             text = 'Please make sure your passwords match'
             stage = 'input'
             return render_template( 'signup.html', userInfo=userinfo, passtext=text, stage=stage )
-        if usermongo.db.user.find({ 'userName': userinfo[0] }).count() == 1 or usermongo.db.request.find({ 'userName': userinfo[0] }).count() == 1:
+        if mongo.db.user.find({ 'userName': userinfo[0] }).count() == 1 or mongo.db.request.find({ 'userName': userinfo[0] }).count() == 1:
             text = 'The username you entered is already in use, please select an alternative.'
             stage = 'input'
             return render_template( 'signup.html', userInfo=userinfo, nametext=text, stage=stage )
@@ -916,9 +910,9 @@ def signup():
 
 @app.route('/admin',methods=['GET','POST'])
 def admin_page():
-    request_entries = usermongo.db.request.find({}, { 'userName': 0, 'password': 0 })
-    user_entries = usermongo.db.user.find({ 'type': 'user' }, { 'userName': 0, 'password': 0 })
-    admin_entries = usermongo.db.user.find({ 'type': 'administrator' }, { 'userName': 0, 'password': 0 })
+    request_entries = mongo.db.request.find({}, { 'userName': 0, 'password': 0 })
+    user_entries = mongo.db.user.find({ 'type': 'user' }, { 'userName': 0, 'password': 0 })
+    admin_entries = mongo.db.user.find({ 'type': 'administrator' }, { 'userName': 0, 'password': 0 })
     request = []
     for req in request_entries:
         req.update({ 'authority': 3,
@@ -941,7 +935,7 @@ def add_user():
     for user in user_entries:
         if approval[user_entries.index( user )] == 'approve':
             query = { '_id': ObjectId( user ) }
-            userinfo = usermongo.db.request.find_one( query )
+            userinfo = mongo.db.request.find_one( query )
             userinfo.update({ 'authority': authority[user_entries.index( user )] })
             add_user( userinfo ) 
             remove_request( user )

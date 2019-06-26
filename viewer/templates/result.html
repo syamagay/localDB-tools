@@ -22,15 +22,9 @@
           <td scope="col" align="center" >{{ component['results']['institution'] }}</td>
           <td scope="col" align="center" >{{ component['results']['userIdentity'] }}</td>
         </tr>
-        {% set index = [] %}
+        <!-- for comment function --!>
+        <!--
         {% for comment in component['results']['comments'] %}
-          {% if comment['userid'] == session['user_id'] %}
-            {% set index = index.append(loop.index-1) %}
-          {% endif %}
-        {% endfor %}
-        {% for comment in component['results']['comments'] %}
-          {% if not comment['userid'] == session['user_id'] %}
-          {% else %}
             <tr>
               <td scope="col" align="center" colspan="4">{{ comment['comment'] }}</td>
               <td scope="col" align="center" >
@@ -45,29 +39,23 @@
                 {% endif %}
               </td>
             </tr>
-          {% endif %}
         {% endfor %}
-        {% if index == [] %}
-          {% if session['write'] == 1 %}
-            <tr>
-        		  <form action="edit_comment" method="post" enctype="multipart/form-data">
-                <td scope="col" align="center" colspan="4">
-                  <input type = "txt" class="form-control input-normal" placeholder="comment" name = "text">
-                </td>
-                <td scope="col" align="center middle" >
-           		    <input type="hidden" value="{{ session['user_name'] }}" name="user">
-                  {{ session['user_name'] }}
-                  <input type="hidden" name="runNumber" value={{ component['results']['runNumber'] }} >
-                  <input type="hidden" name="id" value={{ component['_id'] }} >
-                  <p><input type = "submit" value = "update"></p>
-                {% if session['edit'] == 1 %}
-                  <p><input type = "submit" value = "remove" formaction="remove_comment"></p>
-                {% endif %}
-                </td>
-              </form>
-            </tr>
-          {% endif %}
-        {% endif %}
+        <tr>
+        	  <form action="edit_comment" method="post" enctype="multipart/form-data">
+              <td scope="col" align="center" colspan="4">
+                <input type = "txt" class="form-control input-normal" placeholder="comment" name = "text">
+              </td>
+              <td scope="col" align="center middle" >
+         		    <input type="hidden" value="{{ session['user_name'] }}" name="user">
+                {{ session['user_name'] }}
+                <input type="hidden" name="runNumber" value={{ component['results']['runNumber'] }} >
+                <input type="hidden" name="id" value={{ component['_id'] }} >
+                <p><input type = "submit" value = "update"></p>
+              </td>
+            </form>
+          </tr>
+        --!>
+        <!-- for comment function --!>
       </tbody>
     </table>
   </div>
