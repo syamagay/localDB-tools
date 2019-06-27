@@ -22,12 +22,11 @@ from scripts.src.arguments import *  # Pass command line arguments into app.py
 from scripts.src import listset
 
 # PyROOT
-DOROOT = False
-#try: 
-#    from scripts.src import root
-#    DOROOT = True
-#except: 
-#    DOROOT = False 
+try: 
+    from scripts.src import root
+    DOROOT = True
+except: 
+    DOROOT = False 
 
 # directories 
 """

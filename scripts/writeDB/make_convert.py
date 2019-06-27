@@ -40,234 +40,234 @@ log_file = open( log_filename, 'w' )
 def write_log( text ):
     log_file.write( datetime.datetime.now().strftime( '%Y-%m-%dT%H:%M:%S {}\n'.format(text) ) )
 
-def checkComponent(i_doc, new_mo_id):
-    cmp_query = { 'serialNumber': i_doc['serialNumber'] }
+def checkComponent(i_doc, i_new_id):
+    query = { 'serialNumber': i_doc['serialNumber'] }
     component_type = i_doc['componentType']
     if component_type != 'Module' and component_type != 'Front-end Chip':
         component_type = 'Front-end Chip'
-    cmp_query.update({ 'componentType': component_type })
-    thisComponent = localdb.component.find_one( cmp_query )
-    component_id = ""
+    query.update({ 'componentType': component_type })
+    thisComponent = localdb.component.find_one( query )
+    cmp_id_str = ""
     if thisComponent:
-        component_id = str(thisComponent['_id'])
+        cmp_id_str = str(thisComponent['_id'])
     else:
-        component_id = registerComponent(i_doc, new_mo_id)
+        cmp_id_str = registerComponent(i_doc, i_new_id)
     
-    return component_id
+    return cmp_id_str
 
-def registerComponent(i_doc, new_mo_id):
+def registerComponent(i_doc, i_new_id):
     component_type = i_doc['componentType']
     chip_type = i_doc.get('chipType', '')
     children = -1
     if component_type == 'Module':
         if chip_type == '':
             query = { 'parent': str(i_doc['_id']) }
-            child_entries = yarrdb.childParentRelation.find( query )
-            if child_entries.count() != 0:
-                query = { '_id': ObjectId(child_entries[0]['child']) }
+            entries = yarrdb.childParentRelation.find( query )
+            if entries.count() != 0:
+                query = { '_id': ObjectId(entries[0]['child']) }
                 chip = yarrdb.component.find_one( query )
                 chip_type = chip['componentType']
-                children = child_entries.count()
+                children  = entries.count()
             else:
                 chip_type = 'unknown'
     elif component_type != 'Front-end Chip':
         component_type = 'Front-end Chip'
-        chip_type = i_doc['componentType']
+        chip_type      = i_doc['componentType']
 
-    user_id = ''
-    site_id = ''
+    user_id_str = ''
+    site_id_str = ''
     if 'userIdentity' in i_doc:
-        user_name = i_doc['userIdentity']
-        institution = i_doc['institution']
+        user_name     = i_doc['userIdentity']
+        institution   = i_doc['institution']
         user_identity = 'default'
     else:
         query = { '_id': ObjectId(i_doc['user_id']) }
         thisUser = yarrdb.user.find_one( query )
-        user_name = thisUser['userName']
+        user_name     = thisUser['userName']
+        institution   = thisUser['institution']
         user_identity = thisUser['userIdentity']
-        institution = thisUser['institution']
-    user_id = checkUser(user_name, institution, user_identity)
-    site_id = checkSite('', institution)
+    user_id_str = checkUser(user_name, institution, user_identity)
+    site_id_str = checkSite('', institution)
  
     timestamp = datetime.datetime.utcnow()
     insert_doc = {
         'sys': {
-            'rev': 0,
+            'rev': 2,
             'cts': timestamp,
             'mts': timestamp
         },
-        'serialNumber': i_doc['serialNumber'],
-        'chipType': chip_type,
+        'serialNumber' : i_doc['serialNumber'],
+        'chipType'     : chip_type,
         'componentType': component_type,
-        'children': children,
-        'chipId': -1, 
-        'dbVersion': db_version,
-        'address': site_id, 
-        'user_id': user_id 
+        'children'     : children,
+        'chipId'       : -1, 
+        'dbVersion'    : db_version,
+        'address'      : site_id_str, 
+        'user_id'      : user_id_str 
     } 
-    component_id = localdb.component.insert( insert_doc )
+    cmp_id = localdb.component.insert( insert_doc )
 
     if component_type == 'Front-end Chip':
         query = { 
-            'parent': new_mo_id,
-            'child': str(component_id)
+            'parent': i_new_id,
+            'child' : str(cmp_id)
         }
         thisCpr = localdb.childParentRelation.find_one( query )
         if not thisCpr:
             timestamp = datetime.datetime.utcnow()
             insert_doc = {
                 'sys': {
-                    'rev': 0,
+                    'rev': 2,
                     'cts': timestamp,
                     'mts': timestamp
                 },
-                'parent': new_mo_id,
-                'child': str(component_id),
-                'chipId': -1,
-                'status': 'active',
+                'parent'   : i_new_id,
+                'child'    : str(cmp_id),
+                'chipId'   : -1,
+                'status'   : 'active',
                 'dbVersion': db_version
             }
             localdb.childParentRelation.insert( insert_doc )
 
     write_log( '\t[Register] Component : {}'.format( i_doc['serialNumber'] ) )
 
-    return str(component_id)
+    return str(cmp_id)
 
-def checkUser(user_name, institution, user_identity):
+def checkUser(i_user_name, i_institution, i_user_identity):
     user_query = {
-        'userName': user_name,
-        'institution': institution,
-        'userIdentity': user_identity
+        'userName'    : i_user_name,
+        'institution' : i_institution,
+        'userIdentity': i_user_identity
     }
     thisUser = localdb.user.find_one( user_query )
     user_id = ""
     if thisUser:
         user_id = str(thisUser['_id'])
     else:
-        user_id = registerUser(user_name, institution, user_identity)
+        user_id = registerUser(i_user_name, i_institution, i_user_identity)
     
     return user_id
 
-def registerUser(user_name, institution, user_identity):
+def registerUser(i_user_name, i_institution, i_user_identity):
     timestamp = datetime.datetime.utcnow()
     insert_doc = {
         'sys': {
-            'rev': 0,
+            'rev': 2,
             'cts': timestamp,
             'mts': timestamp
         },
-        'userName': user_name,
-        'institution': institution,
-        'userIdentity': user_identity,
-        'userType': 'readWrite',
-        'dbVersion': db_version
+        'userName'    : i_user_name,
+        'institution' : i_institution,
+        'userIdentity': i_user_identity,
+        'userType'    : 'readWrite',
+        'dbVersion'   : db_version
     }
     user_id = localdb.user.insert( insert_doc )
 
-    write_log( '\t[Register] User : {0} {1}'.format( user_name, institution ) )
+    write_log( '\t[Register] User : {0} {1}'.format( i_user_name, i_institution ) )
     return str(user_id)
 
-def checkSite(address, institution):
+def checkSite(i_address, i_institution):
     site_query = {
-        'address': address,
-        'institution': institution
+        'address'    : i_address,
+        'institution': i_institution
     }
     thisSite = localdb.institution.find_one( site_query )
-    site_id = ''
+    site_id_str = ''
     if thisSite:
-        site_id = str(thisSite['_id'])
+        site_id_str = str(thisSite['_id'])
     else:
-        site_id = registerSite(address, institution)
+        site_id_str = registerSite(i_address, i_institution)
     
-    return site_id
+    return site_id_str
 
-def registerSite(address, institution):
+def registerSite(i_address, i_institution):
     timestamp = datetime.datetime.utcnow()
     insert_doc = {
         'sys': {
-            'rev': 0,
+            'rev': 2,
             'cts': timestamp,
             'mts': timestamp
         },
-        'name': '',
-        'address': '',
-        'institution': institution
+        'name'       : '',
+        'address'    : i_address,
+        'institution': i_institution
     }
     site_id = localdb.institution.insert( insert_doc )
 
-    write_log( '\t[Register] Site : {0}'.format( institution ) )
+    write_log( '\t[Register] Site : {0}'.format( i_institution ) )
     return str(site_id)
  
 def checkTestRun(i_doc, i_serial_number):
     user_id = ''
     site_id = ''
     if 'userIdentity' in i_doc:
-        user_name = i_doc['userIdentity']
-        institution = i_doc['institution']
+        user_name     = i_doc['userIdentity']
+        institution   = i_doc['institution']
         user_identity = 'default'
     else:
         query = { '_id': ObjectId(i_doc['user_id']) }
         thisUser = yarrdb.user.find_one( query )
-        user_name = thisUser['userName']
+        user_name     = thisUser['userName']
+        institution   = thisUser['institution']
         user_identity = thisUser['userIdentity']
-        institution = thisUser['institution']
-    user_id = checkUser(user_name, institution, user_identity)
-    site_id = checkSite('', institution)
+    user_id_str = checkUser(user_name, institution, user_identity)
+    site_id_str = checkSite('', institution)
 
     tr_query = {
-        'testType': i_doc['testType'],
-        'runNumber': i_doc['runNumber'],
-        'user_id': user_id,
-        'address': site_id,
+        'testType'    : i_doc['testType'],
+        'runNumber'   : i_doc['runNumber'],
+        'user_id'     : user_id_str,
+        'address'     : site_id_str,
         'serialNumber': i_serial_number
     }
     thisRun = localdb.testRun.find_one( tr_query )
-    tr_id = ''
+    tr_id_str = ''
     if thisRun:
-        tr_id = str(thisRun['_id'])
+        tr_id_str = str(thisRun['_id'])
     else:
         i_doc.update( tr_query )
-        tr_id = registerTestRun(i_doc)
+        tr_id_str = registerTestRun(i_doc)
 
-    return tr_id
+    return tr_id_str
 
 def registerTestRun(i_doc):
     env_id = '...'
     if 'startTime' in i_doc:
-        start_time = i_doc['startTime']
+        start_time  = i_doc['startTime']
         finish_time = i_doc['finishTime']
         env_id = registerEnvFromTr( start_time, finish_time, i_doc['address'] )
     else:
-        start_time = i_doc['date']
+        start_time  = i_doc['date']
         finish_time = i_doc['date']
     timestamp = datetime.datetime.utcnow()
     insert_doc = {
         'sys': {
-            'rev': 0,
+            'rev': 2,
             'cts': timestamp,
             'mts': timestamp
         },
-        'testType': i_doc['testType'],
-        'runNumber': i_doc['runNumber'],
-        'startTime': start_time,
-        'passed': True,
-        'problems': True,
-        'summary': i_doc.get('display', False),
-        'state': 'ready',
+        'testType'    : i_doc['testType'],
+        'runNumber'   : i_doc['runNumber'],
+        'startTime'   : start_time,
+        'passed'      : True,
+        'problems'    : True,
+        'summary'     : i_doc.get('display', False),
+        'state'       : 'ready',
         'targetCharge': i_doc.get('targetCharge',-1),
-        'targetTot': i_doc.get('targetTot',-1),
-        'comments': [],
-        'defects': [],
-        'finishTime': finish_time,
-        'plots': [], 
+        'targetTot'   : i_doc.get('targetTot',-1),
+        'comments'    : [],
+        'defects'     : [],
+        'finishTime'  : finish_time,
+        'plots'       : [], 
         'serialNumber': i_doc['serialNumber'],
-        'stage': '...', 
-        'ctrlCfg': '...', 
-        'scanCfg': '...', 
-        'environment': env_id,
-        'address': i_doc['address'], 
-        'user_id': i_doc['user_id'], 
-        'dbVersion': db_version
+        'stage'       : '...', 
+        'ctrlCfg'     : '...', 
+        'scanCfg'     : '...', 
+        'environment' : env_id,
+        'address'     : i_doc['address'], 
+        'user_id'     : i_doc['user_id'], 
+        'dbVersion'   : db_version
     }
     tr_id = localdb.testRun.insert( insert_doc )
 
@@ -277,16 +277,16 @@ def registerTestRun(i_doc):
 def checkComponentTestRun(i_cmp_id, i_tr_id):
     query = {
         'component': i_cmp_id,
-        'testRun': i_tr_id
+        'testRun'  : i_tr_id
     }
     thisComponentTestRun = localdb.componentTestRun.find_one( query )
-    ctr_id = ''
+    ctr_id_str = ''
     if thisComponentTestRun:
-        ctr_id = str(thisComponentTestRun['_id'])
+        ctr_id_str = str(thisComponentTestRun['_id'])
     else:
-        ctr_id = registerComponentTestRun(i_cmp_id, i_tr_id)
+        ctr_id_str = registerComponentTestRun(i_cmp_id, i_tr_id)
 
-    return ctr_id
+    return ctr_id_str
     
 def registerComponentTestRun(i_cmp_id, i_tr_id):
     query = { '_id': ObjectId(i_tr_id) }
@@ -294,24 +294,24 @@ def registerComponentTestRun(i_cmp_id, i_tr_id):
     timestamp = datetime.datetime.utcnow()
     insert_doc = {
         'sys': {
-            'rev': 0,
+            'rev': 2,
             'cts': timestamp,
             'mts': timestamp
         },
-        'component': i_cmp_id,
-        'state': '...',
-        'testType': thisRun['testType'],
-        'testRun': i_tr_id,
-        'qaTest': False,
-        'runNumber': thisRun['runNumber'],
-        'passed': True,
-        'problems': True,
+        'component'  : i_cmp_id,
+        'state'      : '...',
+        'testType'   : thisRun['testType'],
+        'testRun'    : i_tr_id,
+        'qaTest'     : False,
+        'runNumber'  : thisRun['runNumber'],
+        'passed'     : True,
+        'problems'   : True,
         'attachments': [],
-        'tx': -1, 
-        'rx': -1, 
-        'beforeCfg': '...', 
-        'afterCfg': '...', 
-        'dbVersion': db_version
+        'tx'         : -1, 
+        'rx'         : -1, 
+        'beforeCfg'  : '...', 
+        'afterCfg'   : '...', 
+        'dbVersion'  : db_version
     }
     ctr_id = localdb.componentTestRun.insert( insert_doc )
     query = { '_id': ObjectId(i_cmp_id) }
@@ -320,12 +320,12 @@ def registerComponentTestRun(i_cmp_id, i_tr_id):
     write_log( '\t[Register] componentTestRun : {0} {1} {2}'.format( thisRun['runNumber'], thisRun['testType'], thisComponent['serialNumber'] ) )
     return str(ctr_id)
 
-def registerEnvFromTr(start_time, finish_time, address):
+def registerEnvFromTr(i_start_time, i_finish_time, i_address):
     env_id = '...'
     query = {
         '$and': [
-            { 'date': { '$gt': start_time - datetime.timedelta(minutes=1) }},
-            { 'date': { '$lt': finish +  datetime.timedelta(minutes=1) }}
+            { 'date': { '$gt': i_start_time - datetime.timedelta(minutes=1) }},
+            { 'date': { '$lt': i_finish_time +  datetime.timedelta(minutes=1) }}
         ]
     }
     insert_doc = {}
@@ -352,7 +352,7 @@ def registerEnvFromTr(start_time, finish_time, address):
         timestamp = datetime.datetime.utcnow()
         insert_doc.update({
             'sys': {
-                'rev': 0,
+                'rev': 2,
                 'cts': timestamp,
                 'mts': timestamp
             },
@@ -367,7 +367,7 @@ def registerEnvFromCtr(i_doc, date):
     timestamp = datetime.datetime.utcnow()
     insert_doc = {
         'sys': {
-            'rev': 0,
+            'rev': 2,
             'cts': timestamp,
             'mts': timestamp
         },
@@ -444,8 +444,9 @@ def registerConfig(attachment, chip_type, new_ctr):
         'tx': -1,
         'rx': -1
     }
+
     try:
-        json_data = json.loads(binary) 
+        json_data = json.loads(binary.decode('utf-8')) 
     except:
         return return_doc
     query = {
@@ -474,16 +475,20 @@ def registerConfig(attachment, chip_type, new_ctr):
         'data_id'  : str(code)
     }
     config_id = localdb.config.insert(insert_doc)
-    ctr_query = { '_id': new_ctr['_id'] }
+    ctr_query = { '_id': ObjectId(new_ctr['_id']) }
     localdb.componentTestRun.update( ctr_query, { '$set': { '{}Cfg'.format(contentType): str(config_id) }}) 
 
     write_log( '\t[Register] Config : {0} {1}'.format( 'chipCfg.json', '{}Cfg'.format(contentType) ))
     return return_doc
 
-def registerDatFromDat(attachment, new_ctr):
+def registerDatFromDat(attachment, new_ctr_id):
     code = attachment['code']
     query = { '_id': ObjectId(code) }
     thisData = yarrdb.dat.find_one( query )
+    if not thisData: return ''
+
+    query = { '_id': ObjectId(new_ctr_id) }
+    new_ctr = localdb.componentTestRun.find_one( query )
     thisDat = thisData['data']
     update_doc = {
         'title': attachment['title'],
@@ -491,7 +496,7 @@ def registerDatFromDat(attachment, new_ctr):
     }
     for new_attachment in new_ctr.get('attachments', []):
         if new_attachment['title'] == update_doc['title'] and new_attachment['filename'] == update_doc['filename']:
-            return;
+            return ''
 
     path = './tmp.dat'
     with open(path, 'w') as f:
@@ -523,14 +528,30 @@ def registerDatFromDat(attachment, new_ctr):
     binary = binary_image.read()
     code = localfs.put( binary, filename=thisData['filename'] )  
     attachment.update({ 'code': str(code) })
-    ctr_query = { '_id': new_ctr['_id'] }
+    print( new_ctr['_id'] )
+    ctr_query = { '_id': ObjectId(new_ctr['_id']) }
     localdb.componentTestRun.update( ctr_query, { '$push': { 'attachments': attachment }})
 
     write_log( '\t[Register] Dat : {0}'.format( thisData['filename'] ))
     return attachment['title']
 
-def registerDat(attachment, name, new_ctr, plots):
+def is_png(b):
+    return bool(re.match(br"^\x89\x50\x4e\x47\x0d\x0a\x1a\x0a", b[:8]))
+
+def is_pdf(b):
+    return bool(re.match(b"^%PDF", b[:4]))
+
+def registerDat(attachment, name, new_ctr_id, plots):
+    query = { '_id': ObjectId(new_ctr_id) }
+    new_ctr = localdb.componentTestRun.find_one( query )
     code = attachment['code']
+    bin_data = yarrfs.get(ObjectId(code)).read()
+    if (is_png(bin_data)): 
+        return ''
+    if (is_pdf(bin_data)): 
+        return ''
+    if not 'Histo' in bin_data.decode('utf-8').split('\n')[0][0:7]: return ''
+
     filename = attachment['filename']
     if name in filename:       filename = filename.split(name)[1][1:].replace('_','-')
     elif 'chipId' in filename: filename = filename.split('chipId')[1][2:].replace('_','-')
@@ -547,11 +568,11 @@ def registerDat(attachment, name, new_ctr, plots):
     }
     for new_attachment in new_ctr.get('attachments', []):
         if new_attachment['title'] == update_doc['title'] and new_attachment['filename'] == update_doc['filename']:
-            return;
+            return ''
 
     binary = yarrfs.get(ObjectId(code)).read()
     code = localfs.put( binary, filename='{0}.dat'.format(filename) ) 
-    ctr_query = { '_id': new_ctr['_id'] }
+    ctr_query = { '_id': ObjectId(new_ctr['_id']) }
     localdb.componentTestRun.update( ctr_query, { 
         '$push': { 
             'attachments': { 
@@ -570,6 +591,10 @@ def registerDat(attachment, name, new_ctr, plots):
 
 def registerPng(attachment, name, new_ctr, plots):
     code = attachment['code']
+    binary = yarrfs.get(ObjectId(code)).read()
+    if not (is_png(binary)): 
+        return ''
+
     filename = attachment['filename']
     if name in filename:       filename = filename.split(name)[1][1:].replace('_','-')
     elif 'chipId' in filename: filename = filename.split('chipId')[1][2:].replace('_','-')
@@ -584,11 +609,10 @@ def registerPng(attachment, name, new_ctr, plots):
     }
     for new_attachment in new_ctr.get('attachments', []):
         if new_attachment['title'] == update_doc['title'] and new_attachment['filename'] == update_doc['filename']:
-            return;
+            return ''
 
-    binary = yarrfs.get(ObjectId(code)).read()
     code = localfs.put( binary, filename='{0}.png'.format(filename) ) 
-    ctr_query = { '_id': new_ctr['_id'] }
+    ctr_query = { '_id': ObjectId(new_ctr['_id']) }
     localdb.componentTestRun.update( ctr_query, { 
         '$push': { 
             'attachments': { 
@@ -612,18 +636,18 @@ def convert():
     write_log( '[Start] convertDB.py' )
 
     # modify module document
+    start_update_time = datetime.datetime.now() 
     print( '# Convert database scheme' )
     print( datetime.datetime.now().strftime( '\t%Y-%m-%dT%H:%M:%S [Start]' ) )
     write_log( '==============================================' )
     write_log( '[Convert] database: yarrdb' )
-        
-    start_update_time = datetime.datetime.now() 
+
     query = { 'componentType' : 'Module' }
-    module_entries = yarrdb.component.find( query )
-    moduleid_entries = []
-    for module in module_entries:
-        moduleid_entries.append( str(module['_id']) )
-    for moduleid in moduleid_entries:
+    entries = yarrdb.component.find( query )
+    moduleids = []
+    for entry in entries: # module entry
+        moduleids.append( str(entry['_id']) )
+    for moduleid in moduleids:
         query = { '_id': ObjectId(moduleid) }
         thisModule = yarrdb.component.find_one( query )
 
@@ -684,10 +708,8 @@ def convert():
                 if thisComponentTestRun:
                     attachments = thisRun.get('attachments',[])
                     for attachment in attachments: 
-                        if attachment['contentType'] == 'dat': continue
-                        if attachment['contentType'] == 'pdf': continue
-                        if attachment['contentType'] == 'png': 
-                            title = registerPng(attachment, mo_serial_number, new_thisComponentTestRun, plots)
+                        title = registerPng(attachment, mo_serial_number, new_thisComponentTestRun, plots)
+                        if not title == '':
                             plots.append(title)
             for chip in chipids:
                 new_ctrid = checkComponentTestRun(chip['new'], new_trid)
@@ -739,10 +761,8 @@ def convert():
                             )
                         attachments = thisComponentTestRun.get('attachments',[])
                         for attachment in attachments: 
-                            if attachment['contentType'] == 'png': continue
-                            elif attachment['contentType'] == 'pdf': continue
-                            elif attachment['contentType'] == 'dat': 
-                                title = registerDatFromDat(attachment, new_thisComponentTestRun)
+                            title = registerDatFromDat(attachment, new_ctrid)
+                            if not title == '':
                                 plots.append(title)
 
                         if new_thisComponentTestRun.get('beforeCfg','...') == '...':
@@ -761,10 +781,8 @@ def convert():
                                 )
                         attachments = thisRun.get('attachments',[])
                         for attachment in attachments: 
-                            if attachment['contentType'] == 'png': continue
-                            elif attachment['contentType'] == 'pdf': continue
-                            elif attachment['contentType'] == 'dat': 
-                                title = registerDat(attachment, chip_name, new_thisComponentTestRun, plots)
+                            title = registerDat(attachment, chip_name, new_ctrid, plots)
+                            if not title == '':
                                 plots.append(title)
                             if attachment['contentType'] == 'after': 
                                 if new_thisComponentTestRun.get('afterCfg','...') == '...':
