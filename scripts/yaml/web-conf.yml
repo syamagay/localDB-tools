@@ -15,5 +15,4 @@ flask:
     port: 5000      # port number running app.py
 
 # python version
-python: 2
-timezone: 0 # time zone difference
+python: 3
