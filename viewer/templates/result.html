@@ -23,8 +23,8 @@
           <td scope="col" align="center" >{{ component['results']['userIdentity'] }}</td>
         </tr>
         <!-- for comment function --!>
-        <!--
-        {% for comment in component['results']['comments'] %}
+   
+        <!--{% for comment in component['results']['comments'] %}
             <tr>
               <td scope="col" align="center" colspan="4">{{ comment['comment'] }}</td>
               <td scope="col" align="center" >
@@ -39,7 +39,7 @@
                 {% endif %}
               </td>
             </tr>
-        {% endfor %}
+        {% endfor %}-->
         <tr>
         	  <form action="edit_comment" method="post" enctype="multipart/form-data">
               <td scope="col" align="center" colspan="4">
@@ -54,7 +54,7 @@
               </td>
             </form>
           </tr>
-        --!>
+       
         <!-- for comment function --!>
       </tbody>
     </table>
@@ -66,10 +66,26 @@
   {% for key in component['results']['config'] %}
   <div class="row align-items-top">
     <div class="col">
-      <!--<a href="{{ url_for('download_config', code=component['results']['config'][key]['code']) }}" target="_brank" rel="noopener noreferrer">-->
-      <h4 style="font-size: 10pt;"><i class="fa fa-caret-right"></i>{{key}}:{{ component['results']['config'][key]['filename'] }}</h4>
-      <!--</a>-->  
-      <!-- ( {{ component['results']['config'][key]['configid'] }} ) -->
+      {% if component['results']['config'][key] == {} %}
+        <h4 style="font-size: 10pt;"><i class="fa fa-caret-right"></i>{{key}}:{{ component['results']['config'][key]['filename'] }}</h4>
+      {% else %}
+        {% if component['unit'] == 'Module' %}
+          {% if key == 'beforeCfg' or key == 'afterCfg' %}
+            <h4 style="font-size: 10pt;"><i class="fa fa-caret-right"></i>{{key}}:{{ component['results']['config'][key]['filename'] }}</h4>
+          {% else %}
+            <a href="{{ url_for('download_config', code=component['results']['config'][key]['code']) }}" target="_brank" rel="noopener noreferrer">
+            <h4 style="font-size: 10pt;"><i class="fa fa-caret-right"></i>{{key}}:{{ component['results']['config'][key]['filename'] }}</h4>
+            </a> 
+          {% endif %}
+        {% else %}
+            <a href="{{ url_for('download_config', code=component['results']['config'][key]['code']) }}" target="_brank" rel="noopener noreferrer">
+            <h4 style="font-size: 10pt;"><i class="fa fa-caret-right"></i>{{key}}:{{ component['results']['config'][key]['filename'] }}</h4>
+            </a> 
+        {% endif %}
+        <!-- ( {{ component['results']['config'][key]['configid'] }} ) -->
+      {% endif %}
+
+
       {% if component['results']['config'][key] == {} %}
         No Files
       {% elif not component['results']['config'][key]['configid'] == [] %}

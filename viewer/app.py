@@ -763,21 +763,21 @@ def edit_comment():
     for run in run_entries:
         query = { '_id': ObjectId(run['testRun']) }
         comment_entries = mongo.db.testRun.find_one( query )['comments']
-        if session['user_name'] in [ comment.get('user') for comment in comment_entries ]:
-            mongo.db.testRun.update( query, { '$set': { 'comments.{}.comment'.format( comment_entries.index(comment) ): request.form.get('text') } } )
-            mongo.db.testRun.update( query, { '$set': { 'comments.{}.datetime'.format( comment_entries.index(comment) ): datetime.datetime.utcnow() } } )
-        elif comment_entries == {}:
-            mongo.db.testRun.update( query, { '$set': { 'comments': [{ 'user'    : session['user_name'],
-                                                                         'userid'  : session['user_id'],
-                                                                         'comment' : request.form.get('text'), 
-                                                                         'datetime': datetime.datetime.utcnow(), 
-                                                                         'institution': session['institution'] }] }} )
-        else:
-            mongo.db.testRun.update( query, { '$push': { 'comments': { 'user'    : session['user_name'],
-                                                                         'userid'  : session['user_id'],
-                                                                         'comment' : request.form.get('text'), 
-                                                                         'datetime': datetime.datetime.utcnow(), 
-                                                                         'institution': session['institution'] } }} )
+        #if session['user_name'] in [ comment.get('user') for comment in comment_entries ]:
+        #    mongo.db.testRun.update( query, { '$set': { 'comments.{}.comment'.format( comment_entries.index(comment) ): request.form.get('text') } } )
+        #    mongo.db.testRun.update( query, { '$set': { 'comments.{}.datetime'.format( comment_entries.index(comment) ): datetime.datetime.utcnow() } } )
+        #elif comment_entries == {}:
+        #    mongo.db.testRun.update( query, { '$set': { 'comments': [{ 'user'    : session['user_name'],
+        #                                                                 'userid'  : session['user_id'],
+        #                                                                 'comment' : request.form.get('text'), 
+        #                                                                 'datetime': datetime.datetime.utcnow(), 
+        #                                                                 'institution': session['institution'] }] }} )
+        #else:
+        mongo.db.testRun.update( query, { '$push': { 'comments': { 'user'    : session['user_name'],
+                                                                   'userid'  : session['user_id'],
+                                                                   'comment' : request.form.get('text'), 
+                                                                   'datetime': datetime.datetime.utcnow(), 
+                                                                   'institution': session['institution'] } }} )
         update_mod( 'testRun', query )
  
     forUrl = 'show_component'
