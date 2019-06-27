@@ -21,7 +21,6 @@ if args.username : url = 'mongodb://' + args.username + ':' + args.password + '@
 else :             url = 'mongodb://'                                             + args.host + ':' + str(args.port) 
 client = MongoClient( url )
 localdb = client[args.db]
-userdb = client[args.userdb]
 fs = gridfs.GridFS( localdb )
 dbv = args.version
 
