@@ -233,6 +233,7 @@ def show_component():
     thisComponent = mongo.db.component.find_one( query )
     componentType = thisComponent['componentType']
 
+
     # chips and parent
     if componentType == 'Module':
         parent_id = session['this']
@@ -323,7 +324,8 @@ def select_summary():
     session.pop( 'runId',    None )
     session.pop( 'code',     None )
     session.pop( 'plotList', None )
-   
+ 
+  
     # get from args
     session['this']  = request.args.get( 'id' ) 
     # this component
@@ -759,30 +761,40 @@ def edit_comment():
         component_chips.append({ 'component': child['child'] })
 
     query = { '$or': component_chips, 'runNumber': int(request.form.get( 'runNumber' )) }
-    run_entries = mongo.db.componentTestRun.find( query )
-    for run in run_entries:
-        query = { '_id': ObjectId(run['testRun']) }
-        comment_entries = mongo.db.testRun.find_one( query )['comments']
+    run = mongo.db.componentTestRun.find_one( query )
+    query = { '_id': ObjectId(run['testRun']) }
+    #run_entries = mongo.db.componentTestRun.find( query )
+    #query = { 'component': thisComponent['_id'] }
+    #ThisComponentTestRun = mongo.db.componentTestRun.find( query )
+    #query = { '_id': ObjectId(ThisComponentTestRun['testRun']) }
+    #comment = mongo.db.testRun.find_one(query)['comments']
+    #for run in run_entries:
+        #query = { '_id': ObjectId(run['testRun']) }
+        #comment_entries = mongo.db.testRun.find_one(query)['comments']
         #if session['user_name'] in [ comment.get('user') for comment in comment_entries ]:
         #    mongo.db.testRun.update( query, { '$set': { 'comments.{}.comment'.format( comment_entries.index(comment) ): request.form.get('text') } } )
         #    mongo.db.testRun.update( query, { '$set': { 'comments.{}.datetime'.format( comment_entries.index(comment) ): datetime.datetime.utcnow() } } )
         #elif comment_entries == {}:
-        #    mongo.db.testRun.update( query, { '$set': { 'comments': [{ 'user'    : session['user_name'],
-        #                                                                 'userid'  : session['user_id'],
-        #                                                                 'comment' : request.form.get('text'), 
-        #                                                                 'datetime': datetime.datetime.utcnow(), 
-        #                                                                 'institution': session['institution'] }] }} )
+        #                                                             'userid'  : session['user_id'],
+        #                                                             'comment' : request.form.get('text'), 
+        #                                                             'datetime': datetime.datetime.utcnow(), 
+        #                                                             'institution': session['institution'] }] }} )
         #else:
-        mongo.db.testRun.update( query, { '$push': { 'comments': { 'user'    : session['user_name'],
-                                                                   'userid'  : session['user_id'],
-                                                                   'comment' : request.form.get('text'), 
-                                                                   'datetime': datetime.datetime.utcnow(), 
-                                                                   'institution': session['institution'] } }} )
-        update_mod( 'testRun', query )
+        #mongo.db.testRun.update( query, { '$push': { 'comments': { 'user'    : session['user_name'],
+        #                                                           'userid'  : session['user_id'],
+        #                                                           'comment' : request.form.get('text'), 
+        #                                                           'datetime': datetime.datetime.utcnow(), 
+        #                                                           'institution': session['institution'] } }} )
+    mongo.db.testRun.update( query, { '$push': { 'comments': { 'comment':request.form.get('text'),
+                                                               'name'  :request.form.get('text2'),
+                                                               'institution'  :request.form.get('text3'),
+                                                               'datetime':datetime.datetime.utcnow() } }} )
+    update_mod( 'testRun', query )
  
     forUrl = 'show_component'
 
-    return redirect( url_for(forUrl, id=request.form.get( 'id' ), runNumber=request.form.get( 'runNumber' )) )
+    #return redirect( url_for(forUrl, id=request.form.get( 'id' ), runNumber = int(request.form.get( 'runNumber' ) )))
+    return redirect( url_for(forUrl, id=request.args.get( 'id' ), runId=request.args.get( 'runId' ) ))
 
 @app.route('/remove_comment', methods=['GET','POST'])
 def remove_comment():

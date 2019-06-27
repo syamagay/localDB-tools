@@ -22,42 +22,45 @@
           <td scope="col" align="center" >{{ component['results']['institution'] }}</td>
           <td scope="col" align="center" >{{ component['results']['userIdentity'] }}</td>
         </tr>
-        <!-- for comment function --!>
-   
-        <!--{% for comment in component['results']['comments'] %}
+      </tbody>
+    </table>
+   <!-- <table class="table table-sm table-bordered" style="font-size: 8pt;">
+      <thead class="table-dark" style="background: #222222;">
+          <tr>
+            <th scope="col" class="text-center" colspan="5"><h4 style="font-size: 8pt;">Comments</h4></th>
+          </tr>
+          <tr>
+            <th scope="col" class="text-center" colspan="2">Comment</th>
+            <th scope="col" width=100 class="text-center">Name</th>
+            <th scope="col" width=100 class="text-center">Institution</th>
+            <th scope="col" width=100 class="text-center">Date</th>
+          </tr>
+      </thead>
+      <tbody>
+          {% for comment in component['results']['comments']%}
             <tr>
-              <td scope="col" align="center" colspan="4">{{ comment['comment'] }}</td>
-              <td scope="col" align="center" >
-                {{ comment['user'] }}
-                {% if (session['edit'] == 1) and (comment['institution'] == session['institution']) %}
-             		  <form action="remove_comment" method="post" enctype="multipart/form-data">
-                  	<input type="hidden" value="{{ comment['user'] }}" name="user">
-                    <input type="hidden" name="runNumber" value={{ component['results']['runNumber'] }} >
-                    <input type="hidden" name="id" value={{ component['_id'] }} >
-                    <p><input type = "submit" value = "remove"></p>
-                  </form>
-                {% endif %}
-              </td>
+              <th scope="col" class="text-left" colspan="2"><h4 style="font-size: 8pt;">{{ comment['comment'] }}</h4></th>
+              <th scope="col" class="text-left"><h4 style="font-size: 8pt;">{{ comment['name'] }}</h4></th>
+              <th scope="col" class="text-left"><h4 style="font-size: 8pt;">{{ comment['institution'] }}</h4></th>
+              <th scope="col" class="text-left"><h4 style="font-size: 8pt;">{{ comment['datetime'] }}</h4></th>
             </tr>
-        {% endfor %}-->
-        <tr>
-        	  <form action="edit_comment" method="post" enctype="multipart/form-data">
-              <td scope="col" align="center" colspan="4">
-                <input type = "txt" class="form-control input-normal" placeholder="comment" name = "text">
-              </td>
+          {% endfor %}      
+          <tr>
+        	  <form action="{{ url_for('edit_comment', id=component['_id'],runId=session['runId']) }}" method="post" enctype="multipart/form-data">
+              <td scope="col" align="center" colspan="2"><input type = "txt" class="form-control input-normal" placeholder="comment" name = "text"></td>
+              <td scope="col" align="center"><input type = "txt" class="form-control input-normal" placeholder="name" name = "text2"></td>
+              <td scope="col" align="center"><input type = "txt" class="form-control input-normal" placeholder="institution" name = "text3"></td>
               <td scope="col" align="center middle" >
          		    <input type="hidden" value="{{ session['user_name'] }}" name="user">
                 {{ session['user_name'] }}
                 <input type="hidden" name="runNumber" value={{ component['results']['runNumber'] }} >
                 <input type="hidden" name="id" value={{ component['_id'] }} >
-                <p><input type = "submit" value = "update"></p>
+                <p><input type = "submit" value = "submit"></p>
               </td>
             </form>
           </tr>
-       
-        <!-- for comment function --!>
       </tbody>
-    </table>
+    </table> --!>
   </div>
 </div>
 
