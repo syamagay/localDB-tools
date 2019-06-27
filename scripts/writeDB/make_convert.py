@@ -22,7 +22,7 @@ from   pymongo       import MongoClient
 from   bson.objectid import ObjectId   
 
 ### Functions
-url = 'mongodb://127.0.0.1:27017' 
+url = 'mongodb://127.0.0.1:27018' 
 client = MongoClient( url )
 yarrdb = client['yarrdb']
 localdb = client['localdb']
@@ -419,13 +419,14 @@ def registerConfigFromJson(config_id):
     if data_doc:
         data = str(data_doc['_id'])
     else:
-        data = localfs.put( binary, filename=filename )   
-        f_query = { '_id': data }
+        data = localfs.put( binary, filename=filename, hash=shaHashed, dbVersion=db_version )   
         c_query = { 'files_id': data }
-        localdb.fs.files.update( 
-            f_query,
-            { '$set': { 'hash': shaHashed }}
+        localdb.fs.chunks.update(
+            c_query,
+            {'$set':{'dbVersion': db_version}},
+            multi=True
         )
+
     config_doc = { 
         'filename': filename, 
         'chipType': chip_type,
@@ -463,7 +464,13 @@ def registerConfig(attachment, chip_type, new_ctr):
     if data_doc:
         code = str(data_doc['_id'])
     else:
-        code = localfs.put( binary, filename='chipCfg.json', hash=shaHashed ) 
+        code = localfs.put( binary, filename='chipCfg.json', hash=shaHashed, dbVersion=db_version ) 
+        c_query = { 'files_id': data }
+        localdb.fs.chunks.update(
+            c_query,
+            {'$set':{'dbVersion': db_version}},
+            multi=True
+        )
 
     if chip_type in json_data:
         if chip_type == 'FE-I4B':
