@@ -112,21 +112,30 @@ def show_modules_and_chips():
 
     query = { 'componentType': 'Module', 'dbVersion': dbv }
     module_entries = mongo.db.component.find( query )
-    modules = {}
+    module_ids = []
+    for module in module_entries:
+        module_ids.append(str(module['_id']))
 
-    for thisModule in module_entries:
-        query = { 'parent': str(thisModule['_id']) }
-        child_entries = mongo.db.childParentRelation.find( query )
+    modules = {}
+    for module_id in module_ids:
+        query = { '_id': ObjectId(module_id) }
+        thisModule = mongo.db.component.find_one( query )
         chipType = thisModule['chipType']
-        chips = []
+
+        query = { 'parent': module_id }
+        child_entries = mongo.db.childParentRelation.find( query )
+        chip_ids = []
+        for child in child_entries:
+            chip_ids.append(child['child'])
 
         # grade module
         #score = grade_module(str(thisModule['_id']))
 
-        for child in child_entries:
-            query = { '_id': ObjectId(child['child']) }
+        chips = []
+        for chip_id in chip_ids:
+            query = { '_id': ObjectId(chip_id) }
             thisChip = mongo.db.component.find_one( query )
-            chips.append({ '_id'          : str(thisChip['_id']),
+            chips.append({ '_id'          : chip_id,
                            'serialNumber' : thisChip['serialNumber'],
                            'componentType': thisChip['componentType'],
                            'chipId'       : thisChip.get('chipId',-1),
@@ -136,7 +145,7 @@ def show_modules_and_chips():
         if not chipType in modules:
             modules.update({ chipType: { 'modules': [], 'num': '' } })
 
-        modules[chipType]['modules'].append({ '_id'         : str(thisModule['_id']),
+        modules[chipType]['modules'].append({ '_id'         : module_id,
                                               'serialNumber': thisModule['serialNumber'],
                                               'chips'       : chips,
                                               'datetime'    : set_time(thisModule['sys']['cts']),
@@ -226,32 +235,34 @@ def show_component():
 
     # chips and parent
     if componentType == 'Module':
-        ParentId = session['this']
+        parent_id = session['this']
     else:
         query = { 'child': session['this'] }
-        thisCPR = mongo.db.childParentRelation.find_one( query )
-        ParentId = thisCPR['parent']
+        parent_id = mongo.db.childParentRelation.find_one( query )['parent']
 
     # this module
-    query = { '_id': ObjectId(ParentId) }
+    query = { '_id': ObjectId(parent_id) }
     thisModule = mongo.db.component.find_one( query )
 
     # chips of module
-    query = { 'parent': ParentId }
+    query = { 'parent': parent_id }
     child_entries = mongo.db.childParentRelation.find( query )
+    chip_ids = []
+    for child in child_entries:
+        chip_ids.append(child['child'])
 
     # fill chip and module information
     component = {}
     component_chips = []
     component['chipType'] = thisComponent['chipType']
-    for child in child_entries:
-        query = { '_id': ObjectId(child['child']) }
+    for chip_id in child_entries:
+        query = { '_id': ObjectId(chip_id) }
         thisChip = mongo.db.component.find_one( query )
-        component_chips.append({ '_id'         : child['child'],
-                                 'chipId'      : child['chipId'],
+        component_chips.append({ '_id'         : chip_id,
+                                 'chipId'      : thisChip.get('chipId',-1),
                                  'serialNumber': thisChip['serialNumber'] })
 
-    module = { '_id'         : ParentId,
+    module = { '_id'         : parent_id,
                'serialNumber': thisModule['serialNumber'] }
     
     # fill photos
@@ -272,7 +283,6 @@ def show_component():
 
     #Get child chips
     cprelation = localdb.childParentRelation.find({'parent':session['this']})
-
 
     component.update({ '_id'         : session['this'],
                        'serialNumber': thisComponent['serialNumber'],
@@ -355,27 +365,29 @@ def select_summary():
     child_entries = mongo.db.childParentRelation.find({ '$or': query })
     for child in child_entries:
         chips.append({ 'component': child['child'] })
-        ParentId = child['parent']
+        parent_id = child['parent']
 
     # this module
-    query = { '_id': ObjectId(ParentId) }
+    query = { '_id': ObjectId(parent_id) }
     thisModule = mongo.db.component.find_one( query )
 
     # chips of module
-    query = { 'parent': ParentId }
+    query = { 'parent': parent_id }
     child_entries = mongo.db.childParentRelation.find( query )
+    chip_ids = []
+    for child in child_entries:
+        chip_ids.append(child['child'])
 
     # fill chip and module information
     component = {}
     component_chips = []
-    for child in child_entries:
-        print(child)
-        query = { '_id': ObjectId(child['child']) }
+    for chip_id in chip_ids:
+        query = { '_id': ObjectId(chip_id) }
         thisChip = mongo.db.component.find_one( query )
         component['componentType'] = thisChip['componentType']
-        component_chips.append({ '_id'        : child['child'],
+        component_chips.append({ '_id'        : chip_id,
                                  'serialNumber': thisChip['serialNumber'] })
-    module = { '_id'         : ParentId,
+    module = { '_id'         : parent_id,
                'serialNumber': thisModule['serialNumber'] }
 
     query = { '$or': chips }
@@ -500,8 +512,11 @@ def add_summary():
 
         query = { 'component': componentId, 'stage': session['stage'], 'testType': scan }
         entries = mongo.db.componentTestRun.find( query )
+        run_ids = []
         for entry in entries:
-            query = { '_id': ObjectId( entry['testRun'] )}
+            run_ids.append(entry['testRun'])
+        for run_id in run_ids:
+            query = { '_id': ObjectId(run_id)}
             thisRun = mongo.db.testRun.find_one( query )
             keys = [ 'runNumber', 'institution', 'userIdentity', 'testType' ]
             query_id = dict( [ (key, thisRun[key]) for key in keys ] )
