@@ -255,7 +255,7 @@ def show_component():
     component = {}
     component_chips = []
     component['chipType'] = thisComponent['chipType']
-    for chip_id in child_entries:
+    for chip_id in chip_ids:
         query = { '_id': ObjectId(chip_id) }
         thisChip = mongo.db.component.find_one( query )
         component_chips.append({ '_id'         : chip_id,
