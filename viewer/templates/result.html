@@ -61,41 +61,21 @@
   </div>
 </div>
 
-  <h4 style="font-size: 10pt;"><i class="fa fa-file"></i> Config </h4>
- 
-  {% for key in component['results']['config'] %}
-  <div class="row align-items-top">
-    <div class="col">
-      <!--<a href="{{ url_for('download_config', code=component['results']['config'][key]['code']) }}" target="_brank" rel="noopener noreferrer">-->
-      <h4 style="font-size: 10pt;"><i class="fa fa-caret-right"></i>{{key}}:{{ component['results']['config'][key]['filename'] }}</h4>
-      <!--</a>-->  
-      <!-- ( {{ component['results']['config'][key]['configid'] }} ) -->
-      {% if component['results']['config'][key] == {} %}
-        No Files
-      {% elif not component['results']['config'][key]['configid'] == [] %}
-        <a href="{{ url_for('config_downloader', ModuleName=component['module']['serialNumber'], configType=key) }}">Download here</a>
-      {% endif %}
-      <br>		
-    </div>
-  </div>
-  {% endfor %}
+<h4 style="font-size: 10pt;"><i class="fa fa-file"></i> Config </h4>
 
-<h4 style="font-size: 10pt;"><i class="fa fa-folder-open"></i> Plot </h4>
+{% for key in component['results']['config'] %}
 <div class="row align-items-top">
-    {% if not component['results']['plots'] == [] %}
-      {% for result in component['results']['plots'] %}
-        <div class="col-md-3">
-          {% if "url" in result %}
-            <a data-toggle="collapse" href='#{{ result['filename'] }}' aria-controls="testindex" style="color: green;"><h4 style="font-size: 10pt;"><i class="fa fa-caret-right"></i> {{ result['filename'] }} </h4></a>
-            <a href={{ result['url'] }} class="collapse" id={{ result['filename'] }} target="_brank" rel="noopener noreferrer">
-            <img src={{ result['url'] }} title={{ result['filename'] }} width="250" height="250">
-            </img>
-            </a>
-          {% else %}
-            <h4 style="font-size: 10pt;"><i class="fa fa-caret-right"></i> {{ result['filename'] }} </h4>
-          {% endif %}
-        </div>
-      {% endfor %}
+  <div class="col">
+    <!--<a href="{{ url_for('download_config', code=component['results']['config'][key]['code']) }}" target="_brank" rel="noopener noreferrer">-->
+    <h4 style="font-size: 10pt;"><i class="fa fa-caret-right"></i>{{key}}:{{ component['results']['config'][key]['filename'] }}</h4>
+    <!--</a>-->  
+    <!-- ( {{ component['results']['config'][key]['configid'] }} ) -->
+    {% if component['results']['config'][key] == {} %}
+      No Files
+    {% elif not component['results']['config'][key]['configid'] == [] %}
+      <a href="{{ url_for('config_downloader', ModuleName=component['module']['serialNumber'], configType=key) }}">Download here</a>
     {% endif %}
+    <br>		
+  </div>
 </div>
-<br>
+{% endfor %}

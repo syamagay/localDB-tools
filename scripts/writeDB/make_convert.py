@@ -22,7 +22,7 @@ from   pymongo       import MongoClient
 from   bson.objectid import ObjectId   
 
 ### Functions
-url = 'mongodb://127.0.0.1:27018' 
+url = 'mongodb://127.0.0.1:27017' 
 client = MongoClient( url )
 yarrdb = client['yarrdb']
 localdb = client['localdb']
@@ -465,7 +465,7 @@ def registerConfig(attachment, chip_type, new_ctr):
         code = str(data_doc['_id'])
     else:
         code = localfs.put( binary, filename='chipCfg.json', hash=shaHashed, dbVersion=db_version ) 
-        c_query = { 'files_id': data }
+        c_query = { 'files_id': code }
         localdb.fs.chunks.update(
             c_query,
             {'$set':{'dbVersion': db_version}},
