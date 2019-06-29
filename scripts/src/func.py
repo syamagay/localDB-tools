@@ -623,8 +623,6 @@ def setResult():
 
     if not session.get('runId'): return results
     
-    query = { '_id':ObjectId(session['this']) } 
-    this_cmp = localdb.component.find_one(query)
     query = { 'component': session['this'], 
               'testRun'  : session['runId'] }
     this_ctr = localdb.componentTestRun.find_one(query)
@@ -713,7 +711,8 @@ def setResult():
         'address'     : this_run.get('address','null'),
         'institution' : user['institution'],
         'userIdentity': user['userName'],
-        'config'      : { 'ctrlCfg': ctrlconfig, 'scanCfg': scanconfig, 'beforeCfg': beforeconfig, 'afterCfg': afterconfig }
+        'config': {}
+        #'config'      : { 'ctrlCfg': ctrlconfig, 'scanCfg': scanconfig, 'beforeCfg': beforeconfig, 'afterCfg': afterconfig }
     }) 
 
     return results

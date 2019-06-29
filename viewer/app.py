@@ -98,18 +98,23 @@ dbv=args.version
 
 # top page 
 @app.route('/', methods=['GET'])
-def show_modules_and_chips():
+def show_toppage():
 
     if session.get( 'uuid' ):
         user_dir = TMP_DIR + '/' + str(session.get( 'uuid' ))
         if os.path.isdir( user_dir ): shutil.rmtree( user_dir )
     else:
         session['uuid'] = str( uuid.uuid4() ) 
-    session['timezone'] = 9
+    session['timezone'] = 9 #TODO
 
     makeDir()
     cleanDir( STATIC_DIR )
     session.pop( 'signup', None )
+
+    return render_template( 'toppage.html' )
+
+@app.route('/module', methods=['GET'])
+def show_modules_and_chips():
 
     query = { 'componentType': 'Module', 'dbVersion': dbv }
     module_entries = mongo.db.component.find( query )
@@ -158,7 +163,7 @@ def show_modules_and_chips():
         module = sorted( modules[chip_type]['modules'], key=lambda x:x['serialNumber'], reverse=True)
         modules[chip_type]['modules'] = module
 
-    return render_template( 'toppage.html', modules=modules )
+    return render_template( 'module.html', modules=modules )
 
 @app.route('/development', methods=['GET'])
 def show_modules_and_chips_develop():
@@ -220,7 +225,7 @@ def show_modules_and_chips_develop():
         module = sorted( modules[chip_type]['modules'], key=lambda x:x['serialNumber'], reverse=True)
         modules[chip_type]['modules'] = module
 
-    return render_template( 'toppage.html', modules=modules )
+    return render_template( 'module.html', modules=modules )
 
 
 # component page 
@@ -306,6 +311,81 @@ def show_component():
     })
 
     return render_template( 'component.html', component=component )
+
+# test run page without component
+@app.route('/scan', methods=['GET', 'POST'])
+def show_test():
+    
+    max_num = 5
+    sort_cnt = int(request.args.get('p',0))
+
+    query = { 'dbVersion': dbv }
+    run_entries = mongo.db.testRun.find(query).sort([( '$natural', -1 )] )
+    run_nums = run_entries.count()
+    run_ids = []
+    for i, run in enumerate(run_entries):
+        if i//max_num<sort_cnt: continue
+        elif i//max_num==sort_cnt: run_ids.append(str(run['_id']))
+        else: break
+    cnt = []
+    for i in range((run_nums//max_num)+1):
+        if sort_cnt-(max_num/2)<i and sort_cnt+(max_num/2)>i:
+            cnt.append(i)
+
+    scans = {'run':[],
+             'total': run_nums,
+             'cnt': cnt,
+             'now_cnt': sort_cnt,
+             'max_cnt': (run_nums//max_num)}
+
+    for run_id in run_ids:
+        run_data = {}
+        query = { '_id': ObjectId(run_id) }
+        this_run = mongo.db.testRun.find_one (query)
+        run_data['serialNumber'] = this_run['serialNumber']
+        run_data['datetime'] = this_run['startTime']
+        run_data['testType'] = this_run['testType']
+        run_data['stage'] = this_run['stage']
+        run_data['_id'] = run_id
+        run_data['runNumber'] = this_run['runNumber']
+        run_data['plots'] = (this_run['plots']!=[])
+        query = { '_id': ObjectId(this_run['user_id']) }
+        this_user = mongo.db.user.find_one(query)
+        run_data['user'] = this_user['userName']
+        query = { '_id': ObjectId(this_run['address']) }
+        this_site = mongo.db.institution.find_one(query)
+        run_data['site'] = this_site['institution']
+        scans['run'].append(run_data)
+
+    return render_template( 'scan.html', scans=scans )
+
+# component page 
+@app.route('/scandata', methods=['GET', 'POST'])
+def show_test_data():
+
+    makeDir()
+
+    session['this']  = request.args.get( 'id' )
+    session['runId'] = request.args.get( 'runId' )
+
+    query = { '_id': ObjectId(session['runId']) }
+    this_run = mongo.db.testRun.find_one(query)
+  
+    results      = setResult()     
+    roots        = setRoots()    
+
+    component = {}
+    component.update({ 
+        '_id'         : session['this'],
+        'serialNumber': this_run['serialNumber'],
+        'module'      : {},
+        'chips'       : [],
+        'unit'        : "Module", #TODO 
+        'results'     : results,
+        'roots'       : roots,
+    })
+
+    return render_template( 'scan_data.html', component=component )
 
 # make histogram 
 @app.route('/makehisto', methods=['GET','POST'])
