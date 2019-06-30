@@ -46,7 +46,7 @@ table.toppage td.border_inner {
     <div class="row align-items-center justify-content-center">
       <div class="col">
 
-        <h3>Scan Summary Page</h3> (Total: {{ scans['total'] }})
+        <h3>Scan Summary Page</h3>
 
       </div>
     </div>
@@ -56,41 +56,38 @@ table.toppage td.border_inner {
     <div class="row align-items-center justify-content-center">
       <div class="col">
 
-        <div style="text-align: center; font-size: 14px;">
-          <ul class="page-list">
-            {% if scans['now_cnt']!=0 %}
-            <li style="display: inline;">
-              <a href="{{ url_for('show_test', p=0) }}">&#8810;</a>
-            </li>
-            {% endif %}
-            {% for i in scans['cnt'] %}
-              {% if i==scans['now_cnt'] %}
-              <li style="display: inline; font-weight: bolder">
-              {% else %}
-              <li style="display: inline;">
-              {% endif %}
-	              <a href="{{ url_for('show_test', p=i) }}">{{i+1}}</a>
-              </li>
-            {% endfor %}
-            {% if scans['now_cnt']!=scans['max_cnt'] %}
-            <li style="display: inline;">
-              <a href="{{ url_for('show_test', p=scans['max_cnt']) }}">&#8811;</a>
-            </li>
-            {% endif %}
-          </div>
-        </div>
-
         <table class="table table-sm toppage" style="font-size: 10pt;">
+          <div style="text-align: center; font-size: 14px;">
+            <ul class="page-list">
+              {% if scans['now_cnt']!=0 %}
+              <li style="display: inline;">
+                <a href="{{ url_for('show_test', p=0) }}">&#8810;</a>
+              </li>
+              {% endif %}
+              {% for i in scans['cnt'] %}
+                {% if i==scans['now_cnt'] %}
+                <li style="display: inline; font-weight: bolder">
+                {% else %}
+                <li style="display: inline;">
+                {% endif %}
+  	              <a href="{{ url_for('show_test', p=i) }}">{{i+1}}</a>
+                </li>
+              {% endfor %}
+              {% if scans['now_cnt']!=scans['max_cnt'] %}
+              <li style="display: inline;">
+                <a href="{{ url_for('show_test', p=scans['max_cnt']) }}">&#8811;</a>
+              </li>
+              {% endif %}
+            </ul>
+          </div>
           <thead class="table-dark" style="background: #222222;">
             <tr>
-              <th scope="col" >Date</th>
-              <th scope="col" >Serial Number</th>
-              <th scope="col" >Run Number</th>
-              <th scope="col" >Test Type</th>
-              <th scope="col" >Stage</th>
-              <th scope="col" >User</th>
-              <th scope="col" >Site</th>
-              <th scope="col" ></th>
+              <th scope="col" style="width: calc(100%*3/11)";>Date</th>
+              <th scope="col" style="width: calc(100%*2/11)";>Serial Number</th>
+              <th scope="col" style="width: calc(100%*1/11)";>Test Type</th>
+              <th scope="col" style="width: calc(100%*2/11)";>User</th>
+              <th scope="col" style="width: calc(100%*2/11)";>Site</th>
+              <th scope="col" style="width: calc(100%*1/11)";></th>
             </tr>
           </thead>
           <tbody>
@@ -102,12 +99,10 @@ table.toppage td.border_inner {
               {% endif %}
                 <td>{{ run_data["datetime"] }}</td>
                 <td>{{ run_data["serialNumber"] }}</td>
-                <td>{{ run_data["runNumber"] }}</td>
                 <td>{{ run_data["testType"] }}</td>
-                <td>{{ run_data["stage"] }}</td>
                 <td>{{ run_data["user"] }}</td>
                 <td>{{ run_data["site"] }}</td>
-                <td><a href="{{ url_for('show_test_data', id=run_data["serialNumber"], runId=run_data["_id"]) }}">Go to data page</a></td>
+                <td><a href="{{ url_for('show_test_data', id=run_data["serialNumber"], runId=run_data["_id"]) }}">result</a></td>
               </tr>
             {% endfor %}
           </tbody>

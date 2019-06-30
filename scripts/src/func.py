@@ -634,7 +634,6 @@ def setResult():
     if not this_run.get('ctrlCfg','...')=='...':
         query = { '_id': ObjectId(this_run['ctrlCfg']) }
         config_data = localdb.config.find_one( query )
-        #fs.get(ObjectId(config_data['data_id'])).read()
         ctrlconfig.update({ 
             "filename" : config_data['filename'],
             "code"     : [config_data['data_id']],
@@ -644,18 +643,36 @@ def setResult():
     if not this_run.get('scanCfg','...')=='...':
         query = { '_id': ObjectId(this_run['scanCfg']) }
         config_data = localdb.config.find_one( query )
-        #fs.get(ObjectId(config_data['data_id'])).read()
         scanconfig.update({ 
             "filename" : config_data['filename'],
             "code"     : [config_data['data_id']],
             "configid" : [this_run['scanCfg']] 
         })
 
-    query = [{ 'parent': session['this'] }, { 'child': session['this'] }]
-    child_entries = localdb.childParentRelation.find({'$or': query})
+    is_module = False
+    try:
+        query = { '_id': ObjectId(session['this']) }
+        this_cmp = localdb.component.find_one( query )
+        if this_cmp['serialNumber'] == this_run['serialNumber']:
+            is_module = True
+    except:
+        if session['this'] == this_run['serialNumber']:
+            is_module = True
     chipoids = []
-    for child in child_entries:
-        chipoids.append(child['child'])
+    if is_module:
+        query = { 'testRun': session['runId'] }
+        ctr_entries = localdb.componentTestRun.find( query )
+        for ctr in ctr_entries:
+            if ctr['component'] != session['this']:
+                chipoids.append( ctr['component'] )
+    else:
+        chipoids.append( session['this'] )
+
+    #query = [{ 'parent': session['this'] }, { 'child': session['this'] }]
+    #child_entries = localdb.childParentRelation.find({'$or': query})
+    #chipoids = []
+    #for child in child_entries:
+    #    chipoids.append(child['child'])
 
     chipid = []
     after_code = []
@@ -663,17 +680,17 @@ def setResult():
     before_code = []
     before_configid = []
 
-    for chipoid in chipoids:
+    for i, chipoid in enumerate(chipoids):
         query = { 'component': chipoid, 'testRun': session['runId'] }
         this_chip_ctr = localdb.componentTestRun.find_one(query)
-        query = { '_id': ObjectId(chipoid) }
-        this_chip = localdb.component.find_one(query)
-        chipid.append(this_chip.get('chipId',-1))
+        #query = { '_id': ObjectId(chipoid) }
+        #this_chip = localdb.component.find_one(query)
+        #chipid.append(this_chip.get('chipId',-1))
+        chipid.append(i+1)
 
-        after_configid.append(this_chip_ctr['afterCfg'])   
-     
         afterconfig = {}
         if not this_chip_ctr.get('afterCfg','...')=='...':
+            after_configid.append(this_chip_ctr['afterCfg'])   
             query = { '_id': ObjectId(this_chip_ctr['afterCfg']) }
             config_data = localdb.config.find_one(query)
             after_code.append(config_data['data_id'])
@@ -686,11 +703,9 @@ def setResult():
                 "configid" : after_configid 
             })
 
-        before_configid.append(this_chip_ctr['beforeCfg'])   
-
-       
         beforeconfig = {}
         if not this_chip_ctr.get('beforeCfg','...')=='...':
+            before_configid.append(this_chip_ctr['beforeCfg'])   
             query = { '_id': ObjectId(this_chip_ctr['beforeCfg']) }
             config_data = localdb.config.find_one(query)
             before_code.append(config_data['data_id'])
@@ -711,21 +726,18 @@ def setResult():
         'address'     : this_run.get('address','null'),
         'institution' : user['institution'],
         'userIdentity': user['userName'],
-        'config': {}
-        #'config'      : { 'ctrlCfg': ctrlconfig, 'scanCfg': scanconfig, 'beforeCfg': beforeconfig, 'afterCfg': afterconfig }
+        'config'      : { 'ctrlCfg': ctrlconfig, 'scanCfg': scanconfig }
     }) 
 
     return results
 
-def writeDat(componentId, runId):
+def writeDat(componentId, runId, chipId):
 
     query = { 'testRun': runId, 'component': componentId }
     this_ctr = localdb.componentTestRun.find_one( query )
     if not this_ctr: return
 
-    query = { '_id': ObjectId(componentId) }
-    this_cmp = localdb.component.find_one( query )
-    chipid = this_cmp.get('chipId',-1)
+    chipid = chipId+1
     for data in this_ctr.get('attachments', []):
         if data['contentType'] == 'dat':
             query = { '_id': ObjectId(data['code']) }
@@ -754,10 +766,26 @@ def makePlot(componentId, runId):
         session['plotList'] = {}
         for map_type in this_run.get('plots',[]):
             session['plotList'].update({map_type: {'draw': True, 'chipIds': []}})
-        query = [{ 'parent': componentId }, { 'child': componentId }]
-        child_entries = localdb.childParentRelation.find({'$or': query})
-        for child in child_entries:
-            writeDat( child['child'], runId )
+        is_module = False
+        try:
+            query = { '_id': ObjectId(session['this']) }
+            this_cmp = localdb.component.find_one( query )
+            if this_cmp['serialNumber'] == this_run['serialNumber']:
+                is_module = True
+        except:
+            if session['this'] == this_run['serialNumber']:
+                is_module = True
+        chipoids = []
+        if is_module:
+            query = { 'testRun': session['runId'] }
+            ctr_entries = localdb.componentTestRun.find( query )
+            for ctr in ctr_entries:
+                if ctr['component'] != session['this']:
+                    chipoids.append( ctr['component'] )
+        else:
+            chipoids.append( session['this'] )
+        for i, chipoid in enumerate(chipoids):
+            writeDat( chipoid, runId, i )
 
     for map_type in this_run.get('plots',[]):
         if not session['plotList'][map_type]['draw']: continue

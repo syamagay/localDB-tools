@@ -146,6 +146,7 @@ def show_modules_and_chips():
                            'componentType': this_chip['componentType'],
                            'chipId'       : this_chip.get('chipId',-1),
                            'datetime'     : setTime(this_chip['sys']['cts']),
+                           'stage'        : None,
                            'grade'        : {} }) 
 
         if not chip_type in modules:
@@ -153,7 +154,9 @@ def show_modules_and_chips():
 
         modules[chip_type]['modules'].append({ '_id'         : module_id,
                                               'serialNumber': this_module['serialNumber'],
+                                              'componentType': 'Module',
                                               'chips'       : chips,
+                                              'children'    : len(chips),
                                               'datetime'    : setTime(this_module['sys']['cts']),
                                               'grade'       : {},
                                               'stage'       : None })
@@ -316,7 +319,7 @@ def show_component():
 @app.route('/scan', methods=['GET', 'POST'])
 def show_test():
     
-    max_num = 5
+    max_num = 10
     sort_cnt = int(request.args.get('p',0))
 
     query = { 'dbVersion': dbv }
@@ -329,8 +332,10 @@ def show_test():
         else: break
     cnt = []
     for i in range((run_nums//max_num)+1):
-        if sort_cnt-(max_num/2)<i and sort_cnt+(max_num/2)>i:
+        if sort_cnt-(max_num/2)<i:
             cnt.append(i)
+        if len(cnt)==max_num:
+            break
 
     scans = {'run':[],
              'total': run_nums,
@@ -351,10 +356,10 @@ def show_test():
         run_data['plots'] = (this_run['plots']!=[])
         query = { '_id': ObjectId(this_run['user_id']) }
         this_user = mongo.db.user.find_one(query)
-        run_data['user'] = this_user['userName']
+        run_data['user'] = this_user['userName'].replace('_', ' ')
         query = { '_id': ObjectId(this_run['address']) }
         this_site = mongo.db.institution.find_one(query)
-        run_data['site'] = this_site['institution']
+        run_data['site'] = this_site['institution'].replace('_', ' ')
         scans['run'].append(run_data)
 
     return render_template( 'scan.html', scans=scans )
