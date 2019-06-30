@@ -290,6 +290,7 @@ def show_component():
                        'module'      : module,
                        'chips'       : component_chips,
                        'unit'        : thisComponent['componentType'], 
+                       'comments_for_component': thisComponent.get('comments',[]), 
                        'photoDisplay': photoDisplay,
                        'photoIndex'  : photoIndex,
                        'photos'      : photos,
@@ -742,8 +743,8 @@ def edit_description():
 
     return redirect( url_for(forUrl, id=request.form.get( 'id' )) )
 
-@app.route('/edit_comment', methods=['GET','POST'])
-def edit_comment():
+@app.route('/edit_comment_for_test', methods=['GET','POST'])
+def edit_comment_for_test():
 
     query = { '_id': ObjectId(request.form.get( 'id' ))}
     thisComponent = mongo.db.component.find_one( query )
@@ -763,28 +764,6 @@ def edit_comment():
     query = { '$or': component_chips, 'runNumber': int(request.form.get( 'runNumber' )) }
     run = mongo.db.componentTestRun.find_one( query )
     query = { '_id': ObjectId(run['testRun']) }
-    #run_entries = mongo.db.componentTestRun.find( query )
-    #query = { 'component': thisComponent['_id'] }
-    #ThisComponentTestRun = mongo.db.componentTestRun.find( query )
-    #query = { '_id': ObjectId(ThisComponentTestRun['testRun']) }
-    #comment = mongo.db.testRun.find_one(query)['comments']
-    #for run in run_entries:
-        #query = { '_id': ObjectId(run['testRun']) }
-        #comment_entries = mongo.db.testRun.find_one(query)['comments']
-        #if session['user_name'] in [ comment.get('user') for comment in comment_entries ]:
-        #    mongo.db.testRun.update( query, { '$set': { 'comments.{}.comment'.format( comment_entries.index(comment) ): request.form.get('text') } } )
-        #    mongo.db.testRun.update( query, { '$set': { 'comments.{}.datetime'.format( comment_entries.index(comment) ): datetime.datetime.utcnow() } } )
-        #elif comment_entries == {}:
-        #                                                             'userid'  : session['user_id'],
-        #                                                             'comment' : request.form.get('text'), 
-        #                                                             'datetime': datetime.datetime.utcnow(), 
-        #                                                             'institution': session['institution'] }] }} )
-        #else:
-        #mongo.db.testRun.update( query, { '$push': { 'comments': { 'user'    : session['user_name'],
-        #                                                           'userid'  : session['user_id'],
-        #                                                           'comment' : request.form.get('text'), 
-        #                                                           'datetime': datetime.datetime.utcnow(), 
-        #                                                           'institution': session['institution'] } }} )
     mongo.db.testRun.update( query, { '$push': { 'comments': { 'comment':request.form.get('text'),
                                                                'name'  :request.form.get('text2'),
                                                                'institution'  :request.form.get('text3'),
@@ -793,7 +772,22 @@ def edit_comment():
  
     forUrl = 'show_component'
 
-    #return redirect( url_for(forUrl, id=request.form.get( 'id' ), runNumber = int(request.form.get( 'runNumber' ) )))
+    return redirect( url_for(forUrl, id=request.args.get( 'id' ), runId=request.args.get( 'runId' ) ))
+
+@app.route('/edit_comment_for_component', methods=['GET','POST'])
+def edit_comment_for_component():
+
+    query = { '_id': ObjectId(request.form.get( 'id' ))}
+    thisComponent = mongo.db.component.find_one( query )
+
+    mongo.db.component.update( query, { '$push': { 'comments': { 'comment':request.form.get('text'),
+                                                               'name'  :request.form.get('text2'),
+                                                               'institution'  :request.form.get('text3'),
+                                                               'datetime':datetime.datetime.utcnow() } }} )
+    update_mod( 'component', query )
+ 
+    forUrl = 'show_component'
+
     return redirect( url_for(forUrl, id=request.args.get( 'id' ), runId=request.args.get( 'runId' ) ))
 
 @app.route('/remove_comment', methods=['GET','POST'])

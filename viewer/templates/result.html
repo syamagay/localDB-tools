@@ -24,7 +24,7 @@
         </tr>
       </tbody>
     </table>
-   <!-- <table class="table table-sm table-bordered" style="font-size: 8pt;">
+   <!--<table class="table table-sm table-bordered" style="font-size: 8pt;">
       <thead class="table-dark" style="background: #222222;">
           <tr>
             <th scope="col" class="text-center" colspan="5"><h4 style="font-size: 8pt;">Comments</h4></th>
@@ -37,7 +37,7 @@
           </tr>
       </thead>
       <tbody>
-          {% for comment in component['results']['comments']%}
+          {% for comment in component['results']['comments_for_run']%}
             <tr>
               <th scope="col" class="text-left" colspan="2"><h4 style="font-size: 8pt;">{{ comment['comment'] }}</h4></th>
               <th scope="col" class="text-left"><h4 style="font-size: 8pt;">{{ comment['name'] }}</h4></th>
@@ -46,10 +46,10 @@
             </tr>
           {% endfor %}      
           <tr>
-        	  <form action="{{ url_for('edit_comment', id=component['_id'],runId=session['runId']) }}" method="post" enctype="multipart/form-data">
-              <td scope="col" align="center" colspan="2"><input type = "txt" class="form-control input-normal" placeholder="comment" name = "text"></td>
-              <td scope="col" align="center"><input type = "txt" class="form-control input-normal" placeholder="name" name = "text2"></td>
-              <td scope="col" align="center"><input type = "txt" class="form-control input-normal" placeholder="institution" name = "text3"></td>
+        	  <form action="{{ url_for('edit_comment_for_test', id=component['_id'],runId=session['runId']) }}" method="post" enctype="multipart/form-data">
+              <td scope="col" align="center" colspan="2"><input type = "txt" required="required" class="form-control input-normal" placeholder="comment" name = "text"></td>
+              <td scope="col" align="center"><input type = "txt" required="required" class="form-control input-normal" placeholder="name" name = "text2"></td>
+              <td scope="col" align="center"><input type = "txt" required="required" class="form-control input-normal" placeholder="institution" name = "text3"></td>
               <td scope="col" align="center middle" >
          		    <input type="hidden" value="{{ session['user_name'] }}" name="user">
                 {{ session['user_name'] }}
@@ -60,7 +60,7 @@
             </form>
           </tr>
       </tbody>
-    </table> --!>
+    </table>-->
   </div>
 </div>
 

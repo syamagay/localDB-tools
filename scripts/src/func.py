@@ -696,7 +696,7 @@ def fill_results():
         user = localdb.user.find_one( query )
         results.update({ 'testType'    : thisRun['testType'],
                          'runNumber'   : thisRun['runNumber'],
-                         'comments'    : thisRun['comments'],
+                         'comments_for_run'    : thisRun['comments'],
                          'stage'       : thisRun.get('stage'),
                          'address'     : thisRun.get('address','null'),
                          'institution' : user['institution'],
