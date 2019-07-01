@@ -887,7 +887,7 @@ def edit_comment_for_component():
             }
         }
     )
-    updateDate( 'component', query )
+    updateData( 'component', query )
  
     forUrl = 'show_component'
 

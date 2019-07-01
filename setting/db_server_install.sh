@@ -1,7 +1,7 @@
 #!/bin/bash
 ##################################################################
 # Installation for setting up Local DB Server
-# Usage : ./setup_db_server.sh
+# Usage : ./db_server_install.sh
 # Instruction : https://github.com/jlab-hep/Yarr/wiki/Installation
 #
 # Contacts : Arisa Kubota (kubota.a.af@m.titech.ac.jp)
@@ -13,7 +13,7 @@ function usage {
     cat <<EOF
 
 Usage:
-    ./setup_db_server.sh 
+    ./db_server_install.sh 
 
 EOF
 }
@@ -33,7 +33,7 @@ done
 echo " "
 
 if [ ${answer} != "y" ]; then
-    echo "Try again setup_db_server.sh, Exit ..."
+    echo "Try again db_server_install.sh, Exit ..."
     echo " "
     exit
 fi
@@ -206,9 +206,9 @@ for svc in ${services[@]}; do
     fi
 done
 
-# Needed to avoid tons of warnings by mongod in /var/log/messages
-sudo ausearch -c 'ftdc' --raw | audit2allow -M my-ftdc
-sudo semodule -i my-ftdc.pp
+## Needed to avoid tons of warnings by mongod in /var/log/messages
+#sudo ausearch -c 'ftdc' --raw | audit2allow -M my-ftdc
+#sudo semodule -i my-ftdc.pp
 
 #setting up web-base DB viewer
 echo ""
