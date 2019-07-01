@@ -54,64 +54,8 @@ table.toppage td.border_inner {
     <div class="row align-items-center justify-content-center">
       <div class="col">
 
-        {% for FE in modules %}
-        <a data-toggle="collapse" href='#{{ FE }}' aria-controls="testindex" style="color: black;"><h4 style="font-size: 10pt;"><i class="fa fa-cog"></i> {{ FE }} ( {{ modules[FE]['num'] }} modules )</h4></a>
-
-          <table class="table table-sm collapse toppage" id={{ FE }} style="font-size: 10pt;">
-            <thead class="table-dark" style="background: #222222;">
-              <tr>
-                <th scope="col" style="width:calc(100%/7);" >Module</th>
-                <th scope="col" style="width:calc(100%/7*4);" colspan="4">Chips</th>
-                <th scope="col" style="width:calc(100%/7);" >Created Date</th>
-                <th scope="col" style="width:calc(100%/7);" >Cuurent Stage</th>
-              </tr>
-            </thead>
-            <tbody>
-              {% for module in modules[FE]["modules"] %}
-                <tr>
-                  {% if not "total" in module['grade'] %}
-                  <td style="width:calc(100%/7);">
-                  {% elif module['grade']['total'] == 6 %}
-                  <td style="background: #ccffb9; width:calc(100%/7);">
-                  {% elif module['grade']['total'] == 5 %}
-                  <td style="background: #fffdb9; width:calc(100%/7);">
-                  {% else %}
-                  <td style="background: #ffc3b9; width:calc(100%/7);">
-                  {% endif %}
-                  {% if not "total" in module['grade'] %}
-                  <a href="{{ url_for('show_component', id=module["_id"]) }}">{{ module["serialNumber"] }}</a></td>
-                  {% else %}
-                  <a href="{{ url_for('show_component', id=module["_id"]) }}" title="[dig] {{ module['grade']['digitalscan']['score'] }} ... {{ module['grade']['digitalscan']['criterion'] }} : {{ module['grade']['digitalscan']['countPix'] }}/{{ module['grade']['digitalscan']['totPix'] }}&#x0A;[ana] {{ module['grade']['analogscan']['score'] }} ... {{ module['grade']['analogscan']['criterion'] }} : {{ module['grade']['analogscan']['countPix'] }}/{{ module['grade']['analogscan']['totPix'] }}&#x0A;[tot] {{ module['grade']['totscan']['score'] }} ... {{ module['grade']['totscan']['criterion'] }} : {{ module['grade']['totscan']['countPix'] }}/{{ module['grade']['totscan']['totPix'] }}&#x0A;[thr] {{ module['grade']['thresholdscan']['score'] }} ... {{ module['grade']['thresholdscan']['criterion'] }} : {{ module['grade']['thresholdscan']['countPix'] }}/{{ module['grade']['thresholdscan']['totPix'] }}&#x0A;[noi] {{ module['grade']['noisescan']['score'] }} ... {{ module['grade']['noisescan']['criterion'] }} : {{ module['grade']['noisescan']['countPix'] }}/{{ module['grade']['noisescan']['totPix'] }}&#x0A;[sou] {{ module['grade']['selftrigger']['score'] }} ... {{ module['grade']['selftrigger']['criterion'] }} : {{ module['grade']['selftrigger']['countPix'] }}/{{ module['grade']['selftrigger']['totPix'] }}">{{ module["serialNumber"] }}</a></td>
-                  {% endif %}
-
-                  {% for num in range(4) %}
-                    {% if module["chips"][num] %}
-                      {% if not "total" in module["chips"][num]['grade'] %}
-                      <td style="width:calc(100%/7);">
-                      {% elif module["chips"][num]['grade']['total'] == 6 %}
-                      <td style="background: #e2ffd8; width:calc(100%/7);">
-                      {% elif module["chips"][num]['grade']['total'] == 5 %}
-                      <td style="background: #fffee6; width:calc(100%/7);">
-                      {% else %}
-                      <td style="background: #ffe5e1; width:calc(100%/7);">
-                      {% endif %}
-                      {% if not "total" in module["chips"][num]['grade'] %}
-                      <a href="{{ url_for('show_component', id=module["chips"][num]["_id"]) }}" >{{ module["chips"][num]["serialNumber"] }}</a></td>
-                      {% else %}
-                      <a href="{{ url_for('show_component', id=module["chips"][num]["_id"]) }}" title="[dig] {{ module['chips'][num]['grade']['digitalscan']['score'] }} ... {{ module['grade']['digitalscan']['criterion'] }} : {{ module['chips'][num]['grade']['digitalscan']['countPix'] }}/{{ module['chips'][num]['grade']['digitalscan']['totPix'] }}&#x0A;[ana] {{ module['chips'][num]['grade']['analogscan']['score'] }} ... {{ module['grade']['analogscan']['criterion'] }} : {{ module['chips'][num]['grade']['analogscan']['countPix'] }}/{{ module['chips'][num]['grade']['analogscan']['totPix'] }}&#x0A;[tot] {{ module['chips'][num]['grade']['totscan']['score'] }} ... {{ module['grade']['totscan']['criterion'] }} : {{ module['chips'][num]['grade']['totscan']['countPix'] }}/{{ module['chips'][num]['grade']['totscan']['totPix'] }} ( {{ module['chips'][num]['grade']['totscan']['parameter'] }} )&#x0A;[thr] {{ module['chips'][num]['grade']['thresholdscan']['score'] }} ... {{ module['grade']['thresholdscan']['criterion'] }} : {{ module['chips'][num]['grade']['thresholdscan']['countPix'] }}/{{ module['chips'][num]['grade']['thresholdscan']['totPix'] }} ( {{ module['chips'][num]['grade']['thresholdscan']['parameter'] }} )&#x0A;[noi] {{ module['chips'][num]['grade']['noisescan']['score'] }} ... {{ module['grade']['noisescan']['criterion'] }} : {{ module['chips'][num]['grade']['noisescan']['countPix'] }}/{{ module['chips'][num]['grade']['noisescan']['totPix'] }}&#x0A;[sou] {{ module['chips'][num]['grade']['selftrigger']['score'] }} ... {{ module['grade']['selftrigger']['criterion'] }} : {{ module['chips'][num]['grade']['selftrigger']['countPix'] }}/{{ module['chips'][num]['grade']['selftrigger']['totPix'] }}">{{ module["chips"][num]["serialNumber"] }}</a></td>
-                      {% endif %}
-
-                    {% else %}
-                      <td></td>
-                    {% endif %}
-                  {% endfor %}
-                  <td>{{ module["datetime"] }}</td>
-                  <td>{{ module["stage"] }}</td>
-                </tr>
-              {% endfor %}
-            </tbody>
-          </table>
-        {% endfor %}
+        <a href="{{ url_for('show_modules_and_chips') }}"><h4 style="font-size: 12pt;"><i class="fa fa-cog"></i> Module Page</h4></a>
+        <a href="{{ url_for('show_test') }}"><h4 style="font-size: 12pt;"><i class="fa fa-cog"></i> Test Page</h4></a>
       </div>
     </div>
   </div>

@@ -1,0 +1,114 @@
+<style>
+ul {
+  list-style: none;
+  list-style-position: outside;
+  list-style-image: none;
+  list-style-type: none;
+}
+ul.page-list {
+  display: inline;
+}
+
+table.toppage {
+  table-layout: fixed;
+}
+table.toppage th {
+  text-align: center;
+  vertical-align: middle;
+}
+table.toppage td {
+  text-align: center;
+  vertical-align: middle;
+  border: 2px dotted #e1e1e1;
+}
+table.toppage td.border_inner {
+  border-right-width: 2px;
+  border-right-style: dotted;
+  border-right-color: #e1e1e1;
+}
+
+</style>
+{% extends "layout.html" %}    <!-- これで元になるHTML(laytout.html)を指定 -->
+
+{% block body %}    <!-- layout.htmlのbodyというブロックを以下で置き換える -->
+
+  <div class="container">
+    <div class="row align-items-center justify-content-center">
+      <div class="col">
+
+        <h1>ITk database for Yarr</h1>
+
+      </div>
+    </div>
+  </div>
+
+  <div class="container">
+    <div class="row align-items-center justify-content-center">
+      <div class="col">
+
+        <h3>Scan Summary Page</h3>
+
+      </div>
+    </div>
+  </div>
+
+  <div class="container">
+    <div class="row align-items-center justify-content-center">
+      <div class="col">
+
+        <table class="table table-sm toppage" style="font-size: 10pt;">
+          <div style="text-align: center; font-size: 14px;">
+            <ul class="page-list">
+              {% if scans['now_cnt']!=0 %}
+              <li style="display: inline;">
+                <a href="{{ url_for('show_test', p=0) }}">&#8810;</a>
+              </li>
+              {% endif %}
+              {% for i in scans['cnt'] %}
+                {% if i==scans['now_cnt'] %}
+                <li style="display: inline; font-weight: bolder">
+                {% else %}
+                <li style="display: inline;">
+                {% endif %}
+  	              <a href="{{ url_for('show_test', p=i) }}">{{i+1}}</a>
+                </li>
+              {% endfor %}
+              {% if scans['now_cnt']!=scans['max_cnt'] %}
+              <li style="display: inline;">
+                <a href="{{ url_for('show_test', p=scans['max_cnt']) }}">&#8811;</a>
+              </li>
+              {% endif %}
+            </ul>
+          </div>
+          <thead class="table-dark" style="background: #222222;">
+            <tr>
+              <th scope="col" style="width: calc(100%*3/11)";>Date</th>
+              <th scope="col" style="width: calc(100%*2/11)";>Serial Number</th>
+              <th scope="col" style="width: calc(100%*1/11)";>Test Type</th>
+              <th scope="col" style="width: calc(100%*2/11)";>User</th>
+              <th scope="col" style="width: calc(100%*2/11)";>Site</th>
+              <th scope="col" style="width: calc(100%*1/11)";></th>
+            </tr>
+          </thead>
+          <tbody>
+            {% for run_data in scans["run"] %}
+              {% if run_data['plots'] %}
+              <tr>
+              {% else %}
+              <tr style="background: #AABBCC;">
+              {% endif %}
+                <td>{{ run_data["datetime"] }}</td>
+                <td>{{ run_data["serialNumber"] }}</td>
+                <td>{{ run_data["testType"] }}</td>
+                <td>{{ run_data["user"] }}</td>
+                <td>{{ run_data["site"] }}</td>
+                <td><a href="{{ url_for('show_test_data', id=run_data["serialNumber"], runId=run_data["_id"]) }}">result</a></td>
+              </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+
+{% endblock %}

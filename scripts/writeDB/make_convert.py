@@ -235,7 +235,10 @@ def registerTestRun(i_doc):
     env_id = '...'
     if 'startTime' in i_doc:
         start_time  = i_doc['startTime']
-        finish_time = i_doc['finishTime']
+        if 'finishTime' in i_doc:
+            finish_time = i_doc['finishTime']
+        else:
+            finish_time = start_time
         env_id = registerEnvFromTr( start_time, finish_time, i_doc['address'] )
     else:
         start_time  = i_doc['date']
@@ -341,6 +344,8 @@ def registerEnvFromTr(i_start_time, i_finish_time, i_address):
         })
         description.update({ environment['key']: environment['description'] })
     for key in env_dict:
+        if not key in insert_doc:
+            insert_doc.update({ key: [] })
         insert_doc[key].append({
             'data': env_dict[key],
             'description': description[key],
@@ -414,13 +419,14 @@ def registerConfigFromJson(config_id):
     if data_doc:
         data = str(data_doc['_id'])
     else:
-        data = localfs.put( binary, filename=filename )   
-        f_query = { '_id': data }
+        data = localfs.put( binary, filename=filename, hash=shaHashed, dbVersion=db_version )   
         c_query = { 'files_id': data }
-        localdb.fs.files.update( 
-            f_query,
-            { '$set': { 'hash': shaHashed }}
+        localdb.fs.chunks.update(
+            c_query,
+            {'$set':{'dbVersion': db_version}},
+            multi=True
         )
+
     config_doc = { 
         'filename': filename, 
         'chipType': chip_type,
@@ -458,7 +464,13 @@ def registerConfig(attachment, chip_type, new_ctr):
     if data_doc:
         code = str(data_doc['_id'])
     else:
-        code = localfs.put( binary, filename='chipCfg.json', hash=shaHashed ) 
+        code = localfs.put( binary, filename='chipCfg.json', hash=shaHashed, dbVersion=db_version ) 
+        c_query = { 'files_id': code }
+        localdb.fs.chunks.update(
+            c_query,
+            {'$set':{'dbVersion': db_version}},
+            multi=True
+        )
 
     if chip_type in json_data:
         if chip_type == 'FE-I4B':
@@ -528,7 +540,6 @@ def registerDatFromDat(attachment, new_ctr_id):
     binary = binary_image.read()
     code = localfs.put( binary, filename=thisData['filename'] )  
     attachment.update({ 'code': str(code) })
-    print( new_ctr['_id'] )
     ctr_query = { '_id': ObjectId(new_ctr['_id']) }
     localdb.componentTestRun.update( ctr_query, { '$push': { 'attachments': attachment }})
 
@@ -628,6 +639,14 @@ def registerPng(attachment, name, new_ctr, plots):
 
     write_log( '\t[Register] Png : {0} -> {0}'.format(attachment['filename'], filename))
     return filename
+
+def addStage(stage, new_stage, new_trid):
+    if (not stage == '') and new_stage == '...':
+        query = { '_id': ObjectId(new_trid) }
+        localdb.testRun.update(
+            query,
+            {'$set': {'stage': stage}}
+        )
 
 def convert():
     start_time = datetime.datetime.now() 
@@ -733,11 +752,9 @@ def convert():
                     thisComponentTestRun = yarrdb.componentTestRun.find_one( query )
                     if thisComponentTestRun:
                         # stage
-                        if (not thisComponentTestRun.get('stage','') == '') and new_thisRun['stage'] == '...':
-                            localdb.testRun.update(
-                                new_tr_query,
-                                {'$set': {'stage': thisComponentTestRun['stage']}}
-                            )
+                        addStage(thisComponentTestRun.get('stage',''), new_thisRun['stage'], new_trid)
+                        addStage(thisRun.get('stage',''), new_thisRun['stage'], new_trid)
+
                         # environment
                         if (not thisComponentTestRun.get('environments',[]) == []) and new_thisRun['environment'] == '...':
                             env_id = registerEnvFromCtr(thisComponentTestRun, new_thisRun['startTime'])
@@ -768,15 +785,15 @@ def convert():
                         if new_thisComponentTestRun.get('beforeCfg','...') == '...':
                             if not thisComponentTestRun.get('beforeCfg', '...') == '...':
                                 config_id = registerConfigFromJson(thisComponentTestRun['beforeCfg'])
-                                localdb.testRun.update(
-                                    new_tr_query,
+                                localdb.componentTestRun.update(
+                                    new_ctr_query,
                                     {'$set': {'beforeCfg': config_id}}
                                 )
                         if new_thisComponentTestRun.get('afterCfg','...') == '...':
                             if not thisComponentTestRun.get('afterCfg', '...') == '...':
                                 config_id = registerConfigFromJson(thisComponentTestRun['afterCfg'])
-                                localdb.testRun.update(
-                                    new_tr_query,
+                                localdb.componentTestRun.update(
+                                    new_ctr_query,
                                     {'$set': {'afterCfg': config_id}}
                                 )
                         attachments = thisRun.get('attachments',[])
