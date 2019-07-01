@@ -37,7 +37,7 @@
           </tr>
       </thead>
       <tbody>
-          {% for comment in component['results']['comments_for_run']%}
+          {% for comment in component['results']['comments']%}
             <tr>
               <th scope="col" class="text-left" colspan="2"><h4 style="font-size: 8pt;">{{ comment['comment'] }}</h4></th>
               <th scope="col" class="text-left"><h4 style="font-size: 8pt;">{{ comment['name'] }}</h4></th>
