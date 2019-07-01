@@ -55,17 +55,17 @@ if [ ${answer} != "y" ]; then
 fi
 
 #setting up web-base DB viewer
-echo ""
-echo "Setting up the web-base DB viewer..."
-echo "Preparing a config file based on the skeleton file..."
 cp ../scripts/yaml/web-conf.yml conf.yml
 sed -i -e "s/DBIPADDRESS/${dbip}/g" conf.yml 
 sed -i -e "s/DBPORT/${dbport}/g" conf.yml 
 sed -i -e "s/IPADDRESS/${ip}/g" conf.yml
-python36 app.py --config conf.yml &
 
 echo ""
 echo "Finished setting up of Viewer Application!!"
+echo ""
+echo "Start Viewer Application by..."
+echo ""
+echo "python36 app.py --config conf.yml &"
 echo ""
 echo "Try accessing the DB viewer in your web browser..." 
 echo "From the DAQ machine: http://localhost:5000/localdb/" 

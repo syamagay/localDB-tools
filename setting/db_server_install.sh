@@ -132,7 +132,7 @@ done
 
 #install python packages by pip for the DB viewer
 cd ${setting_dir}
-sudo pip3 install -r requirements.txt
+sudo pip3 install -r requirements-pip.txt
 
 #setting up apache to use DB
 if getsebool httpd_can_network_connect | grep off > /dev/null; then

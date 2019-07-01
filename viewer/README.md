@@ -1,97 +1,75 @@
-status in 19.02.2019
+status in 1th July 2019
+
+# Start up Viewer Application
+`viewer/setup_viewer.sh` can...
+- Initialize configulation file
+- Start Viewer Application
+
+## Pre Requirement
+- centOS7
+- MongoDB is running
+- python3
+```bash
+$ cd viewer
+$ ./setup_viewer.sh
+Local DB Server IP address: XXX.XXX.XXX.XXX
+Local DB Server port: XXXXX
+
+Are you sure that's correct? [y/n]
+# answer 'y' and move on to the setup
+y
+
+Finished setting up of Viewer Application!!
+
+Try accessing the DB viewer in your web browser...
+From the DAQ machine: http://localhost:5000/localdb/
+From other machines : http://XXX.XXX.XXX.XXX/localdb/
+
+# you should run Viewer Application in screen
+$ screen
+$ python36 app.py --config conf.yml
+
+Connecto to mongoDB server: mongodb://127.0.0.1:27017/localdb
+ * Serving Flask app "app" (lazy loading)
+ * Environment: production
+   WARNING: Do not use the development server in a production environment.
+   Use a production WSGI server instead.
+ * Debug mode: off
+HI 2019-07-01 22:55:37,102 - werkzeug - INFO -  * Running on http://XXX.XXX.XXX.XXX:5000/ (Press CTRL+C to quit)
+
+[detached]
+```
+Access http://XXX.XXX.XXX.XXX:5000/ in your browser to check the Viewer Application.
+
+# Advance
+Viewer Application show the result plots in browser if PyROOT is avairable in the DB server.
+
+```bash
+# 1. Check if PyROOT is available
+$ for ii in 1 2 3 4; do  if pydoc3 modules | cut -d " " -f${ii} | grep -x ROOT > /dev/null; then echo "PyROOT is available"; fi;  done
+PyROOT is available    # Abailable
+"No message"           # Not available 
+
+# 2. Install ROOT software which can use PyROOT by Python3
+$ root_install_dir=`pwd`
+$ wget https://root.cern.ch/download/root_v6.16.00.source.tar.gz
+$ tar zxf https://root.cern.ch/download/root_v6.16.00.source.tar.gz
+$ rm -f https://root.cern.ch/download/root_v6.16.00.source.tar.gz
+$ mv root-6.16.00 6.16.00
+$ mkdir 6.16.00-build
+$ cd 6.16.00-build
+$ cmake -DCMAKE_INSTALL_PREFIX=${root_install_dir}/6.16.00-install -DPYTHON_EXECUTABLE=/usr/bin/python36 ../6.16.00
+$ cmake --build . -- -j4
+$ make install
+
+# 3. Confirm if the installation was successful
+$ source ${root_install_dir}/6.16.00-build/bin/thisroot.sh
+$ for ii in 1 2 3 4; do  if pydoc3 modules | cut -d " " -f${ii} | grep -x ROOT > /dev/null; then echo "PyROOT is available"; fi;  done
+PyROOT is available
+```
 
 
-# Development Status
-
-  This is the viewer for YARR-DB ( https://github.com/jlab-hep/Yarr/wiki )
-  
-  Currently you can use the following :
-
-  * Check the list of modules and chips whose data taken by YARR in the top page ( for FE-I4B and RD53A )
-  * Check the result of scan for each module and chip ( for FE-I4B and RD53A )
-  * Write which run is summary for the module into database and check them in the module page ( for FE-I4B )
-  * Make the plot of scan for each module with adjusting parameters ( for FE-I4B and RD53A )
-  * Write administrator account into userDB by script 
-  * Write user account into userDB in browser
-  * Check the config file ( for FE-I4B )
-
-  Now implementing (comming soon) :
-  
-  * Write which run is summary for the module into database and check them in the module page ( for RD53A )
-  * Request to create user account who can upload pictures into database 
-  * Check the config file ( for RD53A )
-
-# Quick Tutorial
-
-  ```
-  $ git clone https://gitlab.cern.ch/akubota/web-app-db-yarr.git
-  $ cd web-app-db-yarr
-  $ cp scripts/yaml/web-conf.yml conf.yml
-  $ python app.py --config conf.yml
-  ```
-
-# User Guide 
-
-  ## Requirements
-
-  * CentOS7
-  * Firefox or Safari ( I checked that Chrome was not working well )
-  * mongodb ( running ) ... refer to this wiki : https://github.com/jlab-hep/Yarr/wiki to install 
-  * python 2.X or 3.X ( which can use PyROOT )
-  * python modules : written in install_list
-  * YARR S/W
-  
-  ## Preparation
-  
-  1) Set library path to ROOT and python
-  
-  ```
-  $ source path/to/devtoolset-2/enable
-  $ source path/to/bin/thispython.sh
-  $ source path/to/bin/thisroot.sh
-  ```
-  
-  2) Git clone this source
-  
-  ```
-  $ git clone https://gitlab.cern.ch/akubota/web-app-db-yarr.git
-  ```
-  
-  ## User Setting
-
-  1) Make conf.yaml
-
-  ```
-  $ cd web-app-db-yarr
-  $ cp scripts/yaml/web-conf.yml conf.yml
-  $ vim conf.yml
-  ```
-
-  2) Install python modules
-
-  ```
-  $ cd web-app-db-yarr/scripts/install
-  $ ./make_pipinstall.sh ---> generate pipinstall.py
-  $ python pipinstall.py 
-  ```
-  make_pipinstall.sh ... change PIPPATH if user use python3.
-
-  3) If you use apache system 
-
-  ```
-  $ cd web-app-db-yarr
-  $ cp scripts/apache/config.conf /etc/httpd/conf.d/web-app-db-yarr.conf
-  $ apachectl restart
-  $ systemctl restart httpd
-  ```
-
-  ## running web-app-db-yarr
-
-  ```
-  $ python app.py --config conf.yml
-  ```
-
-  You can check viewer by typing localhost:5000/localdb or (IPADDRESS):5000/localdb/ , or (IPADDRESS)/localdb/ if you use apache system.
+----------------------------------
   
 # Helpful Information
 
@@ -124,48 +102,3 @@ status in 19.02.2019
    $ python summary.py -- ../../conf.yml
   ```
 
-  ## Setup pyenv 
-  yum install some packages
-
-  ```
-   $ sudo yum install gcc zlib-devel bzip2 bzip2-devel readline readline-devel sqlite sqlite-devel openssl openssl-devel git
-  ```
-
-  install pyenv
-
-  * clone pyenv repository
-
-  ```
-   $ git clone https://github.com/pyenv/pyenv.git ~/.pyenv
-  ```
-
-  * add path to pyenv in bash_profile
-
-  ```
-   $ echo 'export PATH="$HOME/.pyenv/bin:$PATH"' >> ~/.bash_profile
-   $ echo 'eval "$(pyenv init -)"' >> ~/.bash_profile
-   $ source ~/.bash_profile
-  ```
-
-  * check version of pyenv
-
-  ```
-   $ pyenv --version
-   pyenv 1.2.2.6-g694b551
-  ```
-
-  install python X.X.X using pyenv
-
-  * install
-
-  ```
-    $ pyenv install X.X.X
-  ```
-
-  + change version of python
-
-  ```
-    $ pyenv global X.X.X
-    $ pyenv local X.X.X (only current directory)
-  ```
-  
