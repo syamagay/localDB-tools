@@ -1,0 +1,247 @@
+<style>
+input[type="number"] {
+display: block;
+margin: 0px;
+padding: 0px;
+border: none;
+height: 12pt;
+text-align: center;
+}
+input[type="number"]:hover {
+background-color: #eeeeee;
+border-radius: 0px;
+}
+input[type="time"] {
+display: block;
+margin: 0px;
+padding: 0px;
+border: none;
+height: 12pt;
+text-align: center;
+}
+input[type="time"]:hover {
+background-color: #eeeeee;
+border-radius: 0px;
+}
+.textarea {
+display: block;
+margin: 0px;
+padding: 0px;
+border: none;
+height: 12pt;
+text-align: center;
+}
+input[type="checkbox"] {
+display: none;
+margin: 0px;
+padding: 0px;
+}
+input[type="checkbox"]:checked + label {
+display: block;
+margin: 0px;
+padding: 0px;
+border: none;
+background: #ffffff;
+color: #000000;
+}
+input[type="checkbox"]:checked + label:hover {
+background-color: #eeeeee;
+color: #000000;
+border: none;
+}
+.label {
+display: block;
+font-size: 10pt;
+margin: 0px;
+padding: 0px;
+text-align: center;
+cursor: pointer;
+background-color: #ffffff;
+color: #dddddd;
+border: none;
+}
+.label:hover {
+margin: 0px;
+padding: 0px;
+background-color: #eeeeee;
+color: #bbbbbb;
+border: none;
+}
+td, th {
+padding: 0px 0px;
+vertical-align: middle;
+}
+</style>
+
+{% if component['dcs_data'] %}
+<body>
+<h4 style="font-size: 10pt;"><i class="fa fa-paint-brush"></i> DCS_DATA </h4>
+<!--  <h4><i></i> {{ component['dcs_data'] }} </h4> -->
+
+{% for result in component['dcs_data']['results'] %}
+<a data-toggle="collapse" aria-expanded="true" data-target='#{{ result['sortkey'] }}' aria-controls={{ result['sortkey'] }} href='#{{ result['sortkey'] }}' style="color: green;"><h4 style="font-size: 10pt;"><i class="fa fa-caret-right"></i> {{ result['dcsType'] }} </h4></a>
+
+<div class="row align-items-center justify-content-space-evenly collapse show" id={{ result['sortkey'] }}>
+  <div class="col-md-4">
+    {% if result['url_v'] %}
+    <!--<h4 style="font-size: 10pt;"><i class="fa fa-paint-brush"></i> {{result['dcsType']}} </h4>-->
+    <center>
+      <p> {{result['dcsType']}} </p>
+      <a href={{result['url_v']}} target="_brank" rel="noopener noreferrer">
+        <img src={{result['url_v']}} title="Voltage" width="300" height="300"></img>
+      </a>
+    </center>
+    {% endif %}
+  </div>
+  <div class="col-md-4">
+    {% if result['url_v'] %}
+    <!--<h4 style="font-size: 10pt;"><i class="fa fa-paint-brush"></i> {{result['dcsType']}} </h4>-->
+    <center>
+      <p> {{result['dcsType']}} </p>
+      <a href={{result['url_i']}} target="_brank" rel="noopener noreferrer">
+        <img src={{result['url_i']}} title="Current" width="300" height="300"></img>
+      </a>
+    </center>
+    {% endif %}
+  </div>
+  <div class="col-md-4">
+    {% if result['dcsType'] %}
+    <center>
+      <table class="table table-sm table-bordered" style="font-size: 8pt;">
+        <form class="form-holizontal" action="{{ url_for('make_dcsGraph', id=component['_id'], runId=result['runId']) }}" method=post class=entries style="font-size:10pt; margin:0px;">
+          <input type="hidden" name="dcsType" value={{result['dcsType']}}>
+          <thead class="table-dark" style="background: #222222;">
+            <tr>
+              <th scope="col" class="text-center" colspan="3">Settings<br>( Max/Min : y-axis )</th>
+            </tr>
+            <tr>
+              <th scope="col" class="text-center">parameter</th>
+              <th scope="col" class="text-center" width="25%">current</th>
+              <th scope="col" class="text-center" width="25%">modify</th>
+            </tr>
+          </thead>
+	  <tbody>
+	    <tr>
+              <td scope="col" class="text-center">Min([V])</td>
+              <td scope="col" class="text-center">{{result['v_min']}}</td>
+              <td scope="col" class="text-center">
+                <input type = "number" class="form-control" name = "v_min" value = {{result['v_min']}} style="font-size:10pt;" min="-100" step = {{result['v_step']}}>
+              </td>
+	    </tr>
+	    <tr>
+              <td scope="col" class="text-center">Max([V])</td>
+              <td scope="col" class="text-center">{{result['v_max']}}</td>
+              <td scope="col" class="text-center">
+                <input type = "number" class="form-control" name = "v_max" value = {{result['v_max']}} style="font-size:10pt;" min="-100" step = {{result['v_step']}}>
+              </td>
+	    </tr>
+	    <tr>
+              <td scope="col" class="text-center">Min([A])</td>
+              <td scope="col" class="text-center">{{result['i_min']}}</td>
+              <td scope="col" class="text-center">
+                <input type = "number" class="form-control" name = "i_min" value = {{result['i_min']}} style="font-size:10pt;" min="-1" step = {{result['i_step']}}>
+              </td>
+	    </tr>
+	    <tr>
+              <td scope="col" class="text-center">Max([A])</td>
+              <td scope="col" class="text-center">{{result['i_max']}}</td>
+              <td scope="col" class="text-center">
+                <input type = "number" class="form-control" name = "i_max" value = {{result['i_max']}} style="font-size:10pt;" min="-1" step = {{result['i_step']}}>
+              </td>
+	    </tr>
+<!--            <tr>
+              <td scope="col" class="text-center">Bin</td>
+              <td scope="col" class="text-center">{{result['binValue']}}</td>
+              <td scope="col" class="text-center">
+                <input type = "number" class="form-control" name = "bin" value = {{result['binValue']}} style="font-size:10pt;" min="0">
+              </td>
+            </tr>
+            <tr>
+              <td scope="col" class="text-center">Scale</td>
+              <td scope="col" class="text-center">
+                {% if result['setLog'] %} Log
+                {% else %} Linear
+                {% endif %}
+              </td>
+              <td scope="col" class="text-center">
+                {% if result['setLog'] %}
+                <input type="checkbox" class="form-control" id='L{{result['mapType']}}' name="log" style="margin:0px;padding:0px;" checked>
+                <label class="label" for='L{{result['mapType']}}'>Log</label>
+                {% else %}
+                <input type="checkbox" class="form-control" id='L{{result['mapType']}}' name="log" style="margin:0px;padding:0px;">
+                <label class="label" for='L{{result['mapType']}}'>Log</label>
+                {% endif %}
+              </td>
+            </tr>-->
+            <tr>
+	      <td scope="col" class="text-center"></tb>
+              <td scope="col" class="text-center">
+                <button type="submit" class="btn btn-outline-success btn-block" style="font-size:9pt;border:none;" name="dcsplotType" value="set">
+                  Set Default
+                </button>
+              </td>
+              <td scope="col" class="text-center">
+                <button type="submit" class="btn btn-outline-success btn-block" style="font-size:9pt;border:none;" name="dcsplotType" value="make">
+		  Make Histogram
+                </button>
+	      </td>
+          </tbody>
+        </form>
+      </table>
+    </center>
+    {% endif %}
+  </div>  
+    
+</div>
+{% endfor %}
+<p>{{component['runId']}}</p>
+<table class="table table-sm table-bordered" style="font-size: 8pt;">
+  <form class="form-time" action="{{ url_for('make_dcsGraph', id=component['_id'], runId=component['dcs_data']['results'][0]['runId']) }}" method=post class=entries style="font-size:10pt; margin:0px;">  
+    <thead class="table-dark" style="background: #222222;">
+      <tr>
+        <th scope="col" class="text-center" colspan="4">Settings<br>( Start/End : time-axis )</th>
+      </tr>
+      <tr>
+        <th scope="col" class="text-center">parameter</th>
+	<th scope="col" class="text-center" width="25%">RunTime</th>
+        <th scope="col" class="text-center" width="25%">current</th>
+              <th scope="col" class="text-center" width="25%">modify</th>
+      </tr>
+    </thead>
+    <tbody>
+      <tr>
+        <td scope="col" class="text-center">Start</td>
+        <td scope="col" class="text-center"> <time> {{component['dcs_data']['results'][0]['Runstart']}} </time> </td>
+        <td scope="col" class="text-center"> <time> {{component['dcs_data']['results'][0]['o_start']}} </time> </td>
+        <td scope="col" class="text-center">
+          <input type = "datetime" class="form-control" name = "start" value = {{component['dcs_data']['results'][0]['start']}} style="font-size:10pt;" min="0" step="1">
+        </td>
+      </tr>
+      <tr>
+        <td scope="col" class="text-center">End</td>
+        <td scope="col" class="text-center"><time>{{component['dcs_data']['results'][0]['Runfinish']}}</time></td>
+        <td scope="col" class="text-center"><time>{{component['dcs_data']['results'][0]['o_end']}}</time></td>
+        <td scope="col" class="text-center">
+          <input type = "datetime" class="form-control" name = "end" value = {{component['dcs_data']['results'][0]['end']}} style="font-size:10pt;" min="0">
+        </td>
+      </tr>
+
+      <tr>
+        <td scope="col" class="text-center"></td>
+        <td scope="col" class="text-center"></td>
+        <td scope="col" class="text-center">
+	  <button type="submit" class="btn btn-outline-success btn-block" style="font-size:9pt;border:none;" name="dcsplotType" value="set_TimeRange">
+	    Set Default
+	  </button>
+	</td>
+	<td scope="col" class="text-center">
+	  <button type="submit" class="btn btn-outxline-success btn-block" style="font-size:9pt;border:none;" name="dcsplotType" value="make_TimeRange">
+	    Set TimeRange
+	  </button>
+	</td>
+      </tr>
+    </tbody>
+  </form>
+</table>
+</body>
+{% endif %}

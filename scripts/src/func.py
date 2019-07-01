@@ -27,6 +27,15 @@ try:
 except: 
     DOROOT = False 
 
+### use DCS control                                                                                                                                                                 
+try :
+    import time
+    from scripts.src import dcs_plot
+    DO_DCSPLOT=True
+except :
+    DO_DCS_PLOT=False
+
+
 # directories 
 """
  /
@@ -50,7 +59,8 @@ UPLOAD_DIR    = '{}/upload'.format(TMP_DIR)
 THUMBNAIL_DIR = '{}/thumbnail'.format(TMP_DIR)
 STATIC_DIR    = '{}/static'.format(TMP_DIR)
 JSON_DIR      = '{}/json'.format(TMP_DIR)
-_DIRS = [UPLOAD_DIR, STATIC_DIR, THUMBNAIL_DIR, JSON_DIR] 
+DCS_DIR      = '{}/dcs'.format(TMP_DIR)
+_DIRS = [UPLOAD_DIR, STATIC_DIR, THUMBNAIL_DIR, JSON_DIR, DCS_DIR] 
 
 # MongoDB setting
 args = getArgs()
@@ -618,6 +628,7 @@ def fill_results():
         query = { 'component': session['this'], 
                   'testRun'  : session['runId'] }
         thisComponentTestRun = localdb.componentTestRun.find_one(query)
+                
         query = { '_id': ObjectId(session['runId']) }
         thisRun = localdb.testRun.find_one(query)
 
@@ -632,6 +643,7 @@ def fill_results():
                                'filename': data['title'] })
         # Change scheme
         afterconfig = {}
+        '''
         if not thisComponentTestRun.get('afterCfg','...')=='...':
             query = { '_id': ObjectId(thisComponentTestRun['afterCfg']) }
             config_data = localdb.config.find_one( query )
@@ -639,7 +651,9 @@ def fill_results():
             afterconfig.update({ "filename" : config_data['filename'],
                                  "code"     : config_data['data_id'],
                                  "configid" : thisComponentTestRun['afterCfg'] })
+        '''
         beforeconfig = {}
+        '''
         if not thisComponentTestRun.get('beforeCfg','...')=='...':
             query = { '_id': ObjectId(thisComponentTestRun['beforeCfg']) }
             config_data = localdb.config.find_one( query )
@@ -647,7 +661,7 @@ def fill_results():
             beforeconfig.update({ "filename" : config_data['filename'],
                                   "code"     : config_data['data_id'],
                                   "configid" : thisComponentTestRun['beforeCfg'] })
-
+        '''
         query = { '_id': ObjectId(thisRun['user_id']) }
         user = localdb.user.find_one( query )
         results.update({ 'testType'    : thisRun['testType'],
@@ -839,3 +853,78 @@ def fill_roots():
                    'results': results})
 
     return roots
+
+def make_dcsplot(runId):
+    dcsType=session.get( 'replot_target' )
+    if session.get( 'dcsplotType' )=='make':
+            session['dcsList'][dcsType]['Parameter'].update(session['dcsParameter'])
+            print(session['dcsList'])
+    elif session.get( 'dcsplotType' )=='set' :
+            print('gaya==set')
+            session['dcsList'][dcsType]['Parameter'].pop({"v_min" : None,
+                                                          "v_max" : None,
+                                                          "i_min" : None,
+                                                          "i_max" : None}
+            )
+#    gayadb  = client['gaya_yarr_test']
+#    gayadb=localdb
+#    print("currect runId ="+str(runId))
+#    runId = '5cd94b26e1382353cd006802'
+#    print("pseud runId ="+str(runId))
+    environmentId=localdb.testRun.find_one({"_id":ObjectId(runId)}).get('environment')
+    if environmentId=="...":
+        return 1
+    
+    startTime=localdb.testRun.find_one({"_id":ObjectId(runId)}).get('startTime')
+    finishTime=localdb.testRun.find_one({"_id":ObjectId(runId)}).get('finishTime')
+    startTime=time.mktime(startTime.timetuple())
+    finishTime=time.mktime(finishTime.timetuple())
+
+    DCS_data_block=localdb.environment.find_one({"_id":ObjectId(environmentId)})
+
+#    dcs_plot.dcs_plot(runId)                                                                                                                                                        
+    dcs_plot.dcs_plot(DCS_data_block,startTime,finishTime)
+    return 0
+    
+def fill_dcs():
+    dcs_data={}
+    url={}
+    if not session.get( 'runId' ) : return dcs_data
+    results=[]
+    clean_dir(DCS_DIR)
+    
+    dcs_status=make_dcsplot(session['runId'])
+    if dcs_status==1 : return dcs_data
+    if session.get('dcsList'):
+        for dcsType in session.get( 'dcsList' ):
+            #             print(dcsType)
+            filename_v=session['dcsList'][dcsType].get( 'voltage_f' )
+            filename_i=session['dcsList'][dcsType].get( 'current_f' )
+            for i,filename in zip(["1","2"],[filename_v,filename_i]) :
+                if os.path.isfile( filename ) :
+                    binary_image = open( filename, 'rb' )
+                    code_base64 = base64.b64encode(binary_image.read()).decode()
+                    binary_image.close()
+                    url.update({ i : bin_to_image( 'png', code_base64 ) })
+
+            results.append({ "Runstart"  : session['RunTime']['Runstart'],
+                             "Runfinish" : session['RunTime']['Runfinish'],
+                             "runId"     : session['runId'],
+                             "start"     : session['dcsList'][dcsType]['time'].get( 'start' ).strftime('%Y-%m-%dT%H:%M:%S+09:00'),
+                             "end"       : session['dcsList'][dcsType]['time'].get( 'end' ).strftime('%Y-%m-%dT%H:%M:%S+09:00'),
+                             "o_start"   : session['dcsList'][dcsType]['time'].get( 'start' ),
+                             "o_end"     : session['dcsList'][dcsType]['time'].get( 'end' ),
+                             "dcsType"   : dcsType,
+                             "v_min"     : session['dcsList'][dcsType]['Parameter'].get( 'v_min' ),
+                             "v_max"     : session['dcsList'][dcsType]['Parameter'].get( 'v_max' ),
+                             "i_min"     : session['dcsList'][dcsType]['Parameter'].get( 'i_min' ),
+                             "i_max"     : session['dcsList'][dcsType]["Parameter"].get( 'i_max' ),
+                             "sortkey"   : "{}0".format(dcsType),
+                             "url_v"     : url.get("1"),
+                             "url_i"     : url.get("2"),
+                             "v_step"    : session['dcsList'][dcsType].get( 'v_step' ),
+                             "i_step"    : session['dcsList'][dcsType].get( 'i_step' )
+                         })
+            dcs_data.update({"dcssw"  : True,
+                             "results": results})
+    return dcs_data

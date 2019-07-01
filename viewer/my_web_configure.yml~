@@ -1,0 +1,20 @@
+# Configs for web viewer
+
+mongoDB:
+    host: 127.0.0.1 # IP address running mongoDB
+    port: 27017     # port number running mongoDB
+    db: gaya_yarr_test     # local database name
+    userdb: userdb  # user database name
+    version: 1
+
+    # For user authentication
+    #username: viewer     # username of account with administrator authority in mongoDB
+    #password: viewerpass # password of account with administrator authority in mongoDB
+
+flask:
+    host: 127.0.0.1 # IP address running app.py
+    port: 5000      # port number running app.py
+
+# python version
+python: 2
+timezone: 0 # time zone difference

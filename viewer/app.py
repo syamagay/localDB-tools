@@ -255,6 +255,7 @@ def show_component():
     resultIndex  = fill_resultIndex() 
     results      = fill_results()     
     roots        = fill_roots()    
+    dcs_data     = fill_dcs()
 
     component.update({ '_id'         : session['this'],
                        'serialNumber': thisComponent['serialNumber'],
@@ -267,6 +268,7 @@ def show_component():
                        'resultIndex' : resultIndex,
                        'results'     : results,
                        'roots'       : roots,
+                       "dcs_data"    : dcs_data,
                        'summary'     : summary })
 
     return render_template( 'component.html', component=component )
@@ -286,6 +288,41 @@ def makehisto():
     runId       = request.args.get( 'runId' )
 
     return redirect( url_for('show_component', id=componentId, runId=runId) )
+
+## make Graph from DCS_data
+@app.route('/make_dcsGraph', methods=['GET','POST'])
+def make_dcsGraph() :
+    # get from form                                                                                                                                                                  
+    session['dcsplotType']  = request.form.get( 'dcsplotType' )
+    print '--------------gaya------------------------------------'
+    print(session['dcsList']['hv'].get( 'Parameter' ))
+
+    if session['dcsplotType']=='make' or session['dcsplotType']=='make' :
+        session['replot_target']= request.form.get( 'dcsType' )
+        session['dcsParameter']   = { "v_min" : request.form.get( 'v_min' ),
+                                      "v_max" : request.form.get( 'v_max' ),
+                                      "i_min" : request.form.get( 'i_min' ),
+                                      "i_max" : request.form.get( 'i_max' )
+                                  }
+    if session['dcsplotType']=='set_TimeRange' or session['dcsplotType']=='make_TimeRange' :
+        print(type(request.form.get( 'start' )))
+
+        start=datetime.datetime.strptime(request.form.get( 'start' ),"%Y-%m-%dT%H:%M:%S+09:00")
+        end=datetime.datetime.strptime(request.form.get( 'end' ),"%Y-%m-%dT%H:%M:%S+09:00")
+        print(type(start))
+        session['dcsRange']= {"start" : time.mktime(start.timetuple()),
+                              "end"   : time.mktime(end.timetuple()),
+                          }
+
+     # get from args                                                                                                                                                                 
+    componentId = request.args.get( 'id' )
+    runId       = request.args.get( 'runId' )
+
+    print("runId = "+str(runId))
+
+    return redirect( url_for("show_component", id=componentId, runId=runId) )
+
+
 
 # select page
 @app.route('/select_summary', methods=['GET','POST'])
