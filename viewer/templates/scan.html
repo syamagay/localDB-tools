@@ -102,7 +102,13 @@ table.toppage td.border_inner {
                 <td>{{ run_data["testType"] }}</td>
                 <td>{{ run_data["user"] }}</td>
                 <td>{{ run_data["site"] }}</td>
-                <td><a href="{{ url_for('show_test_data', id=run_data["serialNumber"], runId=run_data["_id"]) }}">result</a></td>
+                <td>
+                {% if run_data['dummy'] %}
+                  <a href="{{ url_for('show_dummy', id=run_data["serialNumber"], runId=run_data["_id"]) }}">result</a>
+                {% else %}
+                  <a href="{{ url_for('show_component', id=run_data["component"], runId=run_data["_id"]) }}">result</a>
+                {% endif %}
+                </td>
               </tr>
             {% endfor %}
           </tbody>

@@ -45,7 +45,11 @@
                         Module
                       </td>
                       <td>
+                        {% if component['dummy'] %}
+                          <a href="{{ url_for('show_dummy', id=component['module']['_id'], runId=session['runId']) }}">{{component['module']['serialNumber']}}</a>&ensp;
+                        {% else %}
                           <a href="{{ url_for('show_component', id=component['module']['_id']) }}">{{component['module']['serialNumber']}}</a>&ensp;
+                        {% endif %}
                       </td>
                     </tr>
                     <tr>
@@ -54,7 +58,11 @@
                       </td>
                       <td>
                         {% for chip in component['chips'] %}
-                          <a href="{{ url_for('show_component', id=chip['_id']) }}">{{chip['serialNumber']}}</a>&ensp;
+                          {% if component['dummy'] %}
+                            <a href="{{ url_for('show_dummy', id=chip['_id'], runId=session['runId']) }}">{{chip['serialNumber']}}</a>&ensp;
+                          {% else %}
+                            <a href="{{ url_for('show_component', id=chip['_id']) }}">{{chip['serialNumber']}}</a>&ensp;
+                          {% endif %}
                         {% else %}
                           No match.
                         {% endfor %}

@@ -245,7 +245,7 @@ def setSummary():
                 this_user = localdb.user.find_one( query )
                 query = { 
                     'component': session['this'],
-                    'testRun': str(entries[stage][scan]) 
+                    'testRun':   str(entries[stage][scan]) 
                 }
                 this_ctr = localdb.componentTestRun.find_one(query)
                 for maptype in listset.scan[chip_type][scan]:
@@ -559,7 +559,7 @@ def setResultIndex():
         this_ctr = localdb.componentTestRun.find_one( query )
 
         if chips == []:
-            result = 'attachments' in this_run
+            result = 'attachments' in this_ctr
         else:
             query = { '$or': chips }
             chip_run_entries = localdb.componentTestRun.find( query )
@@ -602,16 +602,17 @@ def setResultIndex():
         })
     test_index = []
     for scan in result_index:
-        runInd = sorted(result_index[scan]['run'], key=lambda x:x['datetime'], reverse=True)
+        run_index = sorted(result_index[scan]['run'], key=lambda x:x['datetime'], reverse=True)
         result_index.update({ 
             scan: { 
-                'num': len(runInd),
-                'run': runInd 
+                'num': len(run_index),
+                'run': run_index 
             }
         })
         test_index.append( scan )
     test_index.sort()
     result_index.update({ "index": test_index })
+
     return result_index
 
 # make result plot in component page for the run

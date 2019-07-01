@@ -59,7 +59,6 @@ echo ""
 echo "Setting up the web-base DB viewer..."
 echo "Preparing a config file based on the skeleton file..."
 cp ../scripts/yaml/web-conf.yml conf.yml
-cd viewer
 sed -i -e "s/DBIPADDRESS/${dbip}/g" conf.yml 
 sed -i -e "s/DBPORT/${dbport}/g" conf.yml 
 sed -i -e "s/IPADDRESS/${ip}/g" conf.yml

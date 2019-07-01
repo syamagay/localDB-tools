@@ -155,8 +155,10 @@ def show_modules_and_chips():
             modules.update({ chip_type: { 'modules': [], 'num': '' } })
 
         modules[chip_type]['modules'].append({ '_id'         : module_id,
-                                              'serialNumber': this_module['serialNumber'],
-                                              'chips'       : chips,
+                                              'serialNumber' : this_module['serialNumber'],
+                                              'componentType': 'Module',
+                                              'chips'        : chips,
+                                              'children'    : len(chips),
                                               'datetime'    : setTime(this_module['sys']['cts']),
                                               'grade'       : {},
                                               'stage'       : None })
@@ -265,9 +267,7 @@ def show_component():
         chip_ids.append(child['child'])
 
     # set chip and module information
-    component = {}
     component_chips = []
-    component['chipType'] = this_cmp['chipType']
     for chip_id in chip_ids:
         query = { '_id': ObjectId(chip_id) }
         this_chip = mongo.db.component.find_one( query )
@@ -298,12 +298,13 @@ def show_component():
     results      = setResults()     
     roots        = setRoots()    
 
-    component.update({ 
+    component = { 
         '_id'         : session['this'],
         'serialNumber': this_cmp['serialNumber'],
         'module'      : module,
         'chips'       : component_chips,
         'unit'        : this_cmp['componentType'], 
+        'chipType'    : this_cmp['chipType'],
         'comments_for_component': this_cmp.get('comments',[]), 
         'photoDisplay': photo_display,
         'photoIndex'  : photo_index,
@@ -311,8 +312,9 @@ def show_component():
         'resultIndex' : result_index,
         'results'     : results,
         'roots'       : roots,
-        'summary'     : summary
-    })
+        'summary'     : summary,
+        'dummy'       : False
+    }
 
     return render_template( 'component.html', component=component )
 
@@ -325,73 +327,123 @@ def show_test():
 
     query = { 'dbVersion': dbv }
     run_entries = mongo.db.testRun.find(query).sort([( '$natural', -1 )] )
-    run_nums = run_entries.count()
     run_ids = []
     for i, run in enumerate(run_entries):
         if i//max_num<sort_cnt: continue
         elif i//max_num==sort_cnt: run_ids.append(str(run['_id']))
         else: break
     cnt = []
-    for i in range((run_nums//max_num)+1):
+    for i in range((run_entries.count()//max_num)+1):
         if sort_cnt-(max_num/2)<i:
             cnt.append(i)
         if len(cnt)==max_num:
             break
 
-    scans = {'run':[],
-             'total': run_nums,
-             'cnt': cnt,
-             'now_cnt': sort_cnt,
-             'max_cnt': (run_nums//max_num)}
+    scans = {
+        'run':[],
+        'total': run_entries.count(),
+        'cnt': cnt,
+        'now_cnt': sort_cnt,
+        'max_cnt': (run_entries.count()//max_num)
+    }
 
     for run_id in run_ids:
-        run_data = {}
         query = { '_id': ObjectId(run_id) }
         this_run = mongo.db.testRun.find_one (query)
-        run_data['serialNumber'] = this_run['serialNumber']
-        run_data['datetime'] = this_run['startTime']
-        run_data['testType'] = this_run['testType']
-        run_data['stage'] = this_run['stage']
-        run_data['_id'] = run_id
-        run_data['runNumber'] = this_run['runNumber']
-        run_data['plots'] = (this_run['plots']!=[])
         query = { '_id': ObjectId(this_run['user_id']) }
         this_user = mongo.db.user.find_one(query)
-        run_data['user'] = this_user['userName'].replace('_', ' ')
         query = { '_id': ObjectId(this_run['address']) }
         this_site = mongo.db.institution.find_one(query)
-        run_data['site'] = this_site['institution'].replace('_', ' ')
+        cmp_id = ''
+        if not this_run['dummy']:
+            query = { 'serialNumber': this_run['serialNumber'] }
+            this_cmp = mongo.db.component.find_one(query)
+            cmp_id = str(this_cmp['_id'])
+        run_data = {
+            '_id':          run_id,
+            'serialNumber': this_run['serialNumber'],
+            'datetime':     this_run['startTime'],
+            'testType':     this_run['testType'],
+            'stage':        this_run['stage'],
+            'runNumber':    this_run['runNumber'],
+            'dummy':        this_run['dummy'],
+            'plots':        (this_run['plots']!=[]),
+            'component':    cmp_id,
+            'user':         this_user['userName'].replace('_', ' '),
+            'site':         this_site['institution'].replace('_', ' ')
+        }
         scans['run'].append(run_data)
 
     return render_template( 'scan.html', scans=scans )
 
 # component page 
-@app.route('/scandata', methods=['GET', 'POST'])
-def show_test_data():
+@app.route('/dummy', methods=['GET', 'POST'])
+def show_dummy():
 
     makeDir()
 
-    session['this']  = request.args.get( 'id' )
+    serial_number = request.args.get( 'id' )
+    session['this'] = serial_number
     session['runId'] = request.args.get( 'runId' )
-
     query = { '_id': ObjectId(session['runId']) }
     this_run = mongo.db.testRun.find_one(query)
-  
-    results      = setResults()     
+
+    # this component
+    if session['this']==this_run['serialNumber']: cmp_type = 'Module'
+    else: cmp_type = 'Front-end Chip'
+
+    # chips and parent
+    if cmp_type == 'Module': parent_id = session['this']
+    else: parent_id = this_run['serialNumber']
+
+    # this module
+    module = { 
+        '_id': parent_id,
+        'serialNumber': this_run['serialNumber'] 
+    }
+
+    # chips of module
+    component_chips = []
+    query = { 
+        'testRun': session['runId'], 
+        'component':{'$ne': this_run['serialNumber']} 
+    }
+    ctr_entries = mongo.db.componentTestRun.find(query)
+    for i, ctr_entry in enumerate(ctr_entries):
+        component_chips.append({
+            '_id': ctr_entry['component'],
+            'chipId': i+1,
+            'serialNumber': ctr_entry['component']
+        })
+
+    # set photos
+    photo_display = []
+    photo_index = []
+    photos = {}
+ 
+    # set results
+    result_index = {}
+    results      = setResults()
     roots        = setRoots()    
 
-    component = {}
-    component.update({ 
+    component = { 
         '_id'         : session['this'],
         'serialNumber': this_run['serialNumber'],
-        'module'      : {},
-        'chips'       : [],
-        'unit'        : "Module", #TODO 
+        'module'      : module,
+        'chips'       : component_chips,
+        'unit'        : cmp_type,
+        'chipType'    : '', #TODO
+        'photoDisplay': photo_display,
+        'photoIndex'  : photo_index,
+        'photos'      : photos,
+        'resultIndex' : result_index,
         'results'     : results,
         'roots'       : roots,
-    })
+        'summary'     : {},
+        'dummy'       : True
+    }
 
-    return render_template( 'scan_data.html', component=component )
+    return render_template( 'component.html', component=component )
 
 # make histogram 
 @app.route('/makehisto', methods=['GET','POST'])
