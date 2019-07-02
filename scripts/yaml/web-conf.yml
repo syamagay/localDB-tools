@@ -11,7 +11,7 @@ mongoDB:
     #password: viewerpass # password of account with administrator authority in mongoDB
 
 flask:
-    host: IPADDRESS # IP address running app.py
+    host: 127.0.0.1 # IP address running app.py
     port: 5000      # port number running app.py
 
 # python version

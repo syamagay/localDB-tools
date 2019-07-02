@@ -60,7 +60,6 @@ fi
 cp ${viewer_dir}/../scripts/yaml/web-conf.yml conf.yml
 sed -i -e "s/DBIPADDRESS/${dbip}/g" conf.yml 
 sed -i -e "s/DBPORT/${dbport}/g" conf.yml 
-sed -i -e "s/IPADDRESS/${ip}/g" conf.yml
 
 echo ""
 echo "Finished setting up of Viewer Application!!"
