@@ -71,13 +71,15 @@
                   </tbody>
                 </table>
 
-                <!--<table class="table table-sm table-bordered" style="font-size: 8pt;">
+                <table class="table table-sm table-bordered" style="font-size: 8pt;">
                   <thead class="table-dark" style="background: #222222;">
                       <tr>
-                        <th scope="col" class="text-center" colspan="5"><h4 style="font-size: 8pt;">Comments</h4></th>
+                        <th scope="col" class="text-center" colspan="6"><h4 style="font-size: 8pt;">Comments</h4></th>
                       </tr>
                       <tr>
-                        <th scope="col" class="text-center" colspan="2">Comment</th>
+                        <th scope="col" class="text-center">Comment</th>
+                        <th scope="col" width=100 class="text-center">componentType</th>
+                        <th scope="col" width=100 class="text-center">testlink</th>
                         <th scope="col" width=100 class="text-center">Name</th>
                         <th scope="col" width=100 class="text-center">Institution</th>
                         <th scope="col" width=100 class="text-center">Date</th>
@@ -86,15 +88,24 @@
                   <tbody>
                       {% for comment in component['comments_for_component'] %}
                         <tr>
-                          <th scope="col" class="text-left" colspan="2"><h4 style="font-size: 8pt;">{{ comment['comment'] }}</h4></th>
-                          <th scope="col" class="text-left"><h4 style="font-size: 8pt;">{{ comment['name'] }}</h4></th>
-                          <th scope="col" class="text-left"><h4 style="font-size: 8pt;">{{ comment['institution'] }}</h4></th>
-                          <th scope="col" class="text-left"><h4 style="font-size: 8pt;">{{ comment['datetime'] }}</h4></th>
+                          <th scope="col" class="text-left"><h4 style="font-size: 8pt;">{{ comment['comment'] | safe }}</h4></th>
+                          <th scope="col" class="text-center"><h4 style="font-size: 8pt;"></h4>{{ comment['componentType'] }}</th>
+                          <th scope="col" class="text-center"><h4 style="font-size: 8pt;"></h4>
+                          {% if comment['runId'] == -1 %}
+                            -
+                          {% else %}
+                            <a href="{{ url_for('show_component', id=comment['componentId'], runId=comment['runId']) }}">testlink</a>
+                          {% endif %}      
+                          </th>
+                          <th scope="col" class="text-center"><h4 style="font-size: 8pt;">{{ comment['name'] }}</h4></th>
+                          <th scope="col" class="text-center"><h4 style="font-size: 8pt;">{{ comment['institution'] }}</h4></th>
+                          <th scope="col" class="text-center"><h4 style="font-size: 8pt;">{{ comment['datetime'] }}</h4></th>
                         </tr>
                       {% endfor %}      
                       <tr>
                     	  <form action="{{ url_for('edit_comment_for_component', id=component['_id'],runId=session['runId']) }}" method="post" enctype="multipart/form-data">
-                          <td scope="col" align="center" colspan="2"><input type = "txt" required="required" class="form-control input-normal" placeholder="comment" name = "text"></td>
+                          <!--<td scope="col" align="center" colspan="2"><input type = "txt" required="required" class="form-control input-normal" placeholder="comment" name = "text"></td>-->
+                          <td scope="col" align="center" colspan="3"><textarea required="required" class="form-control input-normal" placeholder="comment" name = "text"></textarea></td>
                           <td scope="col" align="center"><input type = "txt" required="required" class="form-control input-normal" placeholder="name" name = "text2"></td>
                           <td scope="col" align="center"><input type = "txt" required="required" class="form-control input-normal" placeholder="institution" name = "text3"></td>
                           <td scope="col" align="center middle" >
@@ -107,7 +118,7 @@
                         </form>
                       </tr>
                    </tbody>
-                 </table>-->
+                 </table>
             </div>
         </div>
 

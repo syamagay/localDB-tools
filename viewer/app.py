@@ -266,6 +266,26 @@ def show_component():
     for child in child_entries:
         chip_ids.append(child['child'])
 
+    # get comments for this module
+    if cmp_type == 'Module':
+        parent_id = session['this']
+    else:
+        query = { 'child': session['this'] }
+        parent_id = mongo.db.childParentRelation.find_one( query )['parent']
+
+    query = { 'parent': parent_id }
+    child_entries = mongo.db.childParentRelation.find( query )
+    ids = [parent_id]
+    for child in child_entries:
+        ids.append(child['child'])
+ 
+    comments=[]
+    for id in ids: 
+        query = { 'componentId': id }
+        comment_entries = mongo.db.comments.find( query )
+        for comment in comment_entries:
+           comments.append(comment)
+  
     # set chip and module information
     component_chips = []
     for chip_id in chip_ids:
@@ -305,7 +325,7 @@ def show_component():
         'chips'       : component_chips,
         'unit'        : this_cmp['componentType'], 
         'chipType'    : this_cmp['chipType'],
-        'comments_for_component': this_cmp.get('comments',[]), 
+        'comments_for_component': comments, 
         'photoDisplay': photo_display,
         'photoIndex'  : photo_index,
         'photos'      : photos,
@@ -892,65 +912,125 @@ def edit_description():
 
     return redirect( url_for(forUrl, id=request.form.get( 'id' )) )
 
+#@app.route('/edit_comment_for_test', methods=['GET','POST'])
+#def edit_comment_for_test():
+#
+#    query = { '_id': ObjectId(request.form.get( 'id' ))}
+#    this_cmp = mongo.db.component.find_one( query )
+#
+#    if this_cmp['componentType'] == 'Module':
+#        query = { 'parent': request.form.get('id') }
+#    else:
+#        query = { 'child': request.form.get('id') }
+#        parentoid = mongo.db.childParentRelation.find_one( query )['parent']
+#        query = { 'parent': parentoid }
+#
+#    child_entries = mongo.db.childParentRelation.find( query )
+#    component_chips = []
+#    for child in child_entries:
+#        component_chips.append({ 'component': child['child'] })
+#
+#    runoid = request.args.get('runId')
+#    query = { '_id': ObjectId(runoid) }
+#    mongo.db.testRun.update( 
+#        query, { 
+#            '$push': { 
+#                'comments': { 
+#                    'comment':request.form.get('text').replace('\r\n','<br>'),
+#                    'name'  :request.form.get('text2'),
+#                    'institution'  :request.form.get('text3'),
+#                    'datetime':datetime.datetime.utcnow() 
+#                } 
+#            }
+#        } 
+#    )
+#    updateData( 'testRun', query )
+#    forUrl = 'show_component'
+#
+#    return redirect( url_for(forUrl, id=request.args.get( 'id' ), runId=request.args.get( 'runId' ) ))
+
 @app.route('/edit_comment_for_test', methods=['GET','POST'])
 def edit_comment_for_test():
-
-    query = { '_id': ObjectId(request.form.get( 'id' ))}
-    this_cmp = mongo.db.component.find_one( query )
-
-    if this_cmp['componentType'] == 'Module':
-        query = { 'parent': request.form.get('id') }
+    
+    # this component
+    query = { '_id': ObjectId(session['runId']) }
+    this_test = mongo.db.testRun.find_one( query )
+    if not this_test['dummy']:
+        query = { '_id': ObjectId(session['this']) }
+        this_cmp = mongo.db.component.find_one( query )
+        cmp_type = this_cmp['serialNumber']
+        componentId = request.args.get( 'id' )
     else:
-        query = { 'child': request.form.get('id') }
-        parentoid = mongo.db.childParentRelation.find_one( query )['parent']
-        query = { 'parent': parentoid }
+        cmp_type = -1
+        componentId = -1
 
-    child_entries = mongo.db.childParentRelation.find( query )
-    component_chips = []
-    for child in child_entries:
-        component_chips.append({ 'component': child['child'] })
-
-    runoid = request.args.get('runId')
-    query = { '_id': ObjectId(runoid) }
-    mongo.db.testRun.update( 
-        query, { 
-            '$push': { 
-                'comments': { 
-                    'comment':request.form.get('text'),
-                    'name'  :request.form.get('text2'),
-                    'institution'  :request.form.get('text3'),
-                    'datetime':datetime.datetime.utcnow() 
-                } 
-            }
-        } 
+    mongo.db.comments.insert( 
+    { 
+        'componentId': componentId,
+        'runId': request.args.get( 'runId' ),
+        'comment':request.form.get('text').replace('\r\n','<br>'),
+        'componentType':cmp_type,
+        'name'  :request.form.get('text2'),
+        'institution'  :request.form.get('text3'),
+        'datetime':datetime.datetime.utcnow() 
+    } 
     )
-    updateData( 'testRun', query )
+
     forUrl = 'show_component'
 
+    #if not this_test['dummy']:
     return redirect( url_for(forUrl, id=request.args.get( 'id' ), runId=request.args.get( 'runId' ) ))
+    #else:
+    #    return redirect( url_for(forUrl, id='Dummy_0', runId=request.args.get( 'runId' ) ))
+
+
+#@app.route('/edit_comment_for_component', methods=['GET','POST'])
+#def edit_comment_for_component():
+#
+#    query = { '_id': ObjectId(request.form.get( 'id' ))}
+#
+#    mongo.db.component.update( 
+#        query, { 
+#            '$push': { 
+#                'comments': { 
+#                    'comment':request.form.get('text').replace('\r\n','<br>'),
+#                    'name'  :request.form.get('text2'),
+#                    'institution'  :request.form.get('text3'),
+#                    'datetime':datetime.datetime.utcnow() 
+#                } 
+#            }
+#        }
+#    )
+#    updateData( 'component', query )
+# 
+#    forUrl = 'show_component'
+#
+#    return redirect( url_for(forUrl, id=request.args.get( 'id' ), runId=request.args.get( 'runId' ) ))
 
 @app.route('/edit_comment_for_component', methods=['GET','POST'])
 def edit_comment_for_component():
+    
+    # this component
+    query = { '_id': ObjectId(session['this']) }
+    this_cmp = mongo.db.component.find_one( query )
+    cmp_type = this_cmp['serialNumber']
 
-    query = { '_id': ObjectId(request.form.get( 'id' ))}
-
-    mongo.db.component.update( 
-        query, { 
-            '$push': { 
-                'comments': { 
-                    'comment':request.form.get('text'),
-                    'name'  :request.form.get('text2'),
-                    'institution'  :request.form.get('text3'),
-                    'datetime':datetime.datetime.utcnow() 
-                } 
-            }
-        }
+    mongo.db.comments.insert( 
+        {
+        'componentId': request.form.get( 'id' ),
+        'runId': -1,
+        'comment':request.form.get('text').replace('\r\n','<br>'),
+        'componentType':cmp_type,
+        'name'  :request.form.get('text2'),
+        'institution'  :request.form.get('text3'),
+        'datetime':datetime.datetime.utcnow() 
+        } 
     )
-    updateData( 'component', query )
  
     forUrl = 'show_component'
 
     return redirect( url_for(forUrl, id=request.args.get( 'id' ), runId=request.args.get( 'runId' ) ))
+
 
 @app.route('/remove_comment', methods=['GET','POST'])
 def remove_comment():

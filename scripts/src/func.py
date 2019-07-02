@@ -630,6 +630,13 @@ def setResults():
     query = { '_id': ObjectId(session['runId']) }
     this_run = localdb.testRun.find_one(query)
 
+    # get comments for this run
+    query = { 'runId': session['runId'] }
+    comments_entries = localdb.comments.find(query)
+    comments = []
+    for comment in comments_entries:
+        comments.append(comment)
+
     # Change scheme
     ctrlconfig = {}
     if not this_run.get('ctrlCfg','...')=='...':
@@ -714,7 +721,7 @@ def setResults():
     results.update({ 
         'testType'    : this_run['testType'],
         'runNumber'   : this_run['runNumber'],
-        'comments'    : list(this_run['comments']),
+        'comments'    : comments,
         'stage'       : this_run.get('stage'),
         'address'     : this_run.get('address','null'),
         'institution' : user['institution'],
