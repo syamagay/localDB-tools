@@ -275,16 +275,14 @@ def show_component():
 
     query = { 'parent': parent_id }
     child_entries = mongo.db.childParentRelation.find( query )
-    ids = [parent_id]
+    queryids = [{'componentId':parent_id}]
     for child in child_entries:
-        ids.append(child['child'])
+        queryids.append({'componentId':child['child']})
  
     comments=[]
-    for id in ids: 
-        query = { 'componentId': id }
-        comment_entries = mongo.db.comments.find( query )
-        for comment in comment_entries:
-           comments.append(comment)
+    comment_entries = mongo.db.comments.find({'$or':queryids})
+    for comment in comment_entries:
+        comments.append(comment)
   
     # set chip and module information
     component_chips = []
@@ -976,12 +974,12 @@ def edit_comment_for_test():
     } 
     )
 
-    forUrl = 'show_component'
+    if not this_test['dummy']:
+        forUrl = 'show_component'
+    else:
+        forUrl = 'show_dummy'
 
-    #if not this_test['dummy']:
     return redirect( url_for(forUrl, id=request.args.get( 'id' ), runId=request.args.get( 'runId' ) ))
-    #else:
-    #    return redirect( url_for(forUrl, id='Dummy_0', runId=request.args.get( 'runId' ) ))
 
 
 #@app.route('/edit_comment_for_component', methods=['GET','POST'])
