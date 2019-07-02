@@ -104,7 +104,7 @@ table.toppage td.border_inner {
                 <td>{{ run_data["site"] }}</td>
                 <td>
                 {% if run_data['dummy'] %}
-                  <a href="{{ url_for('show_dummy', id=run_data["serialNumber"], runId=run_data["_id"]) }}">result</a>
+                  <a href="{{ url_for('show_dummy', id=run_data["component"], runId=run_data["_id"]) }}">result</a>
                 {% else %}
                   <a href="{{ url_for('show_component', id=run_data["component"], runId=run_data["_id"]) }}">result</a>
                 {% endif %}

@@ -359,9 +359,15 @@ def show_test():
             query = { 'serialNumber': this_run['serialNumber'] }
             this_cmp = mongo.db.component.find_one(query)
             cmp_id = str(this_cmp['_id'])
+        else:
+            cmp_id = this_run['serialNumber']
+        if 'DUMMY' in this_run['serialNumber']:
+            serial_number = '---'
+        else:
+            serial_number = this_run['serialNumber']
         run_data = {
             '_id':          run_id,
-            'serialNumber': this_run['serialNumber'],
+            'serialNumber': serial_number,
             'datetime':     this_run['startTime'],
             'testType':     this_run['testType'],
             'stage':        this_run['stage'],
@@ -399,7 +405,7 @@ def show_dummy():
     # this module
     module = { 
         '_id': parent_id,
-        'serialNumber': this_run['serialNumber'] 
+        'serialNumber': 'DummyModule' 
     }
 
     # chips of module
@@ -409,11 +415,11 @@ def show_dummy():
         'component':{'$ne': this_run['serialNumber']} 
     }
     ctr_entries = mongo.db.componentTestRun.find(query)
-    for i, ctr_entry in enumerate(ctr_entries):
+    for ctr_entry in ctr_entries:
         component_chips.append({
             '_id': ctr_entry['component'],
-            'chipId': i+1,
-            'serialNumber': ctr_entry['component']
+            'geomId': ctr_entry['geomId'],
+            'serialNumber': 'DummyChip{}'.format(ctr_entry['geomId'])
         })
 
     # set photos
@@ -428,7 +434,8 @@ def show_dummy():
 
     component = { 
         '_id'         : session['this'],
-        'serialNumber': this_run['serialNumber'],
+        #'serialNumber': this_run['serialNumber'],
+        'serialNumber': '---',
         'module'      : module,
         'chips'       : component_chips,
         'unit'        : cmp_type,

@@ -622,8 +622,10 @@ def setResults():
 
     if not session.get('runId'): return results
 
-    query = { 'component': session['this'], 
-              'testRun'  : session['runId'] }
+    query = { 
+        'component': session['this'], 
+        'testRun'  : session['runId'] 
+    }
     this_ctr = localdb.componentTestRun.find_one(query)
     query = { '_id': ObjectId(session['runId']) }
     this_run = localdb.testRun.find_one(query)
@@ -637,7 +639,7 @@ def setResults():
             "filename" : config_data['filename'],
             "code"     : [config_data['data_id']],
             "configid" : [this_run['ctrlCfg']]
-    })
+        })
     scanconfig = {}
     if not this_run.get('scanCfg','...')=='...':
         query = { '_id': ObjectId(this_run['scanCfg']) }
@@ -649,14 +651,15 @@ def setResults():
         })
 
     is_module = False
-    try:
+    if this_run['dummy']:
+        if session['this'] == this_run['serialNumber']:
+            is_module = True
+    else:
         query = { '_id': ObjectId(session['this']) }
         this_cmp = localdb.component.find_one( query )
         if this_cmp['serialNumber'] == this_run['serialNumber']:
             is_module = True
-    except:
-        if session['this'] == this_run['serialNumber']:
-            is_module = True
+
     chipoids = []
     if is_module:
         query = { 'testRun': session['runId'] }
@@ -727,13 +730,13 @@ def setResults():
     return results
 
 
-def writeDat(cmpoid, runoid, chipid):
+def writeDat(cmpoid, runoid):
 
     query = { 'testRun': runoid, 'component': cmpoid }
     this_ctr = localdb.componentTestRun.find_one( query )
     if not this_ctr: return
 
-    chipid += 1
+    chipid = this_ctr.get('geomId',1)
     for data in this_ctr.get('attachments', []):
         if data['contentType'] == 'dat':
             query = { '_id': ObjectId(data['code']) }
@@ -763,14 +766,15 @@ def makePlot(cmpoid, runoid):
         for maptype in this_run.get('plots',[]):
             session['plotList'].update({maptype: {'draw': True, 'chipIds': []}})
         is_module = False
-        try:
+        if this_run['dummy']:
+            if session['this'] == this_run['serialNumber']:
+                is_module = True
+        else:
             query = { '_id': ObjectId(session['this']) }
             this_cmp = localdb.component.find_one( query )
             if this_cmp['serialNumber'] == this_run['serialNumber']:
                 is_module = True
-        except:
-            if session['this'] == this_run['serialNumber']:
-                is_module = True
+
         chipoids = []
         if is_module:
             query = { 'testRun': session['runId'] }
@@ -780,8 +784,8 @@ def makePlot(cmpoid, runoid):
                     chipoids.append( ctr['component'] )
         else:
             chipoids.append( session['this'] )
-        for i, chipoid in enumerate(chipoids):
-            writeDat( chipoid, runoid, i )
+        for chipoid in chipoids:
+            writeDat( chipoid, runoid )
 
     for maptype in this_run.get('plots',[]):
         if not session['plotList'][maptype]['draw']: continue
