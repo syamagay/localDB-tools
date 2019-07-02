@@ -169,9 +169,8 @@ if [ -e /var/lib/mongo ]; then
     sudo tar zcf mongo-${today}.tar.gz mongo
     cd ${setting_dir} > /dev/null
     sudo rm -rf /var/lib/mongo
-else
-    sudo mkdir -p /var/lib/mongo
 fi
+sudo mkdir -p /var/lib/mongo
 
 cd ${setting_dir}
 sudo chcon -R -u system_u -t mongod_var_lib_t /var/lib/mongo/
