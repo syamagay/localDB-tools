@@ -8,6 +8,8 @@
 ##################################################################
 set -e
 
+viewer_dir=$(cd $(dirname $0); pwd)
+
 # Usage
 function usage {
     cat <<EOF
@@ -55,7 +57,7 @@ if [ ${answer} != "y" ]; then
 fi
 
 #setting up web-base DB viewer
-cp ../scripts/yaml/web-conf.yml conf.yml
+cp ${viewer_dir}/../scripts/yaml/web-conf.yml conf.yml
 sed -i -e "s/DBIPADDRESS/${dbip}/g" conf.yml 
 sed -i -e "s/DBPORT/${dbport}/g" conf.yml 
 sed -i -e "s/IPADDRESS/${ip}/g" conf.yml
