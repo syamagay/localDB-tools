@@ -52,7 +52,6 @@ yumpackages=(
     "epel-release.noarch"
     "centos-release-scl.noarch"
     "bc.x86_64"
-    "wget.x86_64"
     "mongodb-org.x86_64"
     "devtoolset-7.x86_64"
     "gnuplot.x86_64"
@@ -175,12 +174,6 @@ else
 fi
 
 cd ${setting_dir}
-wget --no-check-certificate http://osksn2.hep.sci.osaka-u.ac.jp/~hirose/mongo_example.tar.gz
-echo "Unarchiving..."
-tar zxf mongo_example.tar.gz
-sudo rm ./mongo_example.tar.gz
-sudo mv ./var/lib/mongo /var/lib
-sudo rm -rf ./var
 sudo chcon -R -u system_u -t mongod_var_lib_t /var/lib/mongo/
 sudo chown -R mongod:mongod /var/lib/mongo
 
