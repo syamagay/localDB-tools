@@ -4,23 +4,22 @@
       <h4 style="font-size: 13pt;"><i class="fa fa-cog"></i> Result</h4>
       <thead class="table-dark" style="background: #222222;">
         <tr>
-          <th scope="col" class="text-center" rowspan="2">Run Number</th>
-          <th scope="col" class="text-center" rowspan="2">Test Type</th>
-          <th scope="col" class="text-center" rowspan="2">Stage</th>
-          <th scope="col" class="text-center" colspan="2">Shifterr</th>
-        </tr>
-        <tr>
-          <th scope="col" class="text-center" width="200">Institution</th>
-          <th scope="col" class="text-center" width="200">UserIdentity</th>
+          <th scope="col" class="text-center">Date</th>
+          <th scope="col" class="text-center">Run Number</th>
+          <th scope="col" class="text-center">Test Type</th>
+          <th scope="col" class="text-center">Stage</th>
+          <th scope="col" class="text-center" width="200">Site</th>
+          <th scope="col" class="text-center" width="200">User Name</th>
         </tr>
       </thead>
       <tbody>
         <tr>
+          <td scope="col" align="center" >{{ component['results']['datetime'] }}</td>
           <td scope="col" align="center" >{{ component['results']['runNumber'] }}</td>
           <td scope="col" align="center" >{{ component['results']['testType'] }}</td>
           <td scope="col" align="center" >{{ component['results']['stage'] }}</td>
-          <td scope="col" align="center" >{{ component['results']['institution'] }}</td>
-          <td scope="col" align="center" >{{ component['results']['userIdentity'] }}</td>
+          <td scope="col" align="center" >{{ component['results']['site'] }}</td>
+          <td scope="col" align="center" >{{ component['results']['userIdentity'] }}({{ component['results']['institution'] }})</td>
         </tr>
       </tbody>
     </table>

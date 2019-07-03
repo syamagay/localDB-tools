@@ -1,3 +1,11 @@
+<style>
+.dropdown-menu.left {
+  left:auto;
+  right:0;
+  &::before {left:auto !important; right:9px;}
+  &::after {left:auto !important; right:10px;}
+}
+</style>
 <nav class="navbar navbar-expand-lg navbar-dark bg-dark">
   <div class="container">
     <div class="navbar-brand"> PIXEL MODULE DB</div>
@@ -15,8 +23,39 @@
     </ul>
     </div>
 
-    <div class="collapse navbar-collapse" id="navbarSupportedContent">
+    <!--div class="collapse navbar-collapse" id="navbarSupportedContent"--!>
+    <div class="navbar-brand collapse navbar-collapse">
       <ul class="nav navbar-nav mr-auto">
+      </ul>
+      <ul class="nav navbar-nav" style="font-size: 12pt;">
+          <li class="dropdown">
+            {% if timezones %}
+              <a href="" class="dropdown-toggle" data-toggle="dropdown">
+                <b>{{ session['timezone'] }}</b>
+                <span class="caret"></span>
+              </a>
+              <ul id="login-dp" class="dropdown-menu left" style="width:250px;">
+                <li>
+                  <div class="row align-items-center justify-content-center">
+                    <div class="col-md-10">
+                      <center><b>Choose Timezone</center></b><br>
+  					  			  <form class="form" role="form" method="post" action="set_time" accept-charset="UTF-8" id="login-nav">
+                        <select class="tz-select" name="timezone" id="timezone" style="width:220px;">
+                        {% for timezone in timezones %}
+                          <option> {{ timezone }} </option>
+                        {% endfor %}
+                        </select>
+  					  			    <button type="submit" class="btn btn-primary btn-block">Save</button>
+                      </form>
+                    </div>
+                  </div>
+  				      </li>
+  			      </ul>
+            {% else %}
+              <b>{{ session['timezone'] }}</b>
+            {% endif %}
+          </li>
+
       </ul>
       <!--
       <ul class="nav navbar-nav">

@@ -6,7 +6,8 @@ import json
 import re
 import shutil
 import base64  # Base64 encoding scheme
-import datetime
+from datetime import datetime, timezone, timedelta
+import pytz
 import hashlib
 import gridfs # gridfs system 
 import io
@@ -128,7 +129,7 @@ def updateData(collection, query):
     localdb[collection].update(
         query, 
         {'$set': {'sys.rev': int(localdb[collection].find_one(query)['sys']['rev']+1), 
-                  'sys.mts': datetime.datetime.utcnow()}}, 
+                  'sys.mts': datetime.utcnow()}}, 
         multi=True
     )
 
@@ -140,8 +141,9 @@ def countPhotoNum():
     return int(localdb.counter.find_one({'type': 'photoNumber'})['num'])
 
 def setTime(date):
-    DIFF_FROM_UTC = session.get('timezone',0)
-    time = (date+datetime.timedelta(hours=DIFF_FROM_UTC)).strftime('%Y/%m/%d %H:%M:%S')
+    zone = session.get('timezone',0)
+    converted_time = date.replace(tzinfo=timezone.utc).astimezone(pytz.timezone(zone))
+    time = converted_time.strftime('%Y/%m/%d %H:%M:%S')
     return time
 
 def setEnv(thisTestRun):
@@ -718,14 +720,17 @@ def setResults():
 
     query = { '_id': ObjectId(this_run['user_id']) }
     user = localdb.user.find_one( query )
+    query = { '_id': ObjectId(this_run['address']) }
+    site = localdb.institution.find_one( query )
     results.update({ 
+        'datetime'    : setTime(this_run['startTime']),
         'testType'    : this_run['testType'],
         'runNumber'   : this_run['runNumber'],
         'comments'    : comments,
         'stage'       : this_run.get('stage'),
-        'address'     : this_run.get('address','null'),
-        'institution' : user['institution'],
-        'userIdentity': user['userName'],
+        'site'        : site['institution'].replace('_', ' '),
+        'institution' : user['institution'].replace('_', ' '),
+        'userIdentity': user['userName'].replace('_', ' '),
         'config'      : { 
             'ctrlCfg':   ctrlconfig, 
             'scanCfg':   scanconfig, 

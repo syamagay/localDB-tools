@@ -20,6 +20,7 @@ import gridfs                          # gridfs system
 import io
 import sys
 import yaml
+import pytz
 
 from flask            import Flask, request, redirect, url_for, render_template, session, make_response, jsonify, send_file, send_from_directory
 from flask_pymongo    import PyMongo
@@ -105,13 +106,19 @@ def show_toppage():
         if os.path.isdir( user_dir ): shutil.rmtree( user_dir )
     else:
         session['uuid'] = str( uuid.uuid4() ) 
-    session['timezone'] = 0 #TODO
+
+    # timezone
+    timezones = []
+    for tz in pytz.all_timezones:
+        timezones.append(tz)
+    if not 'timezone' in session:
+        session['timezone'] = 'UTC'
 
     makeDir()
     cleanDir( STATIC_DIR )
     session.pop( 'signup', None )
 
-    return render_template( 'toppage.html' )
+    return render_template( 'toppage.html', timezones=timezones )
 
 @app.route('/module', methods=['GET'])
 def show_modules_and_chips():
@@ -386,7 +393,7 @@ def show_test():
         run_data = {
             '_id':          run_id,
             'serialNumber': serial_number,
-            'datetime':     this_run['startTime'],
+            'datetime':     setTime(this_run['startTime']),
             'testType':     this_run['testType'],
             'stage':        this_run['stage'],
             'runNumber':    this_run['runNumber'],
@@ -1204,6 +1211,13 @@ def add_user():
             removeRequest( user )
 
     return redirect( url_for('admin_page') ) 
+
+@app.route('/set_time',methods=['GET','POST'])
+def set_time():
+    session['timezone'] = request.form.get('timezone')
+
+    return redirect( url_for('show_toppage') )
+    return render_template( 'toppage.html' )
 
 if __name__ == '__main__':
     app.run(host=args.fhost, port=args.fport)
