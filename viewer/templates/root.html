@@ -59,6 +59,10 @@ td, th {
 padding: 0px 0px;
 vertical-align: middle;
 }
+a.root:link { color: #3cb371; }
+a.root:visited { color: #3cb371; }
+a.root:hover { color: #ff8c00; }
+a.root:active { color: #dc143c; }
 </style>
 
 {% if component['roots'] %} 
@@ -82,8 +86,12 @@ vertical-align: middle;
     <div class="row align-items-center justify-content-center">
       <div class="col">
       {% for result in component['roots']['results'] %}
-        <a data-toggle="collapse" aria-expanded="true" data-target='#{{ result['sortkey'] }}' aria-controls={{ result['sortkey'] }} href='#{{ result['sortkey'] }}' style="color: green;"><h4 style="font-size: 10pt;"><i class="fa fa-caret-right"></i> {{ result['mapType'] }} </h4></a>
-				<a href="{{ url_for('data_downloader',ModuleName=component['module']['serialNumber'], mapType=result['mapType'])}}">Download here</a>
+        <div style="display: flex;">
+          <h4 style="font-size: 10pt;">
+          <a class="root" data-toggle="collapse" aria-expanded="true" data-target='#{{ result['sortkey'] }}' aria-controls={{ result['sortkey'] }} href='#{{ result['sortkey'] }}'><i class="fa fa-caret-right"></i> {{ result['mapType'] }} </a>  
+				  <a class="root" href="{{ url_for('data_downloader',ModuleName=component['module']['serialNumber'], mapType=result['mapType'])}}" title="Download"><i class="fa fa-download"></i></a>
+          </h4>
+        </div>
         <div class="row align-items-center justify-content-space-evenly collapse show" id={{ result['sortkey'] }}>
           <div class="col-md-4">
             {% if result['urlDist'] %}

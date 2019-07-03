@@ -295,8 +295,8 @@ def checkComponentTestRun(i_cmp_id, i_tr_id):
 def registerComponentTestRun(i_cmp_id, i_tr_id):
     query = { '_id': ObjectId(i_tr_id) }
     thisRun = localdb.testRun.find_one( query )
-    query = { '_id': ObjectId(i_cmp_id)
-    thicCmp = localdb.componentTestRun.find_one( query )
+    query = { '_id': ObjectId(i_cmp_id) }
+    thisCmp = localdb.componentTestRun.find_one( query )
     timestamp = datetime.datetime.utcnow()
     insert_doc = {
         'sys': {
@@ -575,8 +575,6 @@ def registerDat(attachment, name, new_ctr_id, plots):
     #    if plot:
     #        if plot in attachment['filename']: filename = plot
 
-    write_log( '\t-----------------------------------------')
-    write_log( '\t[Register] Dat : {0} -> {1} : {2}'.format(attachment['filename'], filename, code))
     update_doc = {
         'title': filename,
         'filename': '{0}.dat'.format(filename),
@@ -601,6 +599,7 @@ def registerDat(attachment, name, new_ctr_id, plots):
         }
     })
 
+    write_log( '\t-----------------------------------------')
     write_log( '\t[Register] Dat : {0} -> {1} : {2}'.format(attachment['filename'], filename, code))
     return filename
 
