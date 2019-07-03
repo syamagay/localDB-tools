@@ -264,6 +264,7 @@ def registerTestRun(i_doc):
         'finishTime'  : finish_time,
         'plots'       : [], 
         'serialNumber': i_doc['serialNumber'],
+        'dummy'       : False,
         'stage'       : '...', 
         'ctrlCfg'     : '...', 
         'scanCfg'     : '...', 
@@ -294,6 +295,8 @@ def checkComponentTestRun(i_cmp_id, i_tr_id):
 def registerComponentTestRun(i_cmp_id, i_tr_id):
     query = { '_id': ObjectId(i_tr_id) }
     thisRun = localdb.testRun.find_one( query )
+    query = { '_id': ObjectId(i_cmp_id)
+    thicCmp = localdb.componentTestRun.find_one( query )
     timestamp = datetime.datetime.utcnow()
     insert_doc = {
         'sys': {
@@ -312,6 +315,7 @@ def registerComponentTestRun(i_cmp_id, i_tr_id):
         'attachments': [],
         'tx'         : -1, 
         'rx'         : -1, 
+        'geomId'     : thisCmp.get('chipId',-1),
         'beforeCfg'  : '...', 
         'afterCfg'   : '...', 
         'dbVersion'  : db_version
