@@ -265,7 +265,8 @@ def show_component():
     # this module
     query = { '_id': ObjectId(parent_id) }
     this_module = mongo.db.component.find_one( query )
-
+    
+    
     # chips of module
     query = { 'parent': parent_id }
     child_entries = mongo.db.childParentRelation.find( query )
@@ -282,7 +283,7 @@ def show_component():
 
     query = { 'parent': parent_id }
     child_entries = mongo.db.childParentRelation.find( query )
-    queryids = [{'componentId':parent_id}]
+    queryids = [{'componentId':parent_id},{'runId':session['runId']}]
     for child in child_entries:
         queryids.append({'componentId':child['child']})
  
@@ -330,7 +331,7 @@ def show_component():
         'chips'       : component_chips,
         'unit'        : this_cmp['componentType'], 
         'chipType'    : this_cmp['chipType'],
-        'comments_for_component': comments, 
+        'comments': comments, 
         'photoDisplay': photo_display,
         'photoIndex'  : photo_index,
         'photos'      : photos,
@@ -433,6 +434,14 @@ def show_dummy():
         'serialNumber': 'DummyModule' 
     }
 
+    # get comments for this module
+    query = {'runId':session['runId']}
+    comments=[]
+    comment_entries = mongo.db.comments.find(query)
+    for comment in comment_entries:
+        comments.append(comment)
+  
+
     # chips of module
     component_chips = []
     query = { 
@@ -465,6 +474,7 @@ def show_dummy():
         'chips'       : component_chips,
         'unit'        : cmp_type,
         'chipType'    : '', #TODO
+        'comments'    : comments,
         'photoDisplay': photo_display,
         'photoIndex'  : photo_index,
         'photos'      : photos,
@@ -917,125 +927,36 @@ def edit_description():
 
     return redirect( url_for(forUrl, id=request.form.get( 'id' )) )
 
-#@app.route('/edit_comment_for_test', methods=['GET','POST'])
-#def edit_comment_for_test():
-#
-#    query = { '_id': ObjectId(request.form.get( 'id' ))}
-#    this_cmp = mongo.db.component.find_one( query )
-#
-#    if this_cmp['componentType'] == 'Module':
-#        query = { 'parent': request.form.get('id') }
-#    else:
-#        query = { 'child': request.form.get('id') }
-#        parentoid = mongo.db.childParentRelation.find_one( query )['parent']
-#        query = { 'parent': parentoid }
-#
-#    child_entries = mongo.db.childParentRelation.find( query )
-#    component_chips = []
-#    for child in child_entries:
-#        component_chips.append({ 'component': child['child'] })
-#
-#    runoid = request.args.get('runId')
-#    query = { '_id': ObjectId(runoid) }
-#    mongo.db.testRun.update( 
-#        query, { 
-#            '$push': { 
-#                'comments': { 
-#                    'comment':request.form.get('text').replace('\r\n','<br>'),
-#                    'name'  :request.form.get('text2'),
-#                    'institution'  :request.form.get('text3'),
-#                    'datetime':datetime.datetime.utcnow() 
-#                } 
-#            }
-#        } 
-#    )
-#    updateData( 'testRun', query )
-#    forUrl = 'show_component'
-#
-#    return redirect( url_for(forUrl, id=request.args.get( 'id' ), runId=request.args.get( 'runId' ) ))
-
-@app.route('/edit_comment_for_test', methods=['GET','POST'])
-def edit_comment_for_test():
-    
-    # this component
-    query = { '_id': ObjectId(session['runId']) }
-    this_test = mongo.db.testRun.find_one( query )
-    if not this_test['dummy']:
-        query = { '_id': ObjectId(session['this']) }
-        this_cmp = mongo.db.component.find_one( query )
-        cmp_type = this_cmp['serialNumber']
-        componentId = request.args.get( 'id' )
-    else:
-        cmp_type = -1
-        componentId = -1
+@app.route('/edit_comment', methods=['GET','POST'])
+def edit_comment():
 
     mongo.db.comments.insert( 
     { 
-        'componentId': componentId,
-        'runId': request.args.get( 'runId' ),
+        'componentId': request.args.get( 'id', -1 ),
+        'runId': request.args.get( 'runId', -1 ),
         'comment':request.form.get('text').replace('\r\n','<br>'),
-        'componentType':cmp_type,
+        'componentType':request.form.get('unit'),
         'name'  :request.form.get('text2'),
         'institution'  :request.form.get('text3'),
         'datetime':datetime.datetime.utcnow() 
     } 
     )
-
-    if not this_test['dummy']:
-        forUrl = 'show_component'
-    else:
-        forUrl = 'show_dummy'
-
-    return redirect( url_for(forUrl, id=request.args.get( 'id' ), runId=request.args.get( 'runId' ) ))
-
-
-#@app.route('/edit_comment_for_component', methods=['GET','POST'])
-#def edit_comment_for_component():
-#
-#    query = { '_id': ObjectId(request.form.get( 'id' ))}
-#
-#    mongo.db.component.update( 
-#        query, { 
-#            '$push': { 
-#                'comments': { 
-#                    'comment':request.form.get('text').replace('\r\n','<br>'),
-#                    'name'  :request.form.get('text2'),
-#                    'institution'  :request.form.get('text3'),
-#                    'datetime':datetime.datetime.utcnow() 
-#                } 
-#            }
-#        }
-#    )
-#    updateData( 'component', query )
-# 
-#    forUrl = 'show_component'
-#
-#    return redirect( url_for(forUrl, id=request.args.get( 'id' ), runId=request.args.get( 'runId' ) ))
-
-@app.route('/edit_comment_for_component', methods=['GET','POST'])
-def edit_comment_for_component():
     
-    # this component
-    query = { '_id': ObjectId(session['this']) }
-    this_cmp = mongo.db.component.find_one( query )
-    cmp_type = this_cmp['serialNumber']
+    runid = request.args.get( 'runId', -1 )
 
-    mongo.db.comments.insert( 
-        {
-        'componentId': request.form.get( 'id' ),
-        'runId': -1,
-        'comment':request.form.get('text').replace('\r\n','<br>'),
-        'componentType':cmp_type,
-        'name'  :request.form.get('text2'),
-        'institution'  :request.form.get('text3'),
-        'datetime':datetime.datetime.utcnow() 
-        } 
-    )
- 
-    forUrl = 'show_component'
+    if not runid == -1:
+        query = { '_id': ObjectId(runid) }
+        this_test = mongo.db.testRun.find_one( query )
+        
+        if not this_test['dummy']:
+            forUrl = 'show_component'
+        else:
+            forUrl = 'show_dummy'
 
-    return redirect( url_for(forUrl, id=request.args.get( 'id' ), runId=request.args.get( 'runId' ) ))
-
+        return redirect( url_for(forUrl, id=request.args.get( 'id' ), runId=request.args.get( 'runId' ) ))
+    else:
+        forUrl = 'show_component'
+        return redirect( url_for(forUrl, id=request.form.get( 'id' )))
 
 @app.route('/remove_comment', methods=['GET','POST'])
 def remove_comment():
@@ -1117,37 +1038,22 @@ def remove_attachment():
 
 @app.route('/login',methods=['POST'])
 def login():
-
-    query = { 'userName': request.form['username'] }
-    userName = mongo.db.user.find_one( query )
-    try:
-        if hashlib.md5( request.form['password'].encode('utf-8') ).hexdigest() == userName['passWord']:
+    
+    if hashlib.md5( request.form['username'].encode('utf-8') ).hexdigest() == hashlib.md5( args.username.encode('utf-8') ).hexdigest():
+        if hashlib.md5( request.form['password'].encode('utf-8') ).hexdigest() == hashlib.md5( args.password.encode('utf-8') ).hexdigest():
             session['logged_in'] = True
-            session['user_id'] = str(userName['_id'])
-            session['user_name'] = userName['userName']
-            session['institution'] = userName['institution']
-            session['read'] = userName['authority']%2
-            session['write'] = int(userName['authority']/2)%2
-            session['edit'] = int(userName['authority']/4)%2
-        else:
-            txt = 'not match password'
-            return render_template( 'error.html', txt=txt )
-    except:
-        txt = 'not found user'
+            return redirect( url_for('show_modules_and_chips') )
+    else:
+        txt = 'username or password is not correct'
         return render_template( 'error.html', txt=txt )
-    return redirect( url_for('show_modules_and_chips') )
+
 
 @app.route('/logout',methods=['GET','POST'])
 def logout():
     session['logged_in'] = False
-    session['user_id'] = ''
-    session['user_name'] = ''
-    session['institution'] = '' 
-    session['read'] = 1
-    session['write'] = 0
-    session['edit'] = 0
 
     return redirect( url_for('show_modules_and_chips') )
+
 
 @app.route('/signup',methods=['GET','POST'])
 def signup():
