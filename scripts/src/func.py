@@ -29,6 +29,14 @@ try:
 except: 
     DOROOT = False 
 
+from scripts.src import dcs_plot
+# dcsPlot
+try:
+    import time
+    DODCS=True
+except:
+    DODCS= False
+
 # directories 
 """
  /
@@ -923,3 +931,113 @@ def writeConfig(mo_serial_number,config_type):
     filename = TMP_DIR + '/' + str(session.get('uuid','localuser')) + '/config/' + str(mo_serial_number) + '_' + str(config_type) + '.zip'
     return filename
 
+def make_dcsplot(runId):
+    environmentId=localdb.testRun.find_one({"_id":ObjectId(runId)}).get('environment')
+    if environmentId=="...":
+        return 1
+
+    startTime=localdb.testRun.find_one({"_id":ObjectId(runId)}).get('startTime')
+    finishTime=localdb.testRun.find_one({"_id":ObjectId(runId)}).get('finishTime')
+    startTime=time.mktime(startTime.timetuple())
+    finishTime=time.mktime(finishTime.timetuple())
+
+    DCS_data_block=localdb.environment.find_one({"_id":ObjectId(environmentId)})
+
+    if not session['dcsStat'].get('timeRange') :
+        session['dcsStat'].update({'timeRange' : [startTime-10,finishTime+10]})
+    if not session['dcsStat'].get('RunTime') :
+        session['dcsStat'].update({'RunTime' : [startTime,finishTime]})
+
+    session['dcsList']=dcs_plot.dcs_plot(DCS_data_block,startTime,finishTime,session['dcsList'])
+def setDCS():
+    dcs_data={}
+    DCS_DIR  = TMP_DIR + '/' + str(session.get('uuid','localuser')) + '/dcs'
+
+    cleanDir(DCS_DIR)
+    print(session.get('dcsStat'))
+    if not session.get( 'runId' ) : return dcs_data
+    if not session.get( 'dcsList' ) : session['dcsList']={}
+    if not session.get( 'dcsStat' ) : session['dcsStat']={}
+    if not session['dcsStat'].get('runId') == session.get('runId'):
+        session['dcsStat']={}
+        session['dcsStat'].update({ 'runId' : session.get('runId')})
+    results={}
+    url={}
+    results['iv']=[]
+    results['other']=[]
+    results['stat']={}
+
+    dcs_status=make_dcsplot(session['runId'])
+    if dcs_status==1 : return dcs_data
+    if session.get('dcsList'):
+        for dcsType in session.get( 'dcsList' ):
+            if session['dcsList'][dcsType].get( 'file_num' ) :
+                file_num=session['dcsList'][dcsType].get('file_num')
+                fileList=session['dcsList'][dcsType].get('filename')
+                if file_num==2 :
+                    for i,filename in zip(["1","2"],fileList) :
+                        if os.path.isfile( filename ) :
+                            binary_image = open( filename, 'rb' )
+                            code_base64 = base64.b64encode(binary_image.read()).decode()
+                            binary_image.close()
+                            url.update({ i : bin2image( 'png', code_base64 ) })
+                    results['iv'].append({ 'dcsType' : dcsType ,
+                                           'keyName' : session['dcsList'][dcsType].get('keyName'),
+                                           'runId'   : session.get('runId'),
+                                           'url_v'   : url.get("1"),
+                                           'url_i'   : url.get("2"),
+                                           'sortley' : '0{}'.format(dcsType),
+                                           'v_min'   : session['dcsList'][dcsType].get('v_min'),
+                                           'v_max'   : session['dcsList'][dcsType].get('v_max'),
+                                           'v_step'  : session['dcsList'][dcsType].get('v_step'),
+                                           'i_min'   : session['dcsList'][dcsType].get('i_min'),
+                                           'i_max'   : session['dcsList'][dcsType].get('i_max'),
+                                           'i_step'  : session['dcsList'][dcsType].get('i_step')
+                                       })
+                if file_num==1 :
+                    for filename in fileList :
+                        if os.path.isfile( filename ) :
+                            binary_image = open( filename, 'rb' )
+                            code_base64 = base64.b64encode(binary_image.read()).decode()
+                            binary_image.close()
+                            i="1"
+                            url.update({ i : bin2image( 'png', code_base64 ) })
+                    results['other'].append({ 'dcsType' : dcsType ,
+                                              'keyName' : dcsType ,
+                                              'runId'   : session.get('runId'),
+                                              'url'     : url.get("1"),
+                                              'sortley' : '0{}'.format(dcsType),
+                                              'min'     : session['dcsList'][dcsType].get('min'),
+                                              'max'     : session['dcsList'][dcsType].get('max'),
+                                              'step'    : session['dcsList'][dcsType].get('step')
+                                          })
+    timeRange=[]
+    timeRange.append(datetime.fromtimestamp(session['dcsStat'].get('timeRange')[0]))
+    timeRange.append(datetime.fromtimestamp(session['dcsStat'].get('timeRange')[1]))
+
+    results['stat']={ 'RunTime'  : { 'start'  : datetime.fromtimestamp(session['dcsStat']['RunTime'][0]),
+                                     'finish' : datetime.fromtimestamp(session['dcsStat']['RunTime'][1])
+                                 },
+                      'runId'    : session.get('runId'),
+                      'timeRange': { 'start' : { 'year'  : timeRange[0].strftime('%Y'),
+                                                 'month' : timeRange[0].strftime('%m'),
+                                                 'day'   : timeRange[0].strftime('%d'),
+                                                 'hour'  : timeRange[0].strftime('%H'),
+                                                 'minute': timeRange[0].strftime('%M'),
+                                                 'second': timeRange[0].strftime('%S')
+                                             },
+                                     'end'   : { 'year'  : timeRange[1].strftime('%Y'),
+                                                 'month' : timeRange[1].strftime('%m'),
+                                                 'day'   : timeRange[1].strftime('%d'),
+                                                 'hour'  : timeRange[1].strftime('%H'),
+                                                 'minute': timeRange[1].strftime('%M'),
+                                                 'second': timeRange[1].strftime('%S')
+                                             }
+                      },
+                      'unixtimeR': { 'start' : datetime.fromtimestamp(session['dcsStat'].get('timeRange')[0]),
+                                     'end'   : datetime.fromtimestamp(session['dcsStat'].get('timeRange')[1])
+                      }
+    }
+    dcs_data.update({"dcssw"  : True,
+                     "results": results})
+    return dcs_data
