@@ -1,0 +1,329 @@
+<style>
+input[type="number"] {
+display: block;
+margin: 0px;
+padding: 0px;
+border: none;
+height: 12pt;
+text-align: center;
+}
+input[type="number"]:hover {
+background-color: #eeeeee;
+border-radius: 0px;
+}
+input[type="time"] {
+display: block;
+margin: 0px;
+padding: 0px;
+border: none;
+height: 12pt;
+text-align: center;
+}
+input[type="time"]:hover {
+background-color: #eeeeee;
+border-radius: 0px;
+}
+.textarea {
+display: block;
+margin: 0px;
+padding: 0px;
+border: none;
+height: 12pt;
+text-align: center;
+}
+input[type="checkbox"] {
+display: none;
+margin: 0px;
+padding: 0px;
+}
+input[type="checkbox"]:checked + label {
+display: block;
+margin: 0px;
+padding: 0px;
+border: none;
+background: #ffffff;
+color: #000000;
+}
+input[type="checkbox"]:checked + label:hover {
+background-color: #eeeeee;
+color: #000000;
+border: none;
+}
+.label {
+display: block;
+font-size: 10pt;
+margin: 0px;
+padding: 0px;
+text-align: center;
+cursor: pointer;
+background-color: #ffffff;
+color: #dddddd;
+border: none;
+}
+.label:hover {
+margin: 0px;
+padding: 0px;
+background-color: #eeeeee;
+color: #bbbbbb;
+border: none;
+}
+td, th {
+padding: 0px 0px;
+vertical-align: middle;
+}
+</style>
+
+{% if component['dcs'] %}
+<body>
+<h4 style="font-size: 10pt;"><i class="fa fa-paint-brush"></i> DCS_DATA </h4>
+<!--  <h4><i></i> {{ component['dcs_data'] }} </h4> -->
+
+{% for result in component['dcs']['results']['iv'] %}
+<a data-toggle="collapse" aria-expanded="true" data-target='#{{ result['sortkey'] }}' aria-controls={{ result['sortkey'] }} href='#{{ result['sortkey'] }}' style="color: green;"><h4 style="font-size: 10pt;"><i class="fa fa-caret-right"></i> {{ result['dcsType'] }} </h4></a>
+
+<div class="row align-items-center justify-content-space-evenly collapse show" id={{ result['sortkey'] }}>
+  <div class="col-md-4">
+    {% if result['url_v'] %}
+    <center>
+      <a href={{result['url_v']}} target="_brank" rel="noopener noreferrer">
+        <img src={{result['url_v']}} title="Voltage" width="350" height="300"></img>
+      </a>
+    </center>
+    {% endif %}
+  </div>
+  <div class="col-md-4">
+    {% if result['url_i'] %}
+    <center>
+      <a href={{result['url_i']}} target="_brank" rel="noopener noreferrer">
+        <img src={{result['url_i']}} title="Current" width="350" height="300"></img>
+      </a>
+    </center>
+    {% endif %}
+  </div>
+  <div class="col-md-4">
+    {% if result['dcsType'] %}
+    <center>
+      <table class="table table-sm table-bordered" style="font-size: 8pt;">
+        <form class="form-holizontal" action="{{ url_for('make_dcsGraph', id=component['_id'], runId=result['runId']) }}" method=post class=entries style="font-size:10pt; margin:0px;">
+          <input type="hidden" name="dcsType" value={{result['dcsType']}}>
+	  <input type="hidden" name="dataType" value="iv">
+	  <input type="hidden" name="key_v" value={{result['keyName'][0]}}>
+	  <input type="hidden" name="key_i" value={{result['keyName'][1]}}>
+	  <input type="hidden" name="v_step" value={{result['v_step']}}>
+	  <input type="hidden" name="i_step" value={{result['i_step']}}>
+
+          <thead class="table-dark" style="background: #222222;">
+            <tr>
+              <th scope="col" class="text-center" colspan="3">Settings<br>( Max/Min : y-axis )</th>
+            </tr>
+            <tr>
+              <th scope="col" class="text-center">parameter</th>
+              <th scope="col" class="text-center" width="25%">current</th>
+              <th scope="col" class="text-center" width="25%">modify</th>
+            </tr>
+          </thead>
+	  <tbody>
+	    <tr>
+              <td scope="col" class="text-center">Min([V])</td>
+              <td scope="col" class="text-center">{{result['v_min']}}</td>
+              <td scope="col" class="text-center">
+                <input type = "number" class="form-control" name = "v_min" value = {{result['v_min']}} style="font-size:10pt;" min="-100" step = {{result['v_step']}}>
+              </td>
+	    </tr>
+	    <tr>
+              <td scope="col" class="text-center">Max([V])</td>
+              <td scope="col" class="text-center">{{result['v_max']}}</td>
+              <td scope="col" class="text-center">
+                <input type = "number" class="form-control" name = "v_max" value = {{result['v_max']}} style="font-size:10pt;" min="-100" step = {{result['v_step']}}>
+              </td>
+	    </tr>
+	    <tr>
+              <td scope="col" class="text-center">Min([A])</td>
+              <td scope="col" class="text-center">{{result['i_min']}}</td>
+              <td scope="col" class="text-center">
+                <input type = "number" class="form-control" name = "i_min" value = {{result['i_min']}} style="font-size:10pt;" min="-1" step = {{result['i_step']}}>
+              </td>
+	    </tr>
+	    <tr>
+              <td scope="col" class="text-center">Max([A])</td>
+              <td scope="col" class="text-center">{{result['i_max']}}</td>
+              <td scope="col" class="text-center">
+                <input type = "number" class="form-control" name = "i_max" value = {{result['i_max']}} style="font-size:10pt;" min="-1" step = {{result['i_step']}}>
+              </td>
+	    </tr>
+            <tr>
+	      <td scope="col" class="text-center"></tb>
+              <td scope="col" class="text-center">
+                <button type="submit" class="btn btn-outline-success btn-block" style="font-size:9pt;border:none;" name="dcsplotType" value="set">
+                  Set Default
+                </button>
+              </td>
+              <td scope="col" class="text-center">
+                <button type="submit" class="btn btn-outline-success btn-block" style="font-size:9pt;border:none;" name="dcsplotType" value="make">
+		  Make Histogram
+                </button>
+	      </td>
+          </tbody>
+        </form>
+      </table>
+    </center>
+    {% endif %}
+  </div>  
+    
+</div>
+{% endfor %}
+{% for result in component['dcs']['results']['other'] %}
+<a data-toggle="collapse" aria-expanded="true" data-target='#{{ result['sortkey'] }}' aria-controls={{ result['sortkey'] }} href='#{{ result['sortkey'] }}' style="color: green;"><h4 style="font-size: 10pt;"><i class="fa fa-caret-right"></i> {{ result['dcsType'] }} </h4></a>
+
+<div class="row align-items-center justify-content-space-evenly collapse show" id={{ result['sortkey'] }}>
+  <div class="col-md-4">
+    {% if result['url'] %}
+    <center>
+      <a href={{result['url']}} target="_brank" rel="noopener noreferrer">
+        <img src={{result['url']}} title="Voltage" width="350" height="300"></img>
+      </a>
+    </center>
+    {% endif %}
+  </div>
+  <div class="col-md-4">
+    {% if result['dcsType'] %}
+    <center>
+      <table class="table table-sm table-bordered" style="font-size: 8pt;">
+        <form class="form-holizontal" action="{{ url_for('make_dcsGraph', id=component['_id'], runId=result['runId']) }}" method=post class=entries style="font-size:10pt; margin:0px;">
+          <input type="hidden" name="dcsType" value={{result['dcsType']}}>
+	  <input type="hidden" name="step" value={{result['step']}}>
+	  <input type="hidden" name="dataType" value="other">
+          <thead class="table-dark" style="background: #222222;">
+            <tr>
+              <th scope="col" class="text-center" colspan="3">Settings<br>( Max/Min : y-axis )</th>
+            </tr>
+            <tr>
+              <th scope="col" class="text-center">parameter</th>
+              <th scope="col" class="text-center" width="25%">current</th>
+              <th scope="col" class="text-center" width="25%">modify</th>
+            </tr>
+          </thead>
+	  <tbody>
+	    <tr>
+              <td scope="col" class="text-center">Min([V])</td>
+              <td scope="col" class="text-center">{{result['min']}}</td>
+              <td scope="col" class="text-center">
+                <input type = "number" class="form-control" name = "min" value = {{result['min']}} style="font-size:10pt;" min="-100" step = {{result['step']}}>
+              </td>
+	    </tr>
+	    <tr>
+              <td scope="col" class="text-center">Max([V])</td>
+              <td scope="col" class="text-center">{{result['max']}}</td>
+              <td scope="col" class="text-center">
+                <input type = "number" class="form-control" name = "max" value = {{result['max']}} style="font-size:10pt;" min="-100" step = {{result['step']}}>
+              </td>
+	    </tr>
+            <tr>
+	      <td scope="col" class="text-center"></tb>
+              <td scope="col" class="text-center">
+                <button type="submit" class="btn btn-outline-success btn-block" style="font-size:9pt;border:none;" name="dcsplotType" value="set">
+                  Set Default
+                </button>
+              </td>
+              <td scope="col" class="text-center">
+                <button type="submit" class="btn btn-outline-success btn-block" style="font-size:9pt;border:none;" name="dcsplotType" value="make">
+		  Make Histogram
+                </button>
+	      </td>
+          </tbody>
+        </form>
+      </table>
+    </center>
+    {% endif %}
+  </div>  
+    
+</div>
+{% endfor %}
+
+<p>{{component['runId']}}</p>
+<table class="table table-sm table-bordered" style="font-size: 8pt;">
+  <form class="form-time" action="{{ url_for('make_dcsGraph', id=component['_id'], runId=component['dcs']['results']['stat']['runId']) }}" method=post class=entries style="font-size:10pt; margin:0px;">  
+    <thead class="table-dark" style="background: #222222;">
+      <tr>
+        <th scope="col" class="text-center" colspan="9">Settings<br>( Start/End : time-axis )</th>
+      </tr>
+      <tr>
+        <th scope="col" class="text-center" width="15%">parameter</th>
+	<th scope="col" class="text-center" width="15%">RunTime</th>
+        <th scope="col" class="text-center" width="15%">current</th>
+        <th scope="col" class="text-center" >year</th>
+        <th scope="col" class="text-center" >month</th>
+	<th scope="col" class="text-center" >day</th>
+	<th scope="col" class="text-center" >hour</th>
+	<th scope="col" class="text-center" >minute</th>
+        <th scope="col" class="text-center" >second</th>
+	
+      </tr>
+    </thead>
+    <tbody>
+      <tr>
+        <td scope="col" class="text-center">Start</td>
+        <td scope="col" class="text-center"> <time> {{component['dcs']['results']['stat']['RunTime']['start']}} </time> </td>
+        <td scope="col" class="text-center"> <time> {{component['dcs']['results']['stat']['unixtimeR']['start']}} </time> </td>
+        <td scope="col" class="text-center">
+          <input type = "number" class="form-control" name = "start_year" value = {{component['dcs']['results']['stat']['timeRange']['start']['year']}} style="font-size:10pt;" min="1" step="1">
+        </td>
+	<td scope="col" class="text-center">
+          <input type = "number" class="form-control" name = "start_month" value = {{component['dcs']['results']['stat']['timeRange']['start']['month']}} style="font-size:10pt;" max="12"  min="1" step="1">
+        </td>
+	<td scope="col" class="text-center">
+          <input type = "number" class="form-control" name = "start_day" value = {{component['dcs']['results']['stat']['timeRange']['start']['day']}} style="font-size:10pt;" max="31" min="1" step="1">
+        </td>
+	<td scope="col" class="text-center">
+          <input type = "number" class="form-control" name = "start_hour" value = {{component['dcs']['results']['stat']['timeRange']['start']['hour']}} style="font-size:10pt;" max="23" min="0" step="1">
+        </td>
+	<td scope="col" class="text-center">
+          <input type = "number" class="form-control" name = "start_minute" value = {{component['dcs']['results']['stat']['timeRange']['start']['minute']}} style="font-size:10pt;" max="59" min="0" step="1">
+        </td>
+	<td scope="col" class="text-center">
+          <input type = "number" class="form-control" name = "start_second" value = {{component['dcs']['results']['stat']['timeRange']['start']['second']}} style="font-size:10pt;" max="59" min="0" step="1">
+        </td>
+      </tr>
+      <tr>
+        <td scope="col" class="text-center">End</td>
+        <td scope="col" class="text-center"><time>{{component['dcs']['results']['stat']['RunTime']['finish']}}</time></td>
+        <td scope="col" class="text-center"><time>{{component['dcs']['results']['stat']['unixtimeR']['end']}}</time></td>
+	<td scope="col" class="text-center">
+          <input type = "number" class="form-control" name = "end_year" value = {{component['dcs']['results']['stat']['timeRange']['end']['year']}} style="font-size:10pt;" min="1" step="1">
+        </td>
+	<td scope="col" class="text-center">
+          <input type = "number" class="form-control" name = "end_month" value = {{component['dcs']['results']['stat']['timeRange']['end']['month']}} style="font-size:10pt;" max="12" min="1" step="1">
+        </td>
+	<td scope="col" class="text-center">
+          <input type = "number" class="form-control" name = "end_day" value = {{component['dcs']['results']['stat']['timeRange']['end']['day']}} style="font-size:10pt;" max="31" min="1" step="1">
+        </td>
+	<td scope="col" class="text-center">
+          <input type = "number" class="form-control" name = "end_hour" value = {{component['dcs']['results']['stat']['timeRange']['end']['hour']}} style="font-size:10pt;" max="23" min="0" step="1">
+        </td>
+	<td scope="col" class="text-center">
+          <input type = "number" class="form-control" name = "end_minute" value = {{component['dcs']['results']['stat']['timeRange']['end']['minute']}} style="font-size:10pt;" max="59" min="0" step="1">
+        </td>
+	<td scope="col" class="text-center">
+          <input type = "number" class="form-control" name = "end_second" value = {{component['dcs']['results']['stat']['timeRange']['end']['second']}} style="font-size:10pt;" max="59" min="0" step="1">
+        </td>
+      </tr>
+
+      <tr>
+        <td scope="col" class="text-center"></td>
+        <td scope="col" class="text-center"></td>
+        <td scope="col" class="text-center">
+	  <button type="submit" class="btn btn-outline-success btn-block" style="font-size:9pt;border:none;" name="dcsplotType" value="set_defaultTimeRange">
+	    Set Default
+	  </button>
+	</td>
+	<td scope="col" class="text-center">
+	  <button type="submit" class="btn btn-outxline-success btn-block" style="font-size:9pt;border:none;" name="dcsplotType" value="make_TimeRange">
+	    Set TimeRange
+	  </button>
+	</td>
+      </tr>
+    </tbody>
+  </form>
+</table>
+</body>
+{% endif %}
