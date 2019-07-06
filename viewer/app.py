@@ -44,6 +44,9 @@ logging.config.dictConfig(yaml.load(open('./configs/logging.yml')))
 from controllers.callback   import callback_api
 from controllers.component_dev   import component_dev_api
 
+from retrievers.component import retrieve_component_api
+from retrievers.testrun import retrieve_testrun_api
+from retrievers.config import retrieve_config_api
 
 if os.path.isdir( TMP_DIR ): 
     shutil.rmtree( TMP_DIR )
@@ -61,6 +64,9 @@ app = Flask( __name__ )
 # Regist Blue Prints
 app.register_blueprint(callback_api)
 app.register_blueprint(component_dev_api)
+app.register_blueprint(retrieve_component_api)
+app.register_blueprint(retrieve_testrun_api)
+app.register_blueprint(retrieve_config_api)
 
 # Prefix
 class PrefixMiddleware(object):
@@ -88,8 +94,10 @@ app.config['SECRET_KEY'] = os.urandom(24)
 # MongoDB settings
 if args.username:
     MONGO_URL = 'mongodb://' + args.username + ':' + args.password + '@' + args.host + ':' + str(args.port) 
+    USER_FUNCTION = True
 else:
     MONGO_URL = 'mongodb://' + args.host + ':' + str(args.port) 
+    USER_FUNCTION = False
 url = "mongodb://" + args.host + ":" + str(args.port)
 print("Connecto to mongoDB server: " + url + "/" + args.db)
 mongo     = PyMongo(app, uri=MONGO_URL+'/'+args.db)
@@ -107,18 +115,13 @@ def show_toppage():
     else:
         session['uuid'] = str( uuid.uuid4() ) 
 
-    # timezone
-    timezones = []
-    for tz in pytz.all_timezones:
-        timezones.append(tz)
-    if not 'timezone' in session:
-        session['timezone'] = 'UTC'
+    session['user_function'] = USER_FUNCTION
 
     makeDir()
     cleanDir( STATIC_DIR )
     session.pop( 'signup', None )
 
-    return render_template( 'toppage.html', timezones=timezones )
+    return render_template( 'toppage.html', timezones=setTimezone() )
 
 @app.route('/module', methods=['GET'])
 def show_modules_and_chips():
@@ -175,7 +178,7 @@ def show_modules_and_chips():
         module = sorted( modules[chip_type]['modules'], key=lambda x:x['serialNumber'], reverse=True)
         modules[chip_type]['modules'] = module
 
-    return render_template( 'module.html', modules=modules )
+    return render_template( 'module.html', modules=modules, timezones=setTimezone() )
 
 @app.route('/development', methods=['GET'])
 def show_modules_and_chips_develop():
@@ -237,7 +240,7 @@ def show_modules_and_chips_develop():
         module = sorted( modules[chip_type]['modules'], key=lambda x:x['serialNumber'], reverse=True)
         modules[chip_type]['modules'] = module
 
-    return render_template( 'module.html', modules=modules )
+    return render_template( 'module.html', modules=modules, timezones=setTimezone())
 
 
 # component page 
@@ -342,7 +345,7 @@ def show_component():
         'dummy'       : False
     }
 
-    return render_template( 'component.html', component=component )
+    return render_template( 'component.html', component=component, timezones=setTimezone() )
 
 # test run page without component
 @app.route('/scan', methods=['GET', 'POST'])
@@ -406,7 +409,7 @@ def show_test():
         }
         scans['run'].append(run_data)
 
-    return render_template( 'scan.html', scans=scans )
+    return render_template( 'scan.html', scans=scans, timezones=setTimezone() )
 
 # component page 
 @app.route('/dummy', methods=['GET', 'POST'])
@@ -485,7 +488,7 @@ def show_dummy():
         'dummy'       : True
     }
 
-    return render_template( 'component.html', component=component )
+    return render_template( 'component.html', component=component, timezones=setTimezone() )
 
 # make histogram 
 @app.route('/makehisto', methods=['GET','POST'])
@@ -603,7 +606,7 @@ def select_summary():
                        'resultIndex' : result_index,
                        'stage'       : session['stage'] })
 
-    return render_template( 'add_summary.html', component=component )
+    return render_template( 'add_summary.html', component=component, timezones=setTimezone() )
 
 # write summary into db 
 @app.route('/add_summary', methods=['GET', 'POST'])
@@ -914,7 +917,7 @@ def edit_description():
     elif col == 'component':
         query = { '_id': ObjectId(request.form.get('id')) }
     else:
-        return render_template( 'error.html', txt='something error' )
+        return render_template( 'error.html', txt='something error', timezones=setTimezone() )
     data_entries = mongo.db[ str(col) ].find_one( query )['attachments']
     for data in data_entries:
         if data['code'] == request.form.get( 'code' ):
@@ -1042,18 +1045,17 @@ def login():
     if hashlib.md5( request.form['username'].encode('utf-8') ).hexdigest() == hashlib.md5( args.username.encode('utf-8') ).hexdigest():
         if hashlib.md5( request.form['password'].encode('utf-8') ).hexdigest() == hashlib.md5( args.password.encode('utf-8') ).hexdigest():
             session['logged_in'] = True
-            return redirect( url_for('show_modules_and_chips') )
+            return redirect( request.headers.get("Referer") )
     else:
         txt = 'username or password is not correct'
-        return render_template( 'error.html', txt=txt )
+        return render_template( 'error.html', txt=txt, timezones=setTimezone() )
 
 
 @app.route('/logout',methods=['GET','POST'])
 def logout():
     session['logged_in'] = False
 
-    return redirect( url_for('show_modules_and_chips') )
-
+    return redirect( request.headers.get("Referer") )
 
 @app.route('/signup',methods=['GET','POST'])
 def signup():
@@ -1063,24 +1065,24 @@ def signup():
         if not userinfo[5] == userinfo[6]:
             text = 'Please make sure your passwords match'
             stage = 'input'
-            return render_template( 'signup.html', userInfo=userinfo, passtext=text, stage=stage )
+            return render_template( 'signup.html', userInfo=userinfo, passtext=text, stage=stage, timezones=setTimezone() )
         if mongo.db.user.find({ 'userName': userinfo[0] }).count() == 1 or mongo.db.request.find({ 'userName': userinfo[0] }).count() == 1:
             text = 'The username you entered is already in use, please select an alternative.'
             stage = 'input'
-            return render_template( 'signup.html', userInfo=userinfo, nametext=text, stage=stage )
+            return render_template( 'signup.html', userInfo=userinfo, nametext=text, stage=stage, timezones=setTimezone() )
         else:
             if stage == 'request':
                 addRequest(userinfo)        
                 userinfo = ['','','','','','','']
                 session['signup'] = False
-                return render_template( 'signup.html', userInfo=userinfo, stage=stage )
+                return render_template( 'signup.html', userInfo=userinfo, stage=stage, timezones=setTimezone() )
             else:
-                return render_template( 'signup.html', userInfo=userinfo, stage=stage )
+                return render_template( 'signup.html', userInfo=userinfo, stage=stage, timezones=setTimezone() )
         
     userinfo = ['','','','','','','']
     #stage = 'input'
     session['signup'] = True
-    return render_template( 'signup.html', userInfo=userinfo, stage=stage )
+    return render_template( 'signup.html', userInfo=userinfo, stage=stage, timezones=setTimezone() )
 
 @app.route('/admin',methods=['GET','POST'])
 def admin_page():
@@ -1092,7 +1094,7 @@ def admin_page():
         req.update({ 'authority': 3,
                      'approval': '' }) 
         request.append(req) 
-    return render_template( 'admin.html', request=request, user=user_entries, admin=admin_entries )
+    return render_template( 'admin.html', request=request, user=user_entries, admin=admin_entries, timezones=setTimezone() )
 
 @app.route('/remove_user',methods=['GET','POST'])
 def remove_user():
@@ -1122,8 +1124,7 @@ def add_user():
 def set_time():
     session['timezone'] = request.form.get('timezone')
 
-    return redirect( url_for('show_toppage') )
-    return render_template( 'toppage.html' )
+    return redirect( request.headers.get("Referer") )
 
 if __name__ == '__main__':
     app.run(host=args.fhost, port=args.fport)

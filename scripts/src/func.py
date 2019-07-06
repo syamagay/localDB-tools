@@ -141,10 +141,20 @@ def countPhotoNum():
     return int(localdb.counter.find_one({'type': 'photoNumber'})['num'])
 
 def setTime(date):
-    zone = session.get('timezone',0)
+    zone = session.get('timezone','UTC')
     converted_time = date.replace(tzinfo=timezone.utc).astimezone(pytz.timezone(zone))
     time = converted_time.strftime('%Y/%m/%d %H:%M:%S')
     return time
+
+def setTimezone():
+    # timezone
+    timezones = []
+    for tz in pytz.all_timezones:
+        timezones.append(tz)
+    if not 'timezone' in session:
+        session['timezone'] = 'UTC'
+
+    return timezones 
 
 def setEnv(thisTestRun):
     env_list = thisTestRun.get('environments',[])
