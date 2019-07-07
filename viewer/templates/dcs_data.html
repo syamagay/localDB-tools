@@ -1,92 +1,98 @@
 <style>
-input[type="number"] {
-display: block;
-margin: 0px;
-padding: 0px;
-border: none;
-height: 12pt;
-text-align: center;
-}
-input[type="number"]:hover {
-background-color: #eeeeee;
-border-radius: 0px;
-}
-input[type="time"] {
-display: block;
-margin: 0px;
-padding: 0px;
-border: none;
-height: 12pt;
-text-align: center;
-}
-input[type="time"]:hover {
-background-color: #eeeeee;
-border-radius: 0px;
-}
-.textarea {
-display: block;
-margin: 0px;
-padding: 0px;
-border: none;
-height: 12pt;
-text-align: center;
-}
-input[type="checkbox"] {
-display: none;
-margin: 0px;
-padding: 0px;
-}
-input[type="checkbox"]:checked + label {
-display: block;
-margin: 0px;
-padding: 0px;
-border: none;
-background: #ffffff;
-color: #000000;
-}
-input[type="checkbox"]:checked + label:hover {
-background-color: #eeeeee;
-color: #000000;
-border: none;
-}
-.label {
-display: block;
-font-size: 10pt;
-margin: 0px;
-padding: 0px;
-text-align: center;
-cursor: pointer;
-background-color: #ffffff;
-color: #dddddd;
-border: none;
-}
-.label:hover {
-margin: 0px;
-padding: 0px;
-background-color: #eeeeee;
-color: #bbbbbb;
-border: none;
-}
-td, th {
-padding: 0px 0px;
-vertical-align: middle;
-}
+  input[type="number"] {
+  display: block;
+  margin: 0px;
+  padding: 0px;
+  border: none;
+  height: 12pt;
+  text-align: center;
+  }
+  input[type="number"]:hover {
+  background-color: #eeeeee;
+  border-radius: 0px;
+  }
+  input[type="time"] {
+  display: block;
+  margin: 0px;
+  padding: 0px;
+  border: none;
+  height: 12pt;
+  text-align: center;
+  }
+  input[type="time"]:hover {
+  background-color: #eeeeee;
+  border-radius: 0px;
+  }
+  .textarea {
+  display: block;
+  margin: 0px;
+  padding: 0px;
+  border: none;
+  height: 12pt;
+  text-align: center;
+  }
+  input[type="checkbox"] {
+  display: none;
+  margin: 0px;
+  padding: 0px;
+  }
+  input[type="checkbox"]:checked + label {
+  display: block;
+  margin: 0px;
+  padding: 0px;
+  border: none;
+  background: #ffffff;
+  color: #000000;
+  }
+  input[type="checkbox"]:checked + label:hover {
+  background-color: #eeeeee;
+  color: #000000;
+  border: none;
+  }
+  .label {
+  display: block;
+  font-size: 10pt;
+  margin: 0px;
+  padding: 0px;
+  text-align: center;
+  cursor: pointer;
+  background-color: #ffffff;
+  color: #dddddd;
+  border: none;
+  }
+  .label:hover {
+  margin: 0px;
+  padding: 0px;
+  background-color: #eeeeee;
+  color: #bbbbbb;
+  border: none;
+  }
+  td, th {
+  padding: 0px 0px;
+  vertical-align: middle;
+  }
+  a.root:link { color: #3cb371; }
+  a.root:visited { color: #3cb371; }
+  a.root:hover { color: #ff8c00; }
+  a.root:active { color: #dc143c; }
 </style>
 
 {% if component['dcs'] %}
-<body>
 <h4 style="font-size: 10pt;"><i class="fa fa-paint-brush"></i> DCS_DATA </h4>
-<!--  <h4><i></i> {{ component['dcs_data'] }} </h4> -->
 
 {% for result in component['dcs']['results']['iv'] %}
-<a data-toggle="collapse" aria-expanded="true" data-target='#{{ result['sortkey'] }}' aria-controls={{ result['sortkey'] }} href='#{{ result['sortkey'] }}' style="color: green;"><h4 style="font-size: 10pt;"><i class="fa fa-caret-right"></i> {{ result['dcsType'] }} </h4></a>
-
+<div style="display: flex;">
+  <h4 style="font-size: 10pt;">
+    <a class="root" data-toggle="collapse" aria-expanded="true" data-target='#{{ result['sortkey'] }}' aria-controls={{ result['sortkey'] }} href='#{{ result['sortkey'] }}'><i class="fa fa-caret-right"></i> {{ result['dcsType'] }} </a>
+  </h4>
+</div>
 <div class="row align-items-center justify-content-space-evenly collapse show" id={{ result['sortkey'] }}>
   <div class="col-md-4">
     {% if result['url_v'] %}
     <center>
+      <p> {{result['keyName'][0]}} </p>
       <a href={{result['url_v']}} target="_brank" rel="noopener noreferrer">
-        <img src={{result['url_v']}} title="Voltage" width="350" height="300"></img>
+        <img src={{result['url_v']}} title="Voltage" width="300" height="300"></img>
       </a>
     </center>
     {% endif %}
@@ -94,8 +100,9 @@ vertical-align: middle;
   <div class="col-md-4">
     {% if result['url_i'] %}
     <center>
+      <p> {{result['keyName'][1]}} </p>
       <a href={{result['url_i']}} target="_brank" rel="noopener noreferrer">
-        <img src={{result['url_i']}} title="Current" width="350" height="300"></img>
+        <img src={{result['url_i']}} title="Current" width="300" height="300"></img>
       </a>
     </center>
     {% endif %}
@@ -152,24 +159,25 @@ vertical-align: middle;
               </td>
 	    </tr>
             <tr>
-	      <td scope="col" class="text-center"></tb>
-              <td scope="col" class="text-center">
-                <button type="submit" class="btn btn-outline-success btn-block" style="font-size:9pt;border:none;" name="dcsplotType" value="set">
-                  Set Default
-                </button>
-              </td>
-              <td scope="col" class="text-center">
-                <button type="submit" class="btn btn-outline-success btn-block" style="font-size:9pt;border:none;" name="dcsplotType" value="make">
-		  Make Histogram
-                </button>
+	      <td scope="col" class="text-center"></td>
+	      <td scope="col" class="text-center">
+		<button type="submit" class="btn btn-outline-success btn-block" style="font-size:9pt;border:none;" name="dcsplotType" value="set">
+		  Set Default
+		</button>
 	      </td>
-          </tbody>
-        </form>
+	      <td scope="col" class="text-center">
+		<button type="submit" class="btn btn-outline-success btn-block" style="font-size:9pt;border:none;" name="dcsplotType" value="make">
+		  Make Histogram
+		</button>
+	      </td>
+	    </tr>
+	  </tbody>
+	</form>
       </table>
     </center>
     {% endif %}
   </div>  
-    
+  
 </div>
 {% endfor %}
 {% for result in component['dcs']['results']['other'] %}
@@ -179,8 +187,9 @@ vertical-align: middle;
   <div class="col-md-4">
     {% if result['url'] %}
     <center>
+      <p> {{result['keyName'][0]}} </p>
       <a href={{result['url']}} target="_brank" rel="noopener noreferrer">
-        <img src={{result['url']}} title="Voltage" width="350" height="300"></img>
+        <img src={{result['url']}} title="Voltage" width="300" height="300"></img>
       </a>
     </center>
     {% endif %}
@@ -245,7 +254,7 @@ vertical-align: middle;
   <form class="form-time" action="{{ url_for('make_dcsGraph', id=component['_id'], runId=component['dcs']['results']['stat']['runId']) }}" method=post class=entries style="font-size:10pt; margin:0px;">  
     <thead class="table-dark" style="background: #222222;">
       <tr>
-        <th scope="col" class="text-center" colspan="9">Settings<br>( Start/End : time-axis )</th>
+        <th scope="col" class="text-center" colspan="9">Setting time range for all DCS PLOT ( Start/End : time-axis )</th>
       </tr>
       <tr>
         <th scope="col" class="text-center" width="15%">parameter</th>
@@ -325,5 +334,4 @@ vertical-align: middle;
     </tbody>
   </form>
 </table>
-</body>
 {% endif %}
