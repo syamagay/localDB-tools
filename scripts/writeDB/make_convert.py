@@ -259,6 +259,7 @@ def registerTestRun(i_doc):
         'state'       : 'ready',
         'targetCharge': i_doc.get('targetCharge',-1),
         'targetTot'   : i_doc.get('targetTot',-1),
+        'command'     : '...',
         'comments'    : [],
         'defects'     : [],
         'finishTime'  : finish_time,
@@ -296,7 +297,7 @@ def registerComponentTestRun(i_cmp_id, i_tr_id):
     query = { '_id': ObjectId(i_tr_id) }
     thisRun = localdb.testRun.find_one( query )
     query = { '_id': ObjectId(i_cmp_id) }
-    thisCmp = localdb.componentTestRun.find_one( query )
+    thisCmp = localdb.component.find_one( query )
     timestamp = datetime.datetime.utcnow()
     insert_doc = {
         'sys': {
@@ -792,6 +793,7 @@ def convert():
                                     new_ctr_query,
                                     {'$set': {'beforeCfg': config_id}}
                                 )
+                                new_thisComponentTestRun = localdb.componentTestRun.find_one( new_ctr_query )
                         if new_thisComponentTestRun.get('afterCfg','...') == '...':
                             if not thisComponentTestRun.get('afterCfg', '...') == '...':
                                 config_id = registerConfigFromJson(thisComponentTestRun['afterCfg'])
@@ -799,6 +801,7 @@ def convert():
                                     new_ctr_query,
                                     {'$set': {'afterCfg': config_id}}
                                 )
+                                new_thisComponentTestRun = localdb.componentTestRun.find_one( new_ctr_query )
                         attachments = thisRun.get('attachments',[])
                         for attachment in attachments: 
                             title = registerDat(attachment, chip_name, new_ctrid, plots)
@@ -812,16 +815,24 @@ def convert():
                                             new_ch_query,
                                             {'$set': { 'chipId': return_doc['chip_id'] }}
                                         )
+                                        new_thisChip = localdb.component.find_one( new_ch_query )
                                         query = { 'parent': new_mo_id, 'child': chip['new'] }
                                         localdb.childParentRelation.update(
                                             query,
                                             {'$set': { 'chipId': return_doc['chip_id'] }}
                                         )
+                                    if not return_doc['chip_id'] == -1 and new_thisComponentTestRun['geomId'] == -1:
+                                        localdb.component.update(
+                                            new_ctr_query,
+                                            {'$set': { 'geomId': return_doc['chip_id'] }}
+                                        )
+                                        new_thisComponentTestRun = localdb.componentTestRun.find_one( new_ctr_query )
                                     if new_thisComponentTestRun['tx'] == -1 and not return_doc['tx'] == -1:
                                         localdb.component.update(
                                             new_ch_query,
                                             {'$set': { 'tx': return_doc['tx'], 'rx': return_doc['rx'] }}
                                         )
+                                        new_thisChip = localdb.component.find_one( new_ch_query )
                             if attachment['contentType'] == 'before': 
                                 if new_thisComponentTestRun.get('beforeCfg','...') == '...':
                                     return_doc = registerConfig(attachment, chip_type, new_thisComponentTestRun)
@@ -830,11 +841,24 @@ def convert():
                                             new_ch_query,
                                             {'$set': { 'chipId': return_doc['chip_id'] }}
                                         )
+                                        new_thisChip = localdb.component.find_one( new_ch_query )
+                                    if not return_doc['chip_id'] == -1 and new_thisComponentTestRun['geomId'] == -1:
+                                        localdb.component.update(
+                                            new_ctr_query,
+                                            {'$set': { 'geomId': return_doc['chip_id'] }}
+                                        )
+                                        new_thisComponentTestRun = localdb.componentTestRun.find_one( new_ctr_query )
                                     if new_thisComponentTestRun['tx'] == -1 and not return_doc['tx'] == -1:
                                         localdb.component.update(
                                             new_ch_query,
                                             {'$set': { 'tx': return_doc['tx'], 'rx': return_doc['rx'] }}
                                         )
+                                        new_thisChip = localdb.component.find_one( new_ch_query )
+                if new_thisChip['chipId'] == -1:
+                    localdb.component.update(
+                        new_ch_query,
+                        {'$set': { 'chipId': 0 }}
+                    )
             if new_thisRun.get('plots',[]) == []:
                 for plot in list(set(plots)):
                     localdb.testRun.update(

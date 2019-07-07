@@ -1127,4 +1127,4 @@ def set_time():
     return redirect( request.headers.get("Referer") )
 
 if __name__ == '__main__':
-    app.run(host=args.fhost, port=args.fport)
+    app.run(host=args.fhost, port=args.fport, threaded=True)
