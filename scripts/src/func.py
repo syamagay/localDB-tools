@@ -29,9 +29,9 @@ try:
 except: 
     DOROOT = False 
 
-from scripts.src import dcs_plot
 # dcsPlot
 try:
+    from scripts.src import dcs_plot
     import time
     DODCS=True
 except:
@@ -994,7 +994,11 @@ def setDCS():
     DCS_DIR  = TMP_DIR + '/' + str(session.get('uuid','localuser')) + '/dcs'
 
     cleanDir(DCS_DIR)
-    print(session.get('dcsStat'))
+    
+    if not DODCS :
+        dcs_data.update({'dcssw': False})
+        return dcs_data
+
     if not session.get( 'runId' ) : return dcs_data
     if not session.get( 'dcsList' ) : session['dcsList']={}
     if not session.get( 'dcsStat' ) : session['dcsStat']={}
@@ -1008,7 +1012,9 @@ def setDCS():
     results['stat']={}
 
     dcs_status=make_dcsplot(session['runId'])
-    if dcs_status==1 : return dcs_data
+    if dcs_status==1 : 
+        dcs_data.update({ 'dcs_data_exist' : False })
+        return dcs_data
     if session.get('dcsList'):
         for dcsType in session.get( 'dcsList' ):
             if session['dcsList'][dcsType].get( 'file_num' ) :
@@ -1026,7 +1032,7 @@ def setDCS():
                                            'runId'   : session.get('runId'),
                                            'url_v'   : url.get("1"),
                                            'url_i'   : url.get("2"),
-                                           'sortley' : '0{}'.format(dcsType),
+                                           'sortkey' : '{}0'.format(dcsType),
                                            'v_min'   : session['dcsList'][dcsType].get('v_min'),
                                            'v_max'   : session['dcsList'][dcsType].get('v_max'),
                                            'v_step'  : session['dcsList'][dcsType].get('v_step'),
@@ -1046,7 +1052,7 @@ def setDCS():
                                               'keyName' : dcsType ,
                                               'runId'   : session.get('runId'),
                                               'url'     : url.get("1"),
-                                              'sortley' : '0{}'.format(dcsType),
+                                              'sortkey' : '{}0'.format(dcsType),
                                               'min'     : session['dcsList'][dcsType].get('min'),
                                               'max'     : session['dcsList'][dcsType].get('max'),
                                               'step'    : session['dcsList'][dcsType].get('step')
@@ -1078,6 +1084,7 @@ def setDCS():
                                      'end'   : datetime.fromtimestamp(session['dcsStat'].get('timeRange')[1])
                       }
     }
-    dcs_data.update({"dcssw"  : True,
-                     "results": results})
+    dcs_data.update({'dcssw'          : True,
+                     'dcs_data_exist' : True,
+                     'results'        : results})
     return dcs_data
