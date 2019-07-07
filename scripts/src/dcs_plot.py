@@ -165,6 +165,9 @@ def make_Graph(DCS, key, num):
 
     return GraphStat
 
+## This comment out is  tool to plot Graph of dcs data with matplotlib
+## comment out : 2019/07/07 by Yamagaya
+"""
 def make_Graph_with_matplotlib(DCS, key, num):
     picture_DIR='/tmp/{0}/{1}/dcs/'.format( pwd.getpwuid( os.geteuid() ).pw_name , session.get('uuid','localuser') )
     picture_type='.png'
@@ -226,7 +229,7 @@ def make_Graph_with_matplotlib(DCS, key, num):
     }
 
     return GraphStat
-    
+""" 
 def dcs_plot( data_block, startTime, finishTime, dcsPlot ):
     timeRange=session['dcsStat'].get('timeRange')
     DCS=DCS_type(data_block)
