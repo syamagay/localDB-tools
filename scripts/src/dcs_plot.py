@@ -1,6 +1,5 @@
 # Author : Shohei Yamagata(Osaka univ.)
 
-#import ROOT
 from pymongo import MongoClient
 import sys, json, collections, os, pwd
 from array import array
@@ -9,7 +8,11 @@ from datetime import datetime
 import time
 from flask import session 
 
-#ROOT.gROOT.SetBatch()
+
+import ROOT
+ROOT.gROOT.SetBatch()
+canvas=ROOT.TCanvas('canvas','')
+
 from scripts.src.PlotTools import pyPlot as plt
 
 dcs_key_list=[
@@ -57,7 +60,6 @@ Graph_yrange={
     "hv_current"   : [-7.0E-6,1.0E-6,1.0E-6],
     "temperature"  : [ -40.0, 40.0, 1.0 ]
 }
-#canvas=ROOT.TCanvas("canvas","")
 
 class DCS_type(object):
     def __init__(self,data_block=None):
@@ -86,71 +88,16 @@ class DCS_type(object):
         self.finishTime=finish
     def set_timeRange(self, time1, time2):
         self.timeRange=[time1,time2]
-
-        """
-        if self.__dcs_data:
-            self.__type=self.get_dcsdata_list()
-            self.__type_num=len(self.__type)
-            if self.__type_num>0 :
-                self.__event_num=self.get_event_num()
-        """
-    """
-    def set_data_tag(self):
-        return self.data_tag
-    def get_dcsdata_source(self):
-        data=self.obj.read_one()
-        if data :
-            return data
-        else :
-            return None
-    def get_dcsdata_list(self):
-        type=[]
-        for candidate in dcs_key_list:
-            if candidate+'_voltage' in self.__dcs_data and candidate+'_current' in self.__dcs_data:
-                type.append(candidate)
-        return type
-    def get_type_num(self):
-        return self.__type_num
-    def get_event_num(self):
-        return len(self.__dcs_data[self.__type[0]+'_voltage'][0]['data'])
-    def data_exist(self) :
-        if self.__dcs_data and self.__type_num > 0 :
-            return True
-        else :
-            return False
-    def get_graph_yrange(self,dcsType) :
-        if dcsType == 'hv' :
-            return [-100.0,10.0],[-7.0E-6,1.0E-6]
-        elif dcsType == 'share' :
-            return [-0.2,4.0],[-0.2,2.2]
-        else :
-            return [-0.2,2.0],[-0.2,0.7]
-    def get_graph_step(self,dcsType) :
-        if dcsType == 'hv' :
-            return 1,1E-6
-        elif dcsType == 'share' :
-            return 0.1,0.1
-        else :
-            return 0.1,0.1
-
-    def get_single_value(self,i):
-        voltage=[]
-        current=[]
-        i_type_count=0
-    
-        data_time=time.mktime(self.__dcs_data['hv_voltage'][0]['data'][i]['date'].timetuple()) 
-        for i_type in self. __type:
-            voltage.append(float(self.__dcs_data[i_type+'_voltage'][0]['data'][i]['value']))
-            current.append(float(self.__dcs_data[i_type+'_current'][0]['data'][i]['value']))
-
-        return voltage, current, data_time
-    """
         
 def make_dir(DIR):
     if not os.path.isdir(DIR) :
         os.mkdir( DIR )
-"""
-def make_Graph_with_ROOT(DCS, key, num):
+
+def make_Graph(DCS, key, num):
+    picture_DIR='/tmp/{0}/{1}/dcs/'.format( pwd.getpwuid( os.geteuid() ).pw_name , session.get('uuid','localuser') )
+    picture_type='.png'
+    make_dir( picture_DIR )
+
     ROOT.gStyle.SetTimeOffset(-788918400)
     ROOT.gStyle.SetNdivisions(505)
     GraphStat={}
@@ -217,8 +164,8 @@ def make_Graph_with_ROOT(DCS, key, num):
     }
 
     return GraphStat
-"""
-def make_Graph(DCS, key, num):
+
+def make_Graph_with_matplotlib(DCS, key, num):
     picture_DIR='/tmp/{0}/{1}/dcs/'.format( pwd.getpwuid( os.geteuid() ).pw_name , session.get('uuid','localuser') )
     picture_type='.png'
     make_dir( picture_DIR )
