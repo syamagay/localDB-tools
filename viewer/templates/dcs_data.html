@@ -79,6 +79,8 @@
 
 {% if component['dcs'] %}
 <h4 style="font-size: 10pt;"><i class="fa fa-paint-brush"></i> DCS_DATA </h4>
+{% if component['dcs']['dcssw'] %}
+{% if component['dcs']['dcs_data_exist'] %}
 
 {% for result in component['dcs']['results']['iv'] %}
 <div style="display: flex;">
@@ -334,4 +336,26 @@
     </tbody>
   </form>
 </table>
+{% else %}
+<hr color="#BBBBBB" width="80%" size="9">
+
+<div class="row align-items-top justify-content-center">
+  <div class="col">
+    <div class="row align-items-top justify-content-center">
+      <font "color=#ff0000 size=2">NO DCS DATA</font>
+    </div>
+  </div>
+</div>
+{% endif %}
+{% else %}
+<hr color="#BBBBBB" width="80%" size="9">
+
+<div class="row align-items-top justify-content-center">
+  <div class="col">
+    <div class="row align-items-top justify-content-center">
+      <font "color=#ff0000 size=2">NO ROOT SOFTWARE</font>
+    </div>
+  </div>
+</div>
+{% endif %}
 {% endif %}

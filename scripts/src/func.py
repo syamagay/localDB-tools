@@ -1013,7 +1013,8 @@ def setDCS():
 
     dcs_status=make_dcsplot(session['runId'])
     if dcs_status==1 : 
-        dcs_data.update({ 'dcs_data_exist' : False })
+        dcs_data.update({ 'dcssw' : True,
+                          'dcs_data_exist' : False })
         return dcs_data
     if session.get('dcsList'):
         for dcsType in session.get( 'dcsList' ):
