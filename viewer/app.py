@@ -941,7 +941,7 @@ def edit_comment():
         'componentType':request.form.get('unit'),
         'name'  :request.form.get('text2'),
         'institution'  :request.form.get('text3'),
-        'datetime':datetime.datetime.utcnow() 
+        'datetime':datetime.utcnow() 
     } 
     )
     

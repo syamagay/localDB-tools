@@ -5,15 +5,8 @@
         <div class="row align-items-top justify-content-center">
             <div class="col">
 
-                {% if session['logged_in'] == True %}
-                  {% if session['edit'] == 1 %}
-                    <h1>{{ component['unit'] }} : {{ component['serialNumber'] }} (admin page)</h1>
-                  {% else %}
-                    <h1>{{ component['unit'] }} : {{ component['serialNumber'] }} (user page)</h1>
-                  {% endif %}
-                {% else %}
-                  <h1>{{ component['unit'] }} : {{ component['serialNumber'] }}</h1>
-                {% endif %}
+               
+                <h1>{{ component['unit'] }} : {{ component['serialNumber'] }}</h1>
       
                 <table class="table table-sm table-bordered" style="font-size: 8pt;">
                   <h4 style="font-size: 13pt;"><i class="fa fa-cog"></i> Component Data</h4>

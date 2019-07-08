@@ -886,8 +886,6 @@ def writeConfig(mo_serial_number,config_type):
     myzip = zipfile.ZipFile('{0}/{1}/config/{2}_{3}.zip'.format(TMP_DIR, session.get('uuid','localuser'),mo_serial_number, config_type),'a')
 
     if session.get('runId'):
-        query = { '_id':ObjectId(session['this']) } 
-        this_cmp = localdb.component.find_one(query)
         query = { 'component': session['this'], 
                   'testRun'  : session['runId'] }
         this_ctr = localdb.componentTestRun.find_one(query)
@@ -908,26 +906,49 @@ def writeConfig(mo_serial_number,config_type):
                 myzip.write('{0}/{1}/config/{2}_{3}.json'.format(TMP_DIR, session.get('uuid','localuser'),mo_serial_number, config_type),'{0}_{1}.json'.format(mo_serial_number, config_type))
 
         elif config_type == 'afterCfg' or 'beforeCfg':        
-            query = [{ 'parent': session['this'] }, { 'child': session['this'] }]
-            child_entries = localdb.childParentRelation.find({'$or': query})
+            
+            if not this_run['dummy']:
+                query = [{ 'parent': session['this'] }, { 'child': session['this'] }]
+                child_entries = localdb.childParentRelation.find({'$or': query})
+          
+                 
 
-            for child in child_entries:
-                query = { 'component': child['child'], 'testRun': session['runId'] }
-                this_chip_ctr = localdb.componentTestRun.find_one(query)
-                if not this_chip_ctr.get(config_type,'...')=='...':
-                    chipid = child['chipId']
-                    configid = this_chip_ctr[config_type] 
-             
-                    query = { '_id': ObjectId(configid) }
-                    config_data = localdb.config.find_one(query)
+                for child in child_entries:
+                    query = { 'component': child['child'], 'testRun': session['runId'] }
+                    this_chip_ctr = localdb.componentTestRun.find_one(query)
+                    if not this_chip_ctr.get(config_type,'...')=='...':
+                        chipid = child['chipId']
+                        configid = this_chip_ctr[config_type] 
+                 
+                        query = { '_id': ObjectId(configid) }
+                        config_data = localdb.config.find_one(query)
 
-                    file_path = '{0}/{1}/config/{2}_chip{3}_{4}.json'.format(TMP_DIR, session.get('uuid','localuser'),mo_serial_number, chipid, config_type)
-                    f = open(file_path, 'wb')
-                    f.write(fs.get(ObjectId(config_data['data_id'])).read())
-                    f.close()
-                    
-                    myzip.write('{0}/{1}/config/{2}_chip{3}_{4}.json'.format(TMP_DIR, session.get('uuid','localuser'),mo_serial_number, chipid, config_type),'{0}_chip{1}_{2}.json'.format(mo_serial_number, chipid, config_type))
+                        file_path = '{0}/{1}/config/{2}_chip{3}_{4}.json'.format(TMP_DIR, session.get('uuid','localuser'),mo_serial_number, chipid, config_type)
+                        f = open(file_path, 'wb')
+                        f.write(fs.get(ObjectId(config_data['data_id'])).read())
+                        f.close()
+                        
+                        myzip.write('{0}/{1}/config/{2}_chip{3}_{4}.json'.format(TMP_DIR, session.get('uuid','localuser'),mo_serial_number, chipid, config_type),'{0}_chip{1}_{2}.json'.format(mo_serial_number, chipid, config_type))
         
+            else:
+                query = {'testRun': session['runId'] }
+                this_chip_ctrs = localdb.componentTestRun.find(query)
+                for this_chip_ctr in this_chip_ctrs: 
+                    if not this_chip_ctr.get(config_type,'...')=='...':
+                        chipid = '1'
+                        configid = this_chip_ctr[config_type] 
+                          
+                        query = { '_id': ObjectId(configid) }
+                        config_data = localdb.config.find_one(query)
+
+                        file_path = '{0}/{1}/config/{2}_chip{3}_{4}.json'.format(TMP_DIR, session.get('uuid','localuser'),mo_serial_number, chipid, config_type)
+                        f = open(file_path, 'wb')
+                        f.write(fs.get(ObjectId(config_data['data_id'])).read())
+                        f.close()
+                        
+                        myzip.write('{0}/{1}/config/{2}_chip{3}_{4}.json'.format(TMP_DIR, session.get('uuid','localuser'),mo_serial_number, chipid, config_type),'{0}_chip{1}_{2}.json'.format(mo_serial_number, chipid, config_type))
+        
+
     myzip.close()
     
     filename = TMP_DIR + '/' + str(session.get('uuid','localuser')) + '/config/' + str(mo_serial_number) + '_' + str(config_type) + '.zip'

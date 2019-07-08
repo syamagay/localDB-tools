@@ -26,7 +26,7 @@ def verify2():
         local_url = "mongodb://" + args.username + ":" + args.password + "@" + args.host + ":" + str(args.port) + "/localdb"
     print(local_url)
     client = MongoClient(local_url)
-    db = client["test2db"]
+    db = client["localdb"]
 
     ##
    

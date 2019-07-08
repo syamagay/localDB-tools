@@ -35,17 +35,7 @@ table.toppage td.border_inner {
   <div class="container">
     <div class="row align-items-center justify-content-center">
       <div class="col">
-
-        {% if session['logged_in'] == True %}
-          {% if session['edit'] == 1 %}
-            <h2>Summary (admin page)</h2>
-          {% else %}
-            <h2>Summary (user page)</h2>
-          {% endif %}
-        {% else %}
-          <h2>Summary</h2>
-        {% endif %}
-
+                <h2>Summary</h2>
       </div>
     </div>
   </div>
