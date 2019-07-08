@@ -44,9 +44,11 @@ logging.config.dictConfig(yaml.load(open('./configs/logging.yml')))
 from controllers.callback   import callback_api
 from controllers.component_dev   import component_dev_api
 
+# For retriever
 from retrievers.component import retrieve_component_api
 from retrievers.testrun import retrieve_testrun_api
 from retrievers.config import retrieve_config_api
+from retrievers.log import retrieve_log_api
 
 if os.path.isdir( TMP_DIR ): 
     shutil.rmtree( TMP_DIR )
@@ -67,6 +69,7 @@ app.register_blueprint(component_dev_api)
 app.register_blueprint(retrieve_component_api)
 app.register_blueprint(retrieve_testrun_api)
 app.register_blueprint(retrieve_config_api)
+app.register_blueprint(retrieve_log_api)
 
 # Prefix
 class PrefixMiddleware(object):

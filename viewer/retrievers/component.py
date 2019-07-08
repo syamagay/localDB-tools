@@ -8,13 +8,20 @@ def retrieve_component():
     mongo = MongoClient(MONGO_URL)["localdb"]
 
     serial_number = request.args.get('serialNumber', None)
+    run_id = request.args.get('testRun', None)
     return_json = {}
-    if not serial_number:
+    if not serial_number and not run_id:
         return_json = {
-            'message': 'Not provide serial number',
+            'message': 'Not provide serial number or test data id',
             'error': True
         }
         return jsonify(return_json)
+
+    query = {}
+    if run_id:
+        query = { '_id': ObjectId(run_id) }
+        this_run = mongo.testRun.find_one(query)
+        serial_number =  this_run['serialNumber']
 
     query = { 'serialNumber': serial_number }
     this_cmp = mongo.component.find_one(query)
