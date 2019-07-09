@@ -8,3 +8,7 @@ pymongo
 python-dateutil
 PyYAML
 pytz
+plotly
+matplotlib
+numpy
+requests

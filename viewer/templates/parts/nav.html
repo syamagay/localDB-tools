@@ -8,18 +8,20 @@
 </style>
 <nav class="navbar navbar-expand-lg navbar-dark bg-dark">
   <div class="container">
-    <div class="navbar-brand"> PIXEL MODULE DB</div>
+    <div class="navbar-brand"><b>PIXEL MODULE DB</b></div>
     <button class="navbar-toggler" type="button" data-toggle="collapse" data-target="#navbarSupportedContent" aria-controls="navbarSupportedContent" aria-expanded="false" aria-label="Toggle navigation">
       <span class="navbar-toggle-icon"></span>
     </button>
 
     <div class="navbar-brand">
     <ul class="nav navbar-nav mr-auto">
-      <li style="display: inline-block; margin-right: 2pt; font-size: 12pt;"> <a href="/localdb/">TOP</a></li>
+    <b>
+      <li style="display: inline-block; margin-right: 2pt; font-size: 12pt;"><a href="/localdb/">TOP</a></li>
       <li style="display: inline-block; margin-right: 2pt; font-size: 12pt;"> / </li>
-      <li style="display: inline-block; margin-right: 2pt; font-size: 12pt;"> <a href="/localdb/module">MODULE</a></li>
+      <li style="display: inline-block; margin-right: 2pt; font-size: 12pt;"><a href="/localdb/module">MODULE</a></li>
       <li style="display: inline-block; margin-right: 2pt; font-size: 12pt;"> / </li>
-      <li style="display: inline-block; margin-right: 2pt; font-size: 12pt;"> <a href="/localdb/scan">TEST</a></li>
+      <li style="display: inline-block; margin-right: 2pt; font-size: 12pt;"><a href="/localdb/scan">TEST</a></li>
+    </b>
     </ul>
     </div>
 
@@ -29,86 +31,81 @@
       </ul>
       <ul class="nav navbar-nav" style="font-size: 12pt;">
           <li class="dropdown">
-            {% if timezones %}
+            <a href="" class="dropdown-toggle" data-toggle="dropdown">
+              <b><i class="fa fa-globe"></i> {{ session['timezone'] }}</b>
+              <span class="caret"></span>
+            </a>
+            <ul id="login-dp" class="dropdown-menu left" style="width:250px;">
+              <li>
+                <div class="row align-items-center justify-content-center">
+                  <div class="col-md-10">
+                    <center><b>Choose Timezone</center></b><br>
+  								  <form class="form" role="form" method="post" action="set_time" accept-charset="UTF-8">
+                      <div class="form-group">
+                        <select class="tz-select" name="timezone" id="timezone" style="width:200px;" size="12">
+                        {% for timezone in timezones %}
+                          <option> {{ timezone }} </option>
+                        {% endfor %}
+                        </select>
+                      </div>
+                      <div class="form-group">
+  								      <button type="submit" class="btn btn-primary btn-block" style="width:200px;">Save</button>
+                      </div>
+                    </form>
+                  </div>
+                </div>
+  				    </li>
+  			    </ul>
+          </li>
+      </ul>
+      {% if session['user_function'] %}
+        <ul> </ul>
+        <ul class="nav navbar-nav" style="font-size: 12pt;">
+          {% if session['logged_in'] %}
+            <li style="margin-right: 1em;">
+              <a href="{{ url_for('logout') }}">
+                <b><i class="fa fa-user"></i> Sign out</b> 
+              </a>
+            </li>
+          {% else %}
+            <li class="dropdown">
               <a href="" class="dropdown-toggle" data-toggle="dropdown">
-                <b>{{ session['timezone'] }}</b>
+                <b><i class="fa fa-user"></i> Sign in</b> 
                 <span class="caret"></span>
               </a>
               <ul id="login-dp" class="dropdown-menu left" style="width:250px;">
                 <li>
                   <div class="row align-items-center justify-content-center">
                     <div class="col-md-10">
-                      <center><b>Choose Timezone</center></b><br>
-  					  			  <form class="form" role="form" method="post" action="set_time" accept-charset="UTF-8" id="login-nav">
-                        <select class="tz-select" name="timezone" id="timezone" style="width:220px;">
-                        {% for timezone in timezones %}
-                          <option> {{ timezone }} </option>
-                        {% endfor %}
-                        </select>
-  					  			    <button type="submit" class="btn btn-primary btn-block">Save</button>
+                      <center><b>Go to local user page</center></b><br>
+  		  						  <form class="form" role="form" method="post" action="login" accept-charset="UTF-8" id="login-nav">
+                  				  <div class="form-group">
+                  				  <input type="text" class="form-control" value="" placeholder="username" name="username">
+                  				  <label class="sr-only" for="login-name"></label>
+                  				  </div>
+                   
+                  				  <div class="form-group">
+                  				  <input type="password" class="form-control" value="" placeholder="password" name="password">
+                  				  <label class="sr-only" for="login-pass"></label>
+                  				  </div>
+
+  		  								    <div class="form-group">
+  		  									    <button type="submit" class="btn btn-primary btn-block">Sign in</button>
+  		  								    </div>
                       </form>
+                      <!--
+                      <div class="form-group">
+                        <center><a href="{{ url_for('signup') }}">go to sign up page</a></center>
+                      </div>
+                      --!>
                     </div>
                   </div>
-  				      </li>
-  			      </ul>
-            {% else %}
-              <b>{{ session['timezone'] }}</b>
-            {% endif %}
-          </li>
-
-      </ul>
-      <!--
-      <ul class="nav navbar-nav">
-        {% if session['logged_in'] %}
-          <li style="margin-right: 1em;">
-            <a href="{{ url_for('logout') }}">
-              <b>Sign out</b> 
-            </a>
-          </li>
-          {% if session['edit'] == 1 %}
-          <li style="margin-right: 1em;">
-            <a href="{{ url_for('admin_page') }}">
-              <b>Admin page</b> 
-            </a>
-          </li>
+  		  		    </li>
+  		  	    </ul>
+            </li>
           {% endif %}
-        {% else %}
-          <li class="dropdown">
-            <a href="" class="dropdown-toggle" data-toggle="dropdown">
-              <b>Sign in</b> 
-              <span class="caret"></span>
-            </a>
-            <ul id="login-dp" class="dropdown-menu" style="width:250px;">
-              <li>
-                <div class="row align-items-center justify-content-center">
-                  <div class="col-md-10">
-                    <center><b>Go to local user page</center></b><br>
-  								  <form class="form" role="form" method="post" action="login" accept-charset="UTF-8" id="login-nav">
-                				  <div class="form-group">
-                				  <input type="text" class="form-control" value="" placeholder="username" name="username">
-                				  <label class="sr-only" for="login-name"></label>
-                				  </div>
-                 
-                				  <div class="form-group">
-                				  <input type="password" class="form-control" value="" placeholder="password" name="password">
-                				  <label class="sr-only" for="login-pass"></label>
-                				  </div>
-
-  										    <div class="form-group">
-  											    <button type="submit" class="btn btn-primary btn-block">Sign in</button>
-  										    </div>
-                    </form>
-                    <div class="form-group">
-                      <center><a href="{{ url_for('signup') }}">go to sign up page</a></center>
-                    </div>
-                  </div>
-                </div>
-  				    </li>
-  			    </ul>
-          </li>
-        {% endif %}
-      </ul>
-      --!>
+        </ul>
+      {% endif %}
     </div>
   </div>
 </nav>

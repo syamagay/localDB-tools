@@ -149,10 +149,20 @@ def countPhotoNum():
     return int(localdb.counter.find_one({'type': 'photoNumber'})['num'])
 
 def setTime(date):
-    zone = session.get('timezone',0)
+    zone = session.get('timezone','UTC')
     converted_time = date.replace(tzinfo=timezone.utc).astimezone(pytz.timezone(zone))
     time = converted_time.strftime('%Y/%m/%d %H:%M:%S')
     return time
+
+def setTimezone():
+    # timezone
+    timezones = []
+    for tz in pytz.all_timezones:
+        timezones.append(tz)
+    if not 'timezone' in session:
+        session['timezone'] = 'UTC'
+
+    return timezones 
 
 def setEnv(thisTestRun):
     env_list = thisTestRun.get('environments',[])
@@ -772,6 +782,7 @@ def makePlot(cmpoid, runoid):
     query = { '_id': ObjectId(runoid) }
     this_run = localdb.testRun.find_one( query )
     if session.get('rootType'):
+        root.uuid = str(session.get('uuid','localuser'))
         maptype = session['mapType']
         if session['rootType'] == 'set':
             root.setParameter( this_run['testType'], maptype, session['plotList'] )
@@ -807,15 +818,17 @@ def makePlot(cmpoid, runoid):
         for chipoid in chipoids:
             writeDat( chipoid, runoid )
 
-    for maptype in this_run.get('plots',[]):
-        if not session['plotList'][maptype]['draw']: continue
-        session['plotList'][maptype]['filled'] = False
-        chipids = session['plotList'][maptype]['chipIds']
-        for chipid in chipids:
-            session['plotList'] = root.fillHisto(this_run['testType'], maptype, int(chipid), session['plotList'])
-        if session['plotList'][maptype]['filled']:
-            root.outHisto(this_run['testType'], maptype, session['plotList'])
-        session['plotList'][maptype]['draw'] = False
+    if DOROOT:
+        root.uuid = str(session.get('uuid','localuser'))
+        for maptype in this_run.get('plots',[]):
+            if not session['plotList'][maptype]['draw']: continue
+            session['plotList'][maptype]['filled'] = False
+            chipids = session['plotList'][maptype]['chipIds']
+            for chipid in chipids:
+                session['plotList'] = root.fillHisto(this_run['testType'], maptype, int(chipid), session['plotList'])
+            if session['plotList'][maptype]['filled']:
+                root.outHisto(this_run['testType'], maptype, session['plotList'])
+            session['plotList'][maptype]['draw'] = False
 
     session.pop('rootType',  None)
     session.pop('mapType',   None)
@@ -830,40 +843,46 @@ def setRoots():
 
     if not session.get('runId'): return roots
 
-    if not DOROOT:
-        roots.update({'rootsw': False})
-        return roots
-
-    root.uuid = str(session.get('uuid','localuser'))
     makePlot( session['this'], session['runId'] )
     query = { '_id': ObjectId(session['runId']) }
     this_run = localdb.testRun.find_one(query)
 
     results = []
     for maptype in this_run.get('plots',[]):
-        if not session['plotList'][maptype].get('HistoType') == 2: continue
-        url = {} 
-        for i in ['1', '2']:
-            filename = TMP_DIR + '/' + str(session.get('uuid','localuser')) + '/plot/' + str(this_run['testType']) + '_' + str(maptype) + '_{}.png'.format(i)
-            if os.path.isfile(filename):
-                binary_image = open(filename, 'rb')
-                code_base64 = base64.b64encode(binary_image.read()).decode()
-                binary_image.close()
-                url.update({i: bin2image('png', code_base64)}) 
-        results.append({ 'mapType' : maptype, 
-                         'sortkey' : '{}0'.format(maptype), 
-                         'runId'   : session['runId'],
-                         'urlDist' : url.get('1'), 
-                         'urlMap'  : url.get('2'), 
-                         'setLog'  : session['plotList'][maptype]['parameter']['log'], 
-                         'minValue': session['plotList'][maptype]['parameter']['min'],
-                         'maxValue': session['plotList'][maptype]['parameter']['max'],
-                         'binValue': session['plotList'][maptype]['parameter']['bin']})
+        result = {
+            'mapType' : maptype,
+            'sortkey' : '{}0'.format(maptype),
+            'runId'   : session['runId'],
+            'plot'    : False
+        }
+        if session['plotList'][maptype].get('HistoType') == 2:
+            url = {} 
+            for i in ['1', '2']:
+                filename = TMP_DIR + '/' + str(session.get('uuid','localuser')) + '/plot/' + str(this_run['testType']) + '_' + str(maptype) + '_{}.png'.format(i)
+                if os.path.isfile(filename):
+                    binary_image = open(filename, 'rb')
+                    code_base64 = base64.b64encode(binary_image.read()).decode()
+                    binary_image.close()
+                    url.update({i: bin2image('png', code_base64)}) 
+            result.update({
+                'plot'    : True,
+                'setLog'  : session['plotList'][maptype]['parameter']['log'], 
+                'minValue': session['plotList'][maptype]['parameter']['min'],
+                'maxValue': session['plotList'][maptype]['parameter']['max'],
+                'binValue': session['plotList'][maptype]['parameter']['bin'],
+                'urlDist' : url.get('1'),
+                'urlMap'  : url.get('2')
+            })
+        results.append(result)
 
     results = sorted(results, key=lambda x:int((re.search(r'[0-9]+',x['sortkey'])).group(0)), reverse=True)
 
-    roots.update({ 'rootsw' : True,
-                   'results': results})
+    if DOROOT:
+        roots.update({'rootsw': True})
+    else:
+        roots.update({'rootsw': False})
+
+    roots.update({'results': results})
 
     return roots
 
@@ -884,8 +903,6 @@ def writeConfig(mo_serial_number,config_type):
     myzip = zipfile.ZipFile('{0}/{1}/config/{2}_{3}.zip'.format(TMP_DIR, session.get('uuid','localuser'),mo_serial_number, config_type),'a')
 
     if session.get('runId'):
-        query = { '_id':ObjectId(session['this']) } 
-        this_cmp = localdb.component.find_one(query)
         query = { 'component': session['this'], 
                   'testRun'  : session['runId'] }
         this_ctr = localdb.componentTestRun.find_one(query)
@@ -906,26 +923,49 @@ def writeConfig(mo_serial_number,config_type):
                 myzip.write('{0}/{1}/config/{2}_{3}.json'.format(TMP_DIR, session.get('uuid','localuser'),mo_serial_number, config_type),'{0}_{1}.json'.format(mo_serial_number, config_type))
 
         elif config_type == 'afterCfg' or 'beforeCfg':        
-            query = [{ 'parent': session['this'] }, { 'child': session['this'] }]
-            child_entries = localdb.childParentRelation.find({'$or': query})
+            
+            if not this_run['dummy']:
+                query = [{ 'parent': session['this'] }, { 'child': session['this'] }]
+                child_entries = localdb.childParentRelation.find({'$or': query})
+          
+                 
 
-            for child in child_entries:
-                query = { 'component': child['child'], 'testRun': session['runId'] }
-                this_chip_ctr = localdb.componentTestRun.find_one(query)
-                if not this_chip_ctr.get(config_type,'...')=='...':
-                    chipid = child['chipId']
-                    configid = this_chip_ctr[config_type] 
-             
-                    query = { '_id': ObjectId(configid) }
-                    config_data = localdb.config.find_one(query)
+                for child in child_entries:
+                    query = { 'component': child['child'], 'testRun': session['runId'] }
+                    this_chip_ctr = localdb.componentTestRun.find_one(query)
+                    if not this_chip_ctr.get(config_type,'...')=='...':
+                        chipid = child['chipId']
+                        configid = this_chip_ctr[config_type] 
+                 
+                        query = { '_id': ObjectId(configid) }
+                        config_data = localdb.config.find_one(query)
 
-                    file_path = '{0}/{1}/config/{2}_chip{3}_{4}.json'.format(TMP_DIR, session.get('uuid','localuser'),mo_serial_number, chipid, config_type)
-                    f = open(file_path, 'wb')
-                    f.write(fs.get(ObjectId(config_data['data_id'])).read())
-                    f.close()
-                    
-                    myzip.write('{0}/{1}/config/{2}_chip{3}_{4}.json'.format(TMP_DIR, session.get('uuid','localuser'),mo_serial_number, chipid, config_type),'{0}_chip{1}_{2}.json'.format(mo_serial_number, chipid, config_type))
+                        file_path = '{0}/{1}/config/{2}_chip{3}_{4}.json'.format(TMP_DIR, session.get('uuid','localuser'),mo_serial_number, chipid, config_type)
+                        f = open(file_path, 'wb')
+                        f.write(fs.get(ObjectId(config_data['data_id'])).read())
+                        f.close()
+                        
+                        myzip.write('{0}/{1}/config/{2}_chip{3}_{4}.json'.format(TMP_DIR, session.get('uuid','localuser'),mo_serial_number, chipid, config_type),'{0}_chip{1}_{2}.json'.format(mo_serial_number, chipid, config_type))
         
+            else:
+                query = {'testRun': session['runId'] }
+                this_chip_ctrs = localdb.componentTestRun.find(query)
+                for this_chip_ctr in this_chip_ctrs: 
+                    if not this_chip_ctr.get(config_type,'...')=='...':
+                        chipid = '1'
+                        configid = this_chip_ctr[config_type] 
+                          
+                        query = { '_id': ObjectId(configid) }
+                        config_data = localdb.config.find_one(query)
+
+                        file_path = '{0}/{1}/config/{2}_chip{3}_{4}.json'.format(TMP_DIR, session.get('uuid','localuser'),mo_serial_number, chipid, config_type)
+                        f = open(file_path, 'wb')
+                        f.write(fs.get(ObjectId(config_data['data_id'])).read())
+                        f.close()
+                        
+                        myzip.write('{0}/{1}/config/{2}_chip{3}_{4}.json'.format(TMP_DIR, session.get('uuid','localuser'),mo_serial_number, chipid, config_type),'{0}_chip{1}_{2}.json'.format(mo_serial_number, chipid, config_type))
+        
+
     myzip.close()
     
     filename = TMP_DIR + '/' + str(session.get('uuid','localuser')) + '/config/' + str(mo_serial_number) + '_' + str(config_type) + '.zip'

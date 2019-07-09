@@ -59,153 +59,151 @@ td, th {
 padding: 0px 0px;
 vertical-align: middle;
 }
-a.root:link { color: #3cb371; }
-a.root:visited { color: #3cb371; }
-a.root:hover { color: #ff8c00; }
-a.root:active { color: #dc143c; }
+a.data:link { color: #3cb371; }
+a.data:visited { color: #3cb371; }
+a.data:hover { color: #ff8c00; }
+a.data:active { color: #dc143c; }
 </style>
 
-{% if component['roots'] %} 
-  <h4 style="font-size: 10pt;"><i class="fa fa-paint-brush"></i> ROOT </h4>
-  {% if component['roots']['rootsw'] %}
-    <hr color="#BBBBBB" width="80%" size="9">
-    {% if session['logged_in'] == True %}
-      {% if session['edit'] == 1 %}
-        <div class="row align-items-center justify-content-center">
-          <div class="col">
-            <div class="row align-items-top justify-content-center">
-              <form action="{{ url_for('add_summary', id=component['_id']) }}" method=post class=entries style="font-size: 8pt">  
-                <p><input type = "submit" value = "add summary plot"></p>
-              </form>
-            </div>
-          </div>
-        </div>
-      {% endif %}
+{% if not component['roots'] == {} %} 
+  <h4 style="font-size: 10pt;"><i class="fa fa-paint-brush"></i> ROOT 
+    {% if not component['roots']['rootsw'] %}
+    <font color=#ff0000> ### NO ROOT SOFTWARE ###</font>
     {% endif %}
-  
-    <div class="row align-items-center justify-content-center">
-      <div class="col">
-      {% for result in component['roots']['results'] %}
-        <div style="display: flex;">
-          <h4 style="font-size: 10pt;">
-          <a class="root" data-toggle="collapse" aria-expanded="true" data-target='#{{ result['sortkey'] }}' aria-controls={{ result['sortkey'] }} href='#{{ result['sortkey'] }}'><i class="fa fa-caret-right"></i> {{ result['mapType'] }} </a>  
-				  <a class="root" href="{{ url_for('data_downloader',ModuleName=component['module']['serialNumber'], mapType=result['mapType'])}}" title="Download"><i class="fa fa-download"></i></a>
-          </h4>
-        </div>
-        <div class="row align-items-center justify-content-space-evenly collapse show" id={{ result['sortkey'] }}>
-          <div class="col-md-4">
-            {% if result['urlDist'] %}
-            <center>
-              <p> Dist </p>
-              <a href={{result['urlDist']}} target="_brank" rel="noopener noreferrer">
-                <img src={{result['urlDist']}} title="Dist" width="300" height="300"></img>
-              </a>
-            </center>
-            {% endif %}
+  </h4>
+  {% if session['logged_in'] == True %}
+    {% if session['edit'] == 1 %}
+      <div class="row align-items-center justify-content-center">
+        <div class="col">
+          <div class="row align-items-top justify-content-center">
+            <form action="{{ url_for('add_summary', id=component['_id']) }}" method=post class=entries style="font-size: 8pt">  
+              <p><input type = "submit" value = "add summary plot"></p>
+            </form>
           </div>
-          <div class="col-md-4">
-            {% if result['urlMap'] %}
-            <center>
-              <p> Map </p>
-              <a href={{result['urlMap']}} target="_brank" rel="noopener noreferrer">
-                <img src={{result['urlMap']}} title="Map" width="300" height="300"></img>
-              </a>
-            </center>
-            {% endif %}
-          </div>
-
-          <div class="col-md-4">
-            {% if result['urlMap'] %}
-            <center>
-              <table class="table table-sm table-bordered" style="font-size: 8pt;">
-                <form class="form-holizontal" action="{{ url_for('makehisto', id=component['_id'], runId=result['runId']) }}" method=post class=entries style="font-size:10pt; margin:0px;">  
-                <input type="hidden" name="mapType" value={{result['mapType']}}>
-                <thead class="table-dark" style="background: #222222;">
-                  <tr>
-                    <th scope="col" class="text-center" colspan="3">Settings<br>( Dist:x-axis / Map:z-axis )</th>
-                  </tr>
-                  <tr>
-                    <th scope="col" class="text-center">parameter</th>
-                    <th scope="col" class="text-center" width="35%">current</th>
-                    <th scope="col" class="text-center" width="35%">modify</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  <tr>
-                    <td scope="col" class="text-center">Min</td>
-                    <td scope="col" class="text-center">{{result['minValue']}}</td>
-                    <td scope="col" class="text-center">
-                      <input type = "number" class="form-control" name = "min" value = {{result['minValue']}} style="font-size:10pt;">
-                    </td>
-                  </tr>
-                  <tr>
-                    <td scope="col" class="text-center">Max</td>
-                    <td scope="col" class="text-center">{{result['maxValue']}}</td>
-                    <td scope="col" class="text-center">
-                      <input type = "number" class="form-control" name = "max" value = {{result['maxValue']}} style="font-size:10pt;">
-                    </td>
-                  </tr>
-                  <tr>
-                    <td scope="col" class="text-center">Bin</td>
-                    <td scope="col" class="text-center">{{result['binValue']}}</td>
-                    <td scope="col" class="text-center">
-                      <input type = "number" class="form-control" name = "bin" value = {{result['binValue']}} style="font-size:10pt;" min="0">
-                    </td>
-                  </tr>
-                  <tr>
-                    <td scope="col" class="text-center">Scale</td>
-                    <td scope="col" class="text-center">
-                    {% if result['setLog'] %} Log
-                    {% else %} Linear
-                    {% endif %}
-                    </td>
-                    <td scope="col" class="text-center">
-                    {% if result['setLog'] %}
-                    <input type="checkbox" class="form-control" id='L{{result['mapType']}}' name="log" style="margin:0px;padding:0px;" checked>
-                    <label class="label" for='L{{result['mapType']}}'>Log</label>
-                    {% else %}
-                    <input type="checkbox" class="form-control" id='L{{result['mapType']}}' name="log" style="margin:0px;padding:0px;">
-                    <label class="label" for='L{{result['mapType']}}'>Log</label>
-                    {% endif %}
-                    </td>
-                  </tr>
-                  <tr>
-                    <td></td>
-                    <td scope="col" class="text-center">
-            	      <button type="submit" class="btn btn-outline-success btn-block" style="font-size:9pt;border:none;" name="root" value="set">
-                      Set Default 
-                    </button>
-                    </td>
-                    <td scope="col" class="text-center">
-            	      <button type="submit" class="btn btn-outline-success btn-block" style="font-size:9pt;border:none;" name="root" value="make">
-                      Make Histogram
-                    </button>
-                    </td>
-                  </tr>
-                </tbody>
-                </form> 
-              </table>
-            </center>
-            {% endif %}
-          </div>
-        <br>
-        <br>
-        </div>
-      {% endfor %}
-      </div>
-    </div>
-    <br>
-    <br>
-
-  {% else %}
-    <hr color="#BBBBBB" width="80%" size="9">
-  
-    <div class="row align-items-top justify-content-center">
-      <div class="col">
-        <div class="row align-items-top justify-content-center">
-          <font color=#ff0000 size=2">NO ROOT SOFTWARE</font>
         </div>
       </div>
-    </div>
+    {% endif %}
   {% endif %}
+  
+  <div class="row align-items-center justify-content-center">
+    <div class="col">
+    {% for result in component['roots']['results'] %}
+      <div style="display: flex;">
+        <h4 style="font-size: 10pt;">
+          <i class="fa fa-caret-right"></i> {{ result['mapType'] }} 
+          {% if result['plot'] %}
+            <a class="data" data-toggle="collapse" aria-expanded="true" data-target='#{{ result['sortkey'] }}' aria-controls={{ result['sortkey'] }} href='#{{ result['sortkey'] }}' title="Display the plot data">
+              <i class="fa fa-image"></i> 
+            </a>
+          {% endif %}
+			    <a class="data" href="{{ url_for('data_downloader',ModuleName=component['module']['serialNumber'], mapType=result['mapType'])}}" title="Download">
+            <i class="fa fa-download"></i> 
+          </a>
+        </h4>
+      </div>
+      <div class="row align-items-center justify-content-space-evenly collapse" id={{ result['sortkey'] }}>
+        {% if component['roots']['rootsw'] %}
+          {% if result['plot'] %}
+            <div class="col-md-4">
+              {% if result['urlDist'] %}
+              <center>
+                <p> Dist </p>
+                <a href={{result['urlDist']}} target="_brank" rel="noopener noreferrer">
+                  <img src={{result['urlDist']}} title="Dist" width="300" height="300"></img>
+                </a>
+              </center>
+              {% endif %}
+            </div>
+            <div class="col-md-4">
+              {% if result['urlMap'] %}
+              <center>
+                <p> Map </p>
+                <a href={{result['urlMap']}} target="_brank" rel="noopener noreferrer">
+                  <img src={{result['urlMap']}} title="Map" width="300" height="300"></img>
+                </a>
+              </center>
+              {% endif %}
+            </div>
+
+            <div class="col-md-4">
+              {% if result['plot'] %}
+              <center>
+                <table class="table table-sm table-bordered" style="font-size: 8pt;">
+                  <form class="form-holizontal" action="{{ url_for('makehisto', id=component['_id'], runId=result['runId']) }}" method=post class=entries style="font-size:10pt; margin:0px;">  
+                  <input type="hidden" name="mapType" value={{result['mapType']}}>
+                  <thead class="table-dark" style="background: #222222;">
+                    <tr>
+                      <th scope="col" class="text-center" colspan="3">Settings<br>( Dist:x-axis / Map:z-axis )</th>
+                    </tr>
+                    <tr>
+                      <th scope="col" class="text-center">parameter</th>
+                      <th scope="col" class="text-center" width="35%">current</th>
+                      <th scope="col" class="text-center" width="35%">modify</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    <tr>
+                      <td scope="col" class="text-center">Min</td>
+                      <td scope="col" class="text-center">{{result['minValue']}}</td>
+                      <td scope="col" class="text-center">
+                        <input type = "number" class="form-control" name = "min" value = {{result['minValue']}} style="font-size:10pt;">
+                      </td>
+                    </tr>
+                    <tr>
+                      <td scope="col" class="text-center">Max</td>
+                      <td scope="col" class="text-center">{{result['maxValue']}}</td>
+                      <td scope="col" class="text-center">
+                        <input type = "number" class="form-control" name = "max" value = {{result['maxValue']}} style="font-size:10pt;">
+                      </td>
+                    </tr>
+                    <tr>
+                      <td scope="col" class="text-center">Bin</td>
+                      <td scope="col" class="text-center">{{result['binValue']}}</td>
+                      <td scope="col" class="text-center">
+                        <input type = "number" class="form-control" name = "bin" value = {{result['binValue']}} style="font-size:10pt;" min="0">
+                      </td>
+                    </tr>
+                    <tr>
+                      <td scope="col" class="text-center">Scale</td>
+                      <td scope="col" class="text-center">
+                      {% if result['setLog'] %} Log
+                      {% else %} Linear
+                      {% endif %}
+                      </td>
+                      <td scope="col" class="text-center">
+                      {% if result['setLog'] %}
+                      <input type="checkbox" class="form-control" id='L{{result['mapType']}}' name="log" style="margin:0px;padding:0px;" checked>
+                      <label class="label" for='L{{result['mapType']}}'>Log</label>
+                      {% else %}
+                      <input type="checkbox" class="form-control" id='L{{result['mapType']}}' name="log" style="margin:0px;padding:0px;">
+                      <label class="label" for='L{{result['mapType']}}'>Log</label>
+                      {% endif %}
+                      </td>
+                    </tr>
+                    <tr>
+                      <td></td>
+                      <td scope="col" class="text-center">
+              	      <button type="submit" class="btn btn-outline-success btn-block" style="font-size:9pt;border:none;" name="root" value="set">
+                        Set Default 
+                      </button>
+                      </td>
+                      <td scope="col" class="text-center">
+              	      <button type="submit" class="btn btn-outline-success btn-block" style="font-size:9pt;border:none;" name="root" value="make">
+                        Make Histogram
+                      </button>
+                      </td>
+                    </tr>
+                  </tbody>
+                  </form> 
+                </table>
+              </center>
+              {% endif %}
+            </div>
+          {% endif %}
+        {% endif %}
+      </div>
+    {% endfor %}
+    <br>
+    </div>
+  </div>
 {% endif %}

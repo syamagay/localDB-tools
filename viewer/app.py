@@ -44,6 +44,11 @@ logging.config.dictConfig(yaml.load(open('./configs/logging.yml')))
 from controllers.callback   import callback_api
 from controllers.component_dev   import component_dev_api
 
+# For retriever
+from retrievers.component import retrieve_component_api
+from retrievers.testrun import retrieve_testrun_api
+from retrievers.config import retrieve_config_api
+from retrievers.log import retrieve_log_api
 
 if os.path.isdir( TMP_DIR ): 
     shutil.rmtree( TMP_DIR )
@@ -61,6 +66,10 @@ app = Flask( __name__ )
 # Regist Blue Prints
 app.register_blueprint(callback_api)
 app.register_blueprint(component_dev_api)
+app.register_blueprint(retrieve_component_api)
+app.register_blueprint(retrieve_testrun_api)
+app.register_blueprint(retrieve_config_api)
+app.register_blueprint(retrieve_log_api)
 
 # Prefix
 class PrefixMiddleware(object):
@@ -88,8 +97,10 @@ app.config['SECRET_KEY'] = os.urandom(24)
 # MongoDB settings
 if args.username:
     MONGO_URL = 'mongodb://' + args.username + ':' + args.password + '@' + args.host + ':' + str(args.port) 
+    USER_FUNCTION = True
 else:
     MONGO_URL = 'mongodb://' + args.host + ':' + str(args.port) 
+    USER_FUNCTION = False
 url = "mongodb://" + args.host + ":" + str(args.port)
 print("Connecto to mongoDB server: " + url + "/" + args.db)
 mongo     = PyMongo(app, uri=MONGO_URL+'/'+args.db)
@@ -107,18 +118,13 @@ def show_toppage():
     else:
         session['uuid'] = str( uuid.uuid4() ) 
 
-    # timezone
-    timezones = []
-    for tz in pytz.all_timezones:
-        timezones.append(tz)
-    if not 'timezone' in session:
-        session['timezone'] = 'UTC'
+    session['user_function'] = USER_FUNCTION
 
     makeDir()
     cleanDir( STATIC_DIR )
     session.pop( 'signup', None )
 
-    return render_template( 'toppage.html', timezones=timezones )
+    return render_template( 'toppage.html', timezones=setTimezone() )
 
 @app.route('/module', methods=['GET'])
 def show_modules_and_chips():
@@ -175,7 +181,7 @@ def show_modules_and_chips():
         module = sorted( modules[chip_type]['modules'], key=lambda x:x['serialNumber'], reverse=True)
         modules[chip_type]['modules'] = module
 
-    return render_template( 'module.html', modules=modules )
+    return render_template( 'module.html', modules=modules, timezones=setTimezone() )
 
 @app.route('/development', methods=['GET'])
 def show_modules_and_chips_develop():
@@ -237,7 +243,7 @@ def show_modules_and_chips_develop():
         module = sorted( modules[chip_type]['modules'], key=lambda x:x['serialNumber'], reverse=True)
         modules[chip_type]['modules'] = module
 
-    return render_template( 'module.html', modules=modules )
+    return render_template( 'module.html', modules=modules, timezones=setTimezone())
 
 
 # component page 
@@ -265,7 +271,8 @@ def show_component():
     # this module
     query = { '_id': ObjectId(parent_id) }
     this_module = mongo.db.component.find_one( query )
-
+    
+    
     # chips of module
     query = { 'parent': parent_id }
     child_entries = mongo.db.childParentRelation.find( query )
@@ -282,7 +289,7 @@ def show_component():
 
     query = { 'parent': parent_id }
     child_entries = mongo.db.childParentRelation.find( query )
-    queryids = [{'componentId':parent_id}]
+    queryids = [{'componentId':parent_id},{'runId':session['runId']}]
     for child in child_entries:
         queryids.append({'componentId':child['child']})
  
@@ -331,7 +338,7 @@ def show_component():
         'chips'       : component_chips,
         'unit'        : this_cmp['componentType'], 
         'chipType'    : this_cmp['chipType'],
-        'comments_for_component': comments, 
+        'comments': comments, 
         'photoDisplay': photo_display,
         'photoIndex'  : photo_index,
         'photos'      : photos,
@@ -343,7 +350,7 @@ def show_component():
         'dummy'       : False
     }
 
-    return render_template( 'component.html', component=component )
+    return render_template( 'component.html', component=component, timezones=setTimezone() )
 
 # test run page without component
 @app.route('/scan', methods=['GET', 'POST'])
@@ -407,7 +414,7 @@ def show_test():
         }
         scans['run'].append(run_data)
 
-    return render_template( 'scan.html', scans=scans )
+    return render_template( 'scan.html', scans=scans, timezones=setTimezone() )
 
 # component page 
 @app.route('/dummy', methods=['GET', 'POST'])
@@ -434,6 +441,14 @@ def show_dummy():
         '_id': parent_id,
         'serialNumber': 'DummyModule' 
     }
+
+    # get comments for this module
+    query = {'runId':session['runId']}
+    comments=[]
+    comment_entries = mongo.db.comments.find(query)
+    for comment in comment_entries:
+        comments.append(comment)
+  
 
     # chips of module
     component_chips = []
@@ -467,6 +482,7 @@ def show_dummy():
         'chips'       : component_chips,
         'unit'        : cmp_type,
         'chipType'    : '', #TODO
+        'comments'    : comments,
         'photoDisplay': photo_display,
         'photoIndex'  : photo_index,
         'photos'      : photos,
@@ -477,7 +493,7 @@ def show_dummy():
         'dummy'       : True
     }
 
-    return render_template( 'component.html', component=component )
+    return render_template( 'component.html', component=component, timezones=setTimezone() )
 
 # make histogram 
 @app.route('/makehisto', methods=['GET','POST'])
@@ -656,7 +672,7 @@ def select_summary():
                        'resultIndex' : result_index,
                        'stage'       : session['stage'] })
 
-    return render_template( 'add_summary.html', component=component )
+    return render_template( 'add_summary.html', component=component, timezones=setTimezone() )
 
 # write summary into db 
 @app.route('/add_summary', methods=['GET', 'POST'])
@@ -967,7 +983,7 @@ def edit_description():
     elif col == 'component':
         query = { '_id': ObjectId(request.form.get('id')) }
     else:
-        return render_template( 'error.html', txt='something error' )
+        return render_template( 'error.html', txt='something error', timezones=setTimezone() )
     data_entries = mongo.db[ str(col) ].find_one( query )['attachments']
     for data in data_entries:
         if data['code'] == request.form.get( 'code' ):
@@ -980,125 +996,36 @@ def edit_description():
 
     return redirect( url_for(forUrl, id=request.form.get( 'id' )) )
 
-#@app.route('/edit_comment_for_test', methods=['GET','POST'])
-#def edit_comment_for_test():
-#
-#    query = { '_id': ObjectId(request.form.get( 'id' ))}
-#    this_cmp = mongo.db.component.find_one( query )
-#
-#    if this_cmp['componentType'] == 'Module':
-#        query = { 'parent': request.form.get('id') }
-#    else:
-#        query = { 'child': request.form.get('id') }
-#        parentoid = mongo.db.childParentRelation.find_one( query )['parent']
-#        query = { 'parent': parentoid }
-#
-#    child_entries = mongo.db.childParentRelation.find( query )
-#    component_chips = []
-#    for child in child_entries:
-#        component_chips.append({ 'component': child['child'] })
-#
-#    runoid = request.args.get('runId')
-#    query = { '_id': ObjectId(runoid) }
-#    mongo.db.testRun.update( 
-#        query, { 
-#            '$push': { 
-#                'comments': { 
-#                    'comment':request.form.get('text').replace('\r\n','<br>'),
-#                    'name'  :request.form.get('text2'),
-#                    'institution'  :request.form.get('text3'),
-#                    'datetime':datetime.datetime.utcnow() 
-#                } 
-#            }
-#        } 
-#    )
-#    updateData( 'testRun', query )
-#    forUrl = 'show_component'
-#
-#    return redirect( url_for(forUrl, id=request.args.get( 'id' ), runId=request.args.get( 'runId' ) ))
-
-@app.route('/edit_comment_for_test', methods=['GET','POST'])
-def edit_comment_for_test():
-    
-    # this component
-    query = { '_id': ObjectId(session['runId']) }
-    this_test = mongo.db.testRun.find_one( query )
-    if not this_test['dummy']:
-        query = { '_id': ObjectId(session['this']) }
-        this_cmp = mongo.db.component.find_one( query )
-        cmp_type = this_cmp['serialNumber']
-        componentId = request.args.get( 'id' )
-    else:
-        cmp_type = -1
-        componentId = -1
+@app.route('/edit_comment', methods=['GET','POST'])
+def edit_comment():
 
     mongo.db.comments.insert( 
     { 
-        'componentId': componentId,
-        'runId': request.args.get( 'runId' ),
+        'componentId': request.args.get( 'id', -1 ),
+        'runId': request.args.get( 'runId', -1 ),
         'comment':request.form.get('text').replace('\r\n','<br>'),
-        'componentType':cmp_type,
+        'componentType':request.form.get('unit'),
         'name'  :request.form.get('text2'),
         'institution'  :request.form.get('text3'),
-        'datetime':datetime.datetime.utcnow() 
+        'datetime':datetime.utcnow() 
     } 
     )
-
-    if not this_test['dummy']:
-        forUrl = 'show_component'
-    else:
-        forUrl = 'show_dummy'
-
-    return redirect( url_for(forUrl, id=request.args.get( 'id' ), runId=request.args.get( 'runId' ) ))
-
-
-#@app.route('/edit_comment_for_component', methods=['GET','POST'])
-#def edit_comment_for_component():
-#
-#    query = { '_id': ObjectId(request.form.get( 'id' ))}
-#
-#    mongo.db.component.update( 
-#        query, { 
-#            '$push': { 
-#                'comments': { 
-#                    'comment':request.form.get('text').replace('\r\n','<br>'),
-#                    'name'  :request.form.get('text2'),
-#                    'institution'  :request.form.get('text3'),
-#                    'datetime':datetime.datetime.utcnow() 
-#                } 
-#            }
-#        }
-#    )
-#    updateData( 'component', query )
-# 
-#    forUrl = 'show_component'
-#
-#    return redirect( url_for(forUrl, id=request.args.get( 'id' ), runId=request.args.get( 'runId' ) ))
-
-@app.route('/edit_comment_for_component', methods=['GET','POST'])
-def edit_comment_for_component():
     
-    # this component
-    query = { '_id': ObjectId(session['this']) }
-    this_cmp = mongo.db.component.find_one( query )
-    cmp_type = this_cmp['serialNumber']
+    runid = request.args.get( 'runId', -1 )
 
-    mongo.db.comments.insert( 
-        {
-        'componentId': request.form.get( 'id' ),
-        'runId': -1,
-        'comment':request.form.get('text').replace('\r\n','<br>'),
-        'componentType':cmp_type,
-        'name'  :request.form.get('text2'),
-        'institution'  :request.form.get('text3'),
-        'datetime':datetime.datetime.utcnow() 
-        } 
-    )
- 
-    forUrl = 'show_component'
+    if not runid == -1:
+        query = { '_id': ObjectId(runid) }
+        this_test = mongo.db.testRun.find_one( query )
+        
+        if not this_test['dummy']:
+            forUrl = 'show_component'
+        else:
+            forUrl = 'show_dummy'
 
-    return redirect( url_for(forUrl, id=request.args.get( 'id' ), runId=request.args.get( 'runId' ) ))
-
+        return redirect( url_for(forUrl, id=request.args.get( 'id' ), runId=request.args.get( 'runId' ) ))
+    else:
+        forUrl = 'show_component'
+        return redirect( url_for(forUrl, id=request.form.get( 'id' )))
 
 @app.route('/remove_comment', methods=['GET','POST'])
 def remove_comment():
@@ -1180,37 +1107,21 @@ def remove_attachment():
 
 @app.route('/login',methods=['POST'])
 def login():
-
-    query = { 'userName': request.form['username'] }
-    userName = mongo.db.user.find_one( query )
-    try:
-        if hashlib.md5( request.form['password'].encode('utf-8') ).hexdigest() == userName['passWord']:
+    
+    if hashlib.md5( request.form['username'].encode('utf-8') ).hexdigest() == hashlib.md5( args.username.encode('utf-8') ).hexdigest():
+        if hashlib.md5( request.form['password'].encode('utf-8') ).hexdigest() == hashlib.md5( args.password.encode('utf-8') ).hexdigest():
             session['logged_in'] = True
-            session['user_id'] = str(userName['_id'])
-            session['user_name'] = userName['userName']
-            session['institution'] = userName['institution']
-            session['read'] = userName['authority']%2
-            session['write'] = int(userName['authority']/2)%2
-            session['edit'] = int(userName['authority']/4)%2
-        else:
-            txt = 'not match password'
-            return render_template( 'error.html', txt=txt )
-    except:
-        txt = 'not found user'
-        return render_template( 'error.html', txt=txt )
-    return redirect( url_for('show_modules_and_chips') )
+            return redirect( request.headers.get("Referer") )
+    else:
+        txt = 'username or password is not correct'
+        return render_template( 'error.html', txt=txt, timezones=setTimezone() )
+
 
 @app.route('/logout',methods=['GET','POST'])
 def logout():
     session['logged_in'] = False
-    session['user_id'] = ''
-    session['user_name'] = ''
-    session['institution'] = '' 
-    session['read'] = 1
-    session['write'] = 0
-    session['edit'] = 0
 
-    return redirect( url_for('show_modules_and_chips') )
+    return redirect( request.headers.get("Referer") )
 
 @app.route('/signup',methods=['GET','POST'])
 def signup():
@@ -1220,24 +1131,24 @@ def signup():
         if not userinfo[5] == userinfo[6]:
             text = 'Please make sure your passwords match'
             stage = 'input'
-            return render_template( 'signup.html', userInfo=userinfo, passtext=text, stage=stage )
+            return render_template( 'signup.html', userInfo=userinfo, passtext=text, stage=stage, timezones=setTimezone() )
         if mongo.db.user.find({ 'userName': userinfo[0] }).count() == 1 or mongo.db.request.find({ 'userName': userinfo[0] }).count() == 1:
             text = 'The username you entered is already in use, please select an alternative.'
             stage = 'input'
-            return render_template( 'signup.html', userInfo=userinfo, nametext=text, stage=stage )
+            return render_template( 'signup.html', userInfo=userinfo, nametext=text, stage=stage, timezones=setTimezone() )
         else:
             if stage == 'request':
                 addRequest(userinfo)        
                 userinfo = ['','','','','','','']
                 session['signup'] = False
-                return render_template( 'signup.html', userInfo=userinfo, stage=stage )
+                return render_template( 'signup.html', userInfo=userinfo, stage=stage, timezones=setTimezone() )
             else:
-                return render_template( 'signup.html', userInfo=userinfo, stage=stage )
+                return render_template( 'signup.html', userInfo=userinfo, stage=stage, timezones=setTimezone() )
         
     userinfo = ['','','','','','','']
     #stage = 'input'
     session['signup'] = True
-    return render_template( 'signup.html', userInfo=userinfo, stage=stage )
+    return render_template( 'signup.html', userInfo=userinfo, stage=stage, timezones=setTimezone() )
 
 @app.route('/admin',methods=['GET','POST'])
 def admin_page():
@@ -1249,7 +1160,7 @@ def admin_page():
         req.update({ 'authority': 3,
                      'approval': '' }) 
         request.append(req) 
-    return render_template( 'admin.html', request=request, user=user_entries, admin=admin_entries )
+    return render_template( 'admin.html', request=request, user=user_entries, admin=admin_entries, timezones=setTimezone() )
 
 @app.route('/remove_user',methods=['GET','POST'])
 def remove_user():
@@ -1279,8 +1190,7 @@ def add_user():
 def set_time():
     session['timezone'] = request.form.get('timezone')
 
-    return redirect( url_for('show_toppage') )
-    return render_template( 'toppage.html' )
+    return redirect( request.headers.get("Referer") )
 
 if __name__ == '__main__':
-    app.run(host=args.fhost, port=args.fport)
+    app.run(host=args.fhost, port=args.fport, threaded=True)
