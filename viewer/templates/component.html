@@ -123,8 +123,7 @@
           {% include "summary_index.html" %}
         {% endif %}
 
-        {% if component['results'] == {} %}
-        {% else %}
+        {% if not component['results'] == {} %}
           {% include "result.html" %}
         {% endif %}
         {% include "root.html" %}

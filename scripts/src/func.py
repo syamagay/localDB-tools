@@ -774,6 +774,7 @@ def makePlot(cmpoid, runoid):
     query = { '_id': ObjectId(runoid) }
     this_run = localdb.testRun.find_one( query )
     if session.get('rootType'):
+        root.uuid = str(session.get('uuid','localuser'))
         maptype = session['mapType']
         if session['rootType'] == 'set':
             root.setParameter( this_run['testType'], maptype, session['plotList'] )
@@ -809,15 +810,17 @@ def makePlot(cmpoid, runoid):
         for chipoid in chipoids:
             writeDat( chipoid, runoid )
 
-    for maptype in this_run.get('plots',[]):
-        if not session['plotList'][maptype]['draw']: continue
-        session['plotList'][maptype]['filled'] = False
-        chipids = session['plotList'][maptype]['chipIds']
-        for chipid in chipids:
-            session['plotList'] = root.fillHisto(this_run['testType'], maptype, int(chipid), session['plotList'])
-        if session['plotList'][maptype]['filled']:
-            root.outHisto(this_run['testType'], maptype, session['plotList'])
-        session['plotList'][maptype]['draw'] = False
+    if DOROOT:
+        root.uuid = str(session.get('uuid','localuser'))
+        for maptype in this_run.get('plots',[]):
+            if not session['plotList'][maptype]['draw']: continue
+            session['plotList'][maptype]['filled'] = False
+            chipids = session['plotList'][maptype]['chipIds']
+            for chipid in chipids:
+                session['plotList'] = root.fillHisto(this_run['testType'], maptype, int(chipid), session['plotList'])
+            if session['plotList'][maptype]['filled']:
+                root.outHisto(this_run['testType'], maptype, session['plotList'])
+            session['plotList'][maptype]['draw'] = False
 
     session.pop('rootType',  None)
     session.pop('mapType',   None)
@@ -832,40 +835,46 @@ def setRoots():
 
     if not session.get('runId'): return roots
 
-    if not DOROOT:
-        roots.update({'rootsw': False})
-        return roots
-
-    root.uuid = str(session.get('uuid','localuser'))
     makePlot( session['this'], session['runId'] )
     query = { '_id': ObjectId(session['runId']) }
     this_run = localdb.testRun.find_one(query)
 
     results = []
     for maptype in this_run.get('plots',[]):
-        if not session['plotList'][maptype].get('HistoType') == 2: continue
-        url = {} 
-        for i in ['1', '2']:
-            filename = TMP_DIR + '/' + str(session.get('uuid','localuser')) + '/plot/' + str(this_run['testType']) + '_' + str(maptype) + '_{}.png'.format(i)
-            if os.path.isfile(filename):
-                binary_image = open(filename, 'rb')
-                code_base64 = base64.b64encode(binary_image.read()).decode()
-                binary_image.close()
-                url.update({i: bin2image('png', code_base64)}) 
-        results.append({ 'mapType' : maptype, 
-                         'sortkey' : '{}0'.format(maptype), 
-                         'runId'   : session['runId'],
-                         'urlDist' : url.get('1'), 
-                         'urlMap'  : url.get('2'), 
-                         'setLog'  : session['plotList'][maptype]['parameter']['log'], 
-                         'minValue': session['plotList'][maptype]['parameter']['min'],
-                         'maxValue': session['plotList'][maptype]['parameter']['max'],
-                         'binValue': session['plotList'][maptype]['parameter']['bin']})
+        result = {
+            'mapType' : maptype,
+            'sortkey' : '{}0'.format(maptype),
+            'runId'   : session['runId'],
+            'plot'    : False
+        }
+        if session['plotList'][maptype].get('HistoType') == 2:
+            url = {} 
+            for i in ['1', '2']:
+                filename = TMP_DIR + '/' + str(session.get('uuid','localuser')) + '/plot/' + str(this_run['testType']) + '_' + str(maptype) + '_{}.png'.format(i)
+                if os.path.isfile(filename):
+                    binary_image = open(filename, 'rb')
+                    code_base64 = base64.b64encode(binary_image.read()).decode()
+                    binary_image.close()
+                    url.update({i: bin2image('png', code_base64)}) 
+            result.update({
+                'plot'    : True,
+                'setLog'  : session['plotList'][maptype]['parameter']['log'], 
+                'minValue': session['plotList'][maptype]['parameter']['min'],
+                'maxValue': session['plotList'][maptype]['parameter']['max'],
+                'binValue': session['plotList'][maptype]['parameter']['bin'],
+                'urlDist' : url.get('1'),
+                'urlMap'  : url.get('2')
+            })
+        results.append(result)
 
     results = sorted(results, key=lambda x:int((re.search(r'[0-9]+',x['sortkey'])).group(0)), reverse=True)
 
-    roots.update({ 'rootsw' : True,
-                   'results': results})
+    if DOROOT:
+        roots.update({'rootsw': True})
+    else:
+        roots.update({'rootsw': False})
+
+    roots.update({'results': results})
 
     return roots
 

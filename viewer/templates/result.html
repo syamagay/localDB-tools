@@ -62,39 +62,35 @@
   </div>
 </div>
 
-  <h4 style="font-size: 10pt;"><i class="fa fa-file"></i> Config </h4>
- 
+<h4 style="font-size: 10pt;"><i class="fa fa-file"></i> Config 
+</h4>
+
+<div class="row align-items-top">
+  <div class="col">
   {% for key in component['results']['config'] %}
-  <div class="row align-items-top">
-    <div class="col">
-      {% if component['results']['config'][key] == {} %}
-        <h4 style="font-size: 10pt;"><i class="fa fa-caret-right"></i>{{key}}:{{ component['results']['config'][key]['filename'] }} No File</h4>
-      {% else %}
+    {% if not component['results']['config'][key] == {} %}
+    <div style="display: flex;">
+      <h4 style="font-size: 10pt;">
+        <i class="fa fa-caret-right"></i> {{key}}:{{ component['results']['config'][key]['filename'] }}
         {% if component['unit'] == 'Module' %}
-          {% if key == 'beforeCfg' or key == 'afterCfg' %}
-            <h4 style="font-size: 10pt;"><i class="fa fa-caret-right"></i>{{key}}:{{ component['results']['config'][key]['filename'] }}
-				    <a class="root" href="{{ url_for('config_downloader',ModuleName=component['module']['serialNumber'], configType=key) }}" title="Download"><i class="fa fa-download"></i></a>
-            </h4>
-          {% else %}
-            <h4 style="font-size: 10pt;"><i class="fa fa-caret-right"></i>
-            <a href="{{ url_for('download_config', code=component['results']['config'][key]['code']) }}" target="_brank" rel="noopener noreferrer">
-            {{key}}:{{ component['results']['config'][key]['filename'] }}
+          {% if not key == 'beforeCfg' and not key == 'afterCfg' %}
+            <a class="data" href="{{ url_for('download_config', code=component['results']['config'][key]['code']) }}" target="_brank" rel="noopener noreferrer" title="Display json data">
+              <i class="fa fa-external-link-square"></i> 
             </a> 
-				    <a class="root" href="{{ url_for('config_downloader',ModuleName=component['module']['serialNumber'], configType=key) }}" title="Download"><i class="fa fa-download"></i></a>
-            </h4>
           {% endif %}
         {% else %}
-            <h4 style="font-size: 10pt;"><i class="fa fa-caret-right"></i>
-            <a href="{{ url_for('download_config', code=component['results']['config'][key]['code']) }}" target="_brank" rel="noopener noreferrer">
-            {{key}}:{{ component['results']['config'][key]['filename'] }}
-            </a> 
-				    <a class="root" href="{{ url_for('config_downloader',ModuleName=component['module']['serialNumber'], configType=key) }}" title="Download"><i class="fa fa-download"></i></a>
-            </h4>
+          <a class="data" href="{{ url_for('download_config', code=component['results']['config'][key]['code']) }}" target="_brank" rel="noopener noreferrer" title="Display json data">
+            <i class="fa fa-external-link-square"></i> 
+          </a> 
         {% endif %}
+    	  <a class="data" href="{{ url_for('config_downloader',ModuleName=component['module']['serialNumber'], configType=key) }}" title="Download">
+          <i class="fa fa-download"></i> 
+        </a>
         <!-- ( {{ component['results']['config'][key]['configid'] }} ) -->
-      {% endif %}
-
-      <br>		
+      </h4>
     </div>
-  </div>
+    {% endif %}
   {% endfor %}
+  <br>
+  </div>
+</div>
