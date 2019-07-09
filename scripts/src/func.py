@@ -991,6 +991,7 @@ def make_dcsplot(runId):
     session['dcsList']=dcs_plot.dcs_plot(DCS_data_block,startTime,finishTime,session['dcsList'])
 def setDCS():
     dcs_data={}
+    session['dcsList']={}
     DCS_DIR  = TMP_DIR + '/' + str(session.get('uuid','localuser')) + '/dcs'
 
     cleanDir(DCS_DIR)
@@ -1000,7 +1001,6 @@ def setDCS():
         dcs_data.update({'dcssw': False})
         return dcs_data
 
-    if not session.get( 'dcsList' ) : session['dcsList']={}
     if not session.get( 'dcsStat' ) : session['dcsStat']={}
     if not session['dcsStat'].get('runId') == session.get('runId'):
         session['dcsStat']={}
