@@ -994,12 +994,12 @@ def setDCS():
     DCS_DIR  = TMP_DIR + '/' + str(session.get('uuid','localuser')) + '/dcs'
 
     cleanDir(DCS_DIR)
-    
+
+    if not session.get( 'runId' ) : return dcs_data    
     if not DODCS :
         dcs_data.update({'dcssw': False})
         return dcs_data
 
-    if not session.get( 'runId' ) : return dcs_data
     if not session.get( 'dcsList' ) : session['dcsList']={}
     if not session.get( 'dcsStat' ) : session['dcsStat']={}
     if not session['dcsStat'].get('runId') == session.get('runId'):

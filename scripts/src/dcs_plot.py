@@ -8,7 +8,6 @@ from datetime import datetime
 import time
 from flask import session 
 
-
 import ROOT
 ROOT.gROOT.SetBatch()
 canvas=ROOT.TCanvas('canvas','')
