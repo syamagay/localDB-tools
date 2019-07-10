@@ -81,7 +81,6 @@
 <h4 style="font-size: 10pt;"><i class="fa fa-paint-brush"></i> DCS_DATA </h4>
 {% if component['dcs']['dcssw'] %}
 {% if component['dcs']['dcs_data_exist'] %}
-
 {% for result in component['dcs']['results']['iv'] %}
 <div style="display: flex;">
   <h4 style="font-size: 10pt;">
@@ -250,16 +249,23 @@
     
 </div>
 {% endfor %}
+<!-- description about red region -->
+<div class="col">
+  <font color="#ff0000" size="2"><p style="text-align:right">Red region is runtime</p></font>
+</div>
+ 
 
 <p>{{component['runId']}}</p>
 <table class="table table-sm table-bordered" style="font-size: 8pt;">
-  <form class="form-time" action="{{ url_for('make_dcsGraph', id=component['_id'], runId=component['dcs']['results']['stat']['runId']) }}" method=post class=entries style="font-size:10pt; margin:0px;">  
+  <form class="form-time" action="{{ url_for('make_dcsGraph', id=component['_id'], runId=component['dcs']['results']['stat']['runId']) }}" method=post class=entries style="font-size:10pt; margin:0px;">
+    <input type = "hidden" name = "start_timezone" value = {{component['dcs']['results']['stat']['timeRange']['start']['tzone']}}>  
+    <input type = "hidden" name = "end_timezone" value = {{component['dcs']['results']['stat']['timeRange']['end']['tzone']}}>  
     <thead class="table-dark" style="background: #222222;">
       <tr>
-        <th scope="col" class="text-center" colspan="9">Setting time range for all DCS PLOT ( Start/End : time-axis )</th>
+        <th scope="col" class="text-center" colspan="10">Setting time range for all DCS PLOT ( Start/End : time-axis )</th>
       </tr>
       <tr>
-        <th scope="col" class="text-center" width="15%">parameter</th>
+        <th scope="col" class="text-center" width="10%">parameter</th>
 	<th scope="col" class="text-center" width="15%">RunTime</th>
         <th scope="col" class="text-center" width="15%">current</th>
         <th scope="col" class="text-center" >year</th>
@@ -268,6 +274,7 @@
 	<th scope="col" class="text-center" >hour</th>
 	<th scope="col" class="text-center" >minute</th>
         <th scope="col" class="text-center" >second</th>
+        <th scope="col" class="text-center" >timezone</th>
 	
       </tr>
     </thead>
@@ -294,6 +301,10 @@
 	<td scope="col" class="text-center">
           <input type = "number" class="form-control" name = "start_second" value = {{component['dcs']['results']['stat']['timeRange']['start']['second']}} style="font-size:10pt;" max="59" min="0" step="1">
         </td>
+	<td scope="col" class="text-center">
+	  {{component['dcs']['results']['stat']['timeRange']['end']['tzone']}}
+        </td>
+
       </tr>
       <tr>
         <td scope="col" class="text-center">End</td>
@@ -317,6 +328,10 @@
 	<td scope="col" class="text-center">
           <input type = "number" class="form-control" name = "end_second" value = {{component['dcs']['results']['stat']['timeRange']['end']['second']}} style="font-size:10pt;" max="59" min="0" step="1">
         </td>
+	<td scope="col" class="text-center">
+	  {{component['dcs']['results']['stat']['timeRange']['end']['tzone']}}
+        </td>
+
       </tr>
 
       <tr>
@@ -342,7 +357,7 @@
 <div class="row align-items-top justify-content-center">
   <div class="col">
     <div class="row align-items-top justify-content-center">
-      <font "color=#ff0000 size=2">NO DCS DATA</font>
+      <font color="#ff0000" size="2">NO DCS DATA</font>
     </div>
   </div>
 </div>
@@ -353,7 +368,7 @@
 <div class="row align-items-top justify-content-center">
   <div class="col">
     <div class="row align-items-top justify-content-center">
-      <font "color=#ff0000 size=2">NO ROOT SOFTWARE</font>
+      <font color="#ff0000" size="2">NO ROOT SOFTWARE</font>
     </div>
   </div>
 </div>

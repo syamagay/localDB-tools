@@ -8,6 +8,7 @@ from datetime import datetime
 import time
 from flask import session 
 
+
 import ROOT
 ROOT.gROOT.SetBatch()
 canvas=ROOT.TCanvas('canvas','')
@@ -80,7 +81,8 @@ class DCS_type(object):
         except :
             data=None
         else :
-            data_time=time.mktime(self.__dcs_data[key][0]['data'][i]['date'].timetuple())
+            data_time=self.__dcs_data[key][0]['data'][i]['date']
+            data_time=time.mktime(data_time.timetuple())
         return data_time, data
     def set_RunTime(self, start, finish):
         self.startTime=start
@@ -121,7 +123,7 @@ def make_Graph(DCS, key, num):
             data_min=data
         i_Entry=i_Entry+1
     g.SetName(key)
-    g.SetTitle(key+';'+'time'+';'+DCS.get_description(key,num))
+    g.SetTitle(key+';'+'time(UTC)'+';'+DCS.get_description(key,num))
 
     if session['dcsStat'].get( key ) :
         y_min=float(session['dcsStat'][key].get('min'))

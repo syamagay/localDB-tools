@@ -154,6 +154,12 @@ def setTime(date):
     time = converted_time.strftime('%Y/%m/%d %H:%M:%S')
     return time
 
+def setDatetime(date):
+    zone = session.get('timezone','UTC')
+#    zone = 'Asia/Tokyo'
+    converted_time = date.replace(tzinfo=timezone.utc).astimezone(pytz.timezone(zone))
+    return converted_time
+
 def setTimezone():
     # timezone
     timezones = []
@@ -1059,11 +1065,11 @@ def setDCS():
                                               'step'    : session['dcsList'][dcsType].get('step')
                                           })
     timeRange=[]
-    timeRange.append(datetime.fromtimestamp(session['dcsStat'].get('timeRange')[0]))
-    timeRange.append(datetime.fromtimestamp(session['dcsStat'].get('timeRange')[1]))
+    timeRange.append(setDatetime(datetime.fromtimestamp(session['dcsStat'].get('timeRange')[0])))
+    timeRange.append(setDatetime(datetime.fromtimestamp(session['dcsStat'].get('timeRange')[1])))
 
-    results['stat']={ 'RunTime'  : { 'start'  : datetime.fromtimestamp(session['dcsStat']['RunTime'][0]),
-                                     'finish' : datetime.fromtimestamp(session['dcsStat']['RunTime'][1])
+    results['stat']={ 'RunTime'  : { 'start'  : setDatetime(datetime.fromtimestamp(session['dcsStat']['RunTime'][0])),
+                                     'finish' : setDatetime(datetime.fromtimestamp(session['dcsStat']['RunTime'][1]))
                                  },
                       'runId'    : session.get('runId'),
                       'timeRange': { 'start' : { 'year'  : timeRange[0].strftime('%Y'),
@@ -1071,18 +1077,20 @@ def setDCS():
                                                  'day'   : timeRange[0].strftime('%d'),
                                                  'hour'  : timeRange[0].strftime('%H'),
                                                  'minute': timeRange[0].strftime('%M'),
-                                                 'second': timeRange[0].strftime('%S')
+                                                 'second': timeRange[0].strftime('%S'),
+                                                 'tzone' : timeRange[0].strftime('%z')
                                              },
                                      'end'   : { 'year'  : timeRange[1].strftime('%Y'),
                                                  'month' : timeRange[1].strftime('%m'),
                                                  'day'   : timeRange[1].strftime('%d'),
                                                  'hour'  : timeRange[1].strftime('%H'),
                                                  'minute': timeRange[1].strftime('%M'),
-                                                 'second': timeRange[1].strftime('%S')
+                                                 'second': timeRange[1].strftime('%S'),
+                                                 'tzone' : timeRange[0].strftime('%z')
                                              }
                       },
-                      'unixtimeR': { 'start' : datetime.fromtimestamp(session['dcsStat'].get('timeRange')[0]),
-                                     'end'   : datetime.fromtimestamp(session['dcsStat'].get('timeRange')[1])
+                      'unixtimeR': { 'start' : setDatetime(datetime.fromtimestamp(session['dcsStat'].get('timeRange')[0])),
+                                     'end'   : setDatetime(datetime.fromtimestamp(session['dcsStat'].get('timeRange')[1]))
                       }
     }
     dcs_data.update({'dcssw'          : True,

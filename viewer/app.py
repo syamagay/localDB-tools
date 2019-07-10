@@ -537,6 +537,7 @@ def make_dcsGraph() :
                                                    'step': request.form.get( 'step')}
                                     })
     if session['dcsplotType']=='make_TimeRange' :
+        start_timezone = request.form.get('start_timezone')
         start_year = request.form.get('start_year')
         start_month= request.form.get('start_month')
         start_day  = request.form.get('start_day')
@@ -544,6 +545,7 @@ def make_dcsGraph() :
         start_min  = request.form.get('start_minute')
         start_sec  = request.form.get('start_second')
 
+        end_timezone = request.form.get('end_timezone')
         end_year = request.form.get('end_year')
         end_month= request.form.get('end_month')
         end_day  = request.form.get('end_day')
@@ -551,8 +553,10 @@ def make_dcsGraph() :
         end_min  = request.form.get('end_minute')
         end_sec  = request.form.get('end_second')
 
-        start=datetime.strptime('{0}-{1}-{2}T{3}:{4}:{5}'.format(start_year,start_month,start_day,start_hour,start_min,start_sec),'%Y-%m-%dT%H:%M:%S')
-        end=datetime.strptime('{0}-{1}-{2}T{3}:{4}:{5}'.format(end_year,end_month,end_day,end_hour,end_min,end_sec),'%Y-%m-%dT%H:%M:%S')
+        start=datetime.strptime('{0}-{1}-{2}T{3}:{4}:{5} {6}'.format(start_year,start_month,start_day,start_hour,start_min,start_sec,start_timezone),'%Y-%m-%dT%H:%M:%S %z').astimezone(pytz.timezone('UTC'))
+#        start=datetime.strptime(setTime(start),'%Y/%m/%d %H:%M:%S')
+        end=datetime.strptime('{0}-{1}-{2}T{3}:{4}:{5} {6}'.format(end_year,end_month,end_day,end_hour,end_min,end_sec,end_timezone),'%Y-%m-%dT%H:%M:%S %z').astimezone(pytz.timezone('UTC'))
+#        end=datetime.strptime(setTime(end),'%Y/%m/%d %H:%M:%S')
 
         session['dcsStat'].update({ 'timeRange' : [time.mktime(start.timetuple()),
                                                    time.mktime(end.timetuple())
