@@ -13,7 +13,7 @@ import ROOT
 ROOT.gROOT.SetBatch()
 canvas=ROOT.TCanvas('canvas','')
 
-from scripts.src.PlotTools import pyPlot as plt
+#from scripts.src.PlotTools import pyPlot as plt
 
 dcs_key_list=[
     'vddd',
