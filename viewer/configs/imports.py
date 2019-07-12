@@ -1,4 +1,6 @@
+#-----------------------------------------------------------------
 # Default modules
+#-----------------------------------------------------------------
 import os, sys, datetime
 import hashlib
 import shutil
@@ -34,15 +36,19 @@ from PIL              import Image
 # Import Yaml
 import yaml
 
-sys.path.append( os.path.dirname(os.path.dirname(os.path.abspath(__file__)) ) )
+# Pass command line arguments into python script
+import argparse
 
+#-----------------------------------------------------------------
 # Will be replaced by ?
+#-----------------------------------------------------------------
 from scripts.src      import listset
 from scripts.src      import static
 from scripts.src.func import *
 
 
 #-----------------------------------------------------------------
-# Controllers
+# Controllers Blue Prints
 #-----------------------------------------------------------------
-from controllers        import *
+from controllers.callback   import callback_api
+from controllers.component_dev   import component_dev_api

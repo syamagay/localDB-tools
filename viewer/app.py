@@ -7,7 +7,7 @@
 # Usage: python app.py --config conf.yml 
 # Date: Feb 2019
 ################################
-from configs import *
+from configs.imports import *
 
 # module
 import os
@@ -30,18 +30,10 @@ from PIL              import Image
 
 sys.path.append( os.path.dirname(os.path.dirname(os.path.abspath(__file__)) ) )
 
-from scripts.src      import listset
-from scripts.src      import static
-from scripts.src.func import *
-
 # Config python logging
 # https://stackoverflow.com/questions/17743019/flask-logging-cannot-get-it-to-write-to-a-file
 import logging, logging.config
 logging.config.dictConfig(yaml.load(open('./configs/logging.yml')))
-
-# Blue Prints
-from controllers.callback   import callback_api
-from controllers.component_dev   import component_dev_api
 
 
 if os.path.isdir( TMP_DIR ): 
