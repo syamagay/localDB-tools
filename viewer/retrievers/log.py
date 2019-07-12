@@ -16,7 +16,10 @@ def retrieve_log():
     return_json = {}
 
     run_query = {}
-    if 'serialNumber' in request.args: 
+    log_query = {}
+    if request.args['dummy'] == True:
+        log_query.update({'dummy': True})
+    elif request.args.get('serialNumber',None): 
         query = { 'serialNumber': request.args['serialNumber'] }
         this_cmp = mongo.component.find_one( query )
         if not this_cmp:
@@ -26,29 +29,26 @@ def retrieve_log():
             }
             return jsonify(return_json)
         run_query.update({ 'component': str(this_cmp['_id']) })
-    test_info_list = [ 'testType', 'runNumber' ]
-    for test_info in test_info_list:
-        if test_info in request.args:
-            run_query.update({ test_info: request.args[test_info] }) 
 
-    run_entries = mongo.componentTestRun.find( run_query )
-    runids = []
-    for run_entry in run_entries:
-        runids.append({ '_id': ObjectId(run_entry['testRun']) })
+    if not run_query == {}:
+        run_entries = mongo.componentTestRun.find(run_query)
+        run_oids = []
+        for run_entry in run_entries:
+            run_oids.append({ '_id': ObjectId(run_entry['testRun']) })
+        log_query.update({ '$or': run_oids })
 
-    log_query = { '$or': runids } 
-
-    if 'userName' in request.args:
-        query = { 'userName': request.args['userName'] }
+    if request.args.get('user',None):
+        query = { 'userName': request.args['user'] }
         this_user = mongo.user.find_one( query )
         if not this_user:
             return_json = {
-                'message': 'Not found user data: {}'.format(request.args['userName']),
+                'message': 'Not found user data: {}'.format(request.args['user']),
                 'error': True
             }
             return jsonify(return_json)
         log_query.update({ 'user_id': str(this_user['_id']) })
-    if 'site' in request.args:
+
+    if request.args.get('site',None):
         query = { 'institution': request.args['site'] }
         this_site = mongo.user.find_one( query )
         if not this_site:
@@ -59,8 +59,7 @@ def retrieve_log():
             return jsonify(return_json)
         log_query.update({ 'address': str(this_site['_id']) })
 
-    limit = request.args.get('limit',100)
-    run_entries = mongo.testRun.find( log_query ).sort([( '$natural', -1 )] ).limit(limit)
+    run_entries = mongo.testRun.find( log_query ).sort([( '$natural', -1 )])
 
     return_json = { 'log': [] }
     for run_entry in run_entries:

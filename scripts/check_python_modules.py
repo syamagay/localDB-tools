@@ -12,13 +12,13 @@ import os, sys
 import pkg_resources
 
 module_names = []
-requirement_file = "../setting/requirements-pip.txt"
+requirement_file = os.path.dirname(os.path.abspath(__file__))+"/../setting/requirements-pip.txt"
 if os.path.isfile(requirement_file):
     for line in open(requirement_file):
         if line[0] != '#':
             module_names.append(line.strip())
 else:
-    print("ERROR! Cannot open 'requirements.txt'")
+    print("ERROR! Cannot open 'requirements-pip.txt'")
     exit(1)
 
 print("[LDB] Welcome to Local Database Tools!")

@@ -265,6 +265,7 @@ def registerTestRun(i_doc):
         'finishTime'  : finish_time,
         'plots'       : [], 
         'serialNumber': i_doc['serialNumber'],
+        'chipType'    : '...',
         'dummy'       : False,
         'stage'       : '...', 
         'ctrlCfg'     : '...', 
@@ -758,7 +759,13 @@ def convert():
                         # stage
                         addStage(thisComponentTestRun.get('stage',''), new_thisRun['stage'], new_trid)
                         addStage(thisRun.get('stage',''), new_thisRun['stage'], new_trid)
-
+                        # chiptype
+                        if new_thisRun['chipType'] == '...':
+                            localdb.testRun.update(
+                                new_tr_query,
+                                {'$set': {'chipType': chip_type }}
+                            )
+                            new_thisRun = localdb.testRun.find_one( new_tr_query )
                         # environment
                         if (not thisComponentTestRun.get('environments',[]) == []) and new_thisRun['environment'] == '...':
                             env_id = registerEnvFromCtr(thisComponentTestRun, new_thisRun['startTime'])
@@ -766,6 +773,7 @@ def convert():
                                 new_tr_query,
                                 {'$set': {'environment': env_id}}   
                             )
+                            new_thisRun = localdb.testRun.find_one( new_tr_query )
                         # controller config
                         if 'ctrlCfg' in thisRun and new_thisRun['ctrlCfg'] == '...':
                             ctrl_id = registerConfigFromJson(thisRun['ctrlCfg'])
@@ -773,6 +781,7 @@ def convert():
                                 new_tr_query,
                                 {'$set': {'ctrlCfg': ctrl_id}}
                             )
+                            new_thisRun = localdb.testRun.find_one( new_tr_query )
                         # scan config
                         if 'scanCfg' in thisRun and new_thisRun['scanCfg'] == '...':
                             scan_id = registerConfigFromJson(thisRun['scanCfg'])
@@ -780,6 +789,7 @@ def convert():
                                 new_tr_query,
                                 {'$set': {'scanCfg': scan_id}}
                             )
+                            new_thisRun = localdb.testRun.find_one( new_tr_query )
                         attachments = thisComponentTestRun.get('attachments',[])
                         for attachment in attachments: 
                             title = registerDatFromDat(attachment, new_ctrid)
