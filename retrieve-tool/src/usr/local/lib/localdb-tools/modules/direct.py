@@ -266,12 +266,16 @@ def __checkout(args, serialnumber=None, runid=None):
         'serialNumber': this_run['serialNumber'],
         'user'        : this_user['userName'],
         'site'        : this_site['institution'],
+        'chipId'      : {},
         'geomId'      : {},
         'tx'          : {},
         'rx'          : {}
     }
+    cnt = 1
     for run in run_entries:
-        test_data['geomId'][run['component']] = run['geomId']
+        test_data['chipId'][run['component']] = run.get('chipId',-1)
+        test_data['geomId'][run['component']] = run.get('geomId',cnt)
+        if not 'geomId' in run: cnt=cnt+1
         test_data['tx'][run['component']] = run['tx']
         test_data['rx'][run['component']] = run['rx']
  
@@ -324,6 +328,7 @@ def __checkout(args, serialnumber=None, runid=None):
             })
         for chip in chip_data:
             chip_json = {
+                'chipId': test_data['chipId'][chip['component']],
                 'geomId': test_data['geomId'][chip['component']],
                 'config': test_data['path'][chip['component']],
                 'tx': test_data['tx'][chip['component']],

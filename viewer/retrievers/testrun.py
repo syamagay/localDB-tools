@@ -32,12 +32,14 @@ def retrieve_testrun():
         'serialNumber': this_run['serialNumber'],
         'user': this_user['userName'],
         'site': this_site['institution'],
+        'chipId': {},
         'geomId': {},
         'tx': {},
         'rx': {}
     }
     for run in run_entries:
-        return_json['geomId'][run['component']] = run['geomId']
+        return_json['chipId'][run['component']] = run.get('chipId',-1)
+        return_json['geomId'][run['component']] = run.get('geomId',-1)
         return_json['tx'][run['component']] = run['tx']
         return_json['rx'][run['component']] = run['rx']
  
