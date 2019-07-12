@@ -8,10 +8,11 @@
 #################################
 
 from __future__ import print_function # Use print() in python2 and 3
-import os, sys, imp
+import os, sys
+import pkg_resources
 
 module_names = []
-requirement_file = "../requirements.txt"
+requirement_file = "../setting/requirements-pip.txt"
 if os.path.isfile(requirement_file):
     for line in open(requirement_file):
         if line[0] != '#':
@@ -42,13 +43,16 @@ def checkPythonModule():
     print("[LDB] Check python modules: ")
     founds = []
     
+    packages = []
+    for dist in pkg_resources.working_set:
+        packages.append(dist.project_name)
+
     for module_name in module_names:
-        try:
-            imp.find_module(module_name)
+        if module_name in packages:
             founds.append(True)
-        except ImportError:
+        else:
             founds.append(False)
-    
+
     for idx, module_name in enumerate(module_names):
         if idx == 0:
             print("\t" + module_names[idx] + "...", end = "")

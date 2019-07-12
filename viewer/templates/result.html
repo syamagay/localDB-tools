@@ -4,121 +4,93 @@
       <h4 style="font-size: 13pt;"><i class="fa fa-cog"></i> Result</h4>
       <thead class="table-dark" style="background: #222222;">
         <tr>
-          <th scope="col" class="text-center" rowspan="2">Run Number</th>
-          <th scope="col" class="text-center" rowspan="2">Test Type</th>
-          <th scope="col" class="text-center" rowspan="2">Stage</th>
-          <th scope="col" class="text-center" colspan="2">Shifterr</th>
-        </tr>
-        <tr>
-          <th scope="col" class="text-center" width="200">Institution</th>
-          <th scope="col" class="text-center" width="200">UserIdentity</th>
+          <th scope="col" class="text-center">Date</th>
+          <th scope="col" class="text-center">Run Number</th>
+          <th scope="col" class="text-center">Test Type</th>
+          <th scope="col" class="text-center">Stage</th>
+          <th scope="col" class="text-center" width="200">Site</th>
+          <th scope="col" class="text-center" width="200">User Name</th>
         </tr>
       </thead>
       <tbody>
         <tr>
+          <td scope="col" align="center" >{{ component['results']['datetime'] }}</td>
           <td scope="col" align="center" >{{ component['results']['runNumber'] }}</td>
           <td scope="col" align="center" >{{ component['results']['testType'] }}</td>
           <td scope="col" align="center" >{{ component['results']['stage'] }}</td>
-          <td scope="col" align="center" >{{ component['results']['institution'] }}</td>
-          <td scope="col" align="center" >{{ component['results']['userIdentity'] }}</td>
+          <td scope="col" align="center" >{{ component['results']['site'] }}</td>
+          <td scope="col" align="center" >{{ component['results']['userIdentity'] }}({{ component['results']['institution'] }})</td>
         </tr>
-        {% set index = [] %}
-        {% for comment in component['results']['comments'] %}
-          {% if comment['userid'] == session['user_id'] %}
-            {% set index = index.append(loop.index-1) %}
-          {% endif %}
-        {% endfor %}
-        {% for comment in component['results']['comments'] %}
-          {% if not comment['userid'] == session['user_id'] %}
-          {% else %}
-            <tr>
-              <td scope="col" align="center" colspan="4">{{ comment['comment'] }}</td>
-              <td scope="col" align="center" >
-                {{ comment['user'] }}
-                {% if (session['edit'] == 1) and (comment['institution'] == session['institution']) %}
-             		  <form action="remove_comment" method="post" enctype="multipart/form-data">
-                  	<input type="hidden" value="{{ comment['user'] }}" name="user">
-                    <input type="hidden" name="runNumber" value={{ component['results']['runNumber'] }} >
-                    <input type="hidden" name="id" value={{ component['_id'] }} >
-                    <p><input type = "submit" value = "remove"></p>
-                  </form>
-                {% endif %}
-              </td>
-            </tr>
-          {% endif %}
-        {% endfor %}
-        {% if index == [] %}
-          {% if session['write'] == 1 %}
-            <tr>
-        		  <form action="edit_comment" method="post" enctype="multipart/form-data">
-                <td scope="col" align="center" colspan="4">
-                  <input type = "txt" class="form-control input-normal" placeholder="comment" name = "text">
-                </td>
-                <td scope="col" align="center middle" >
-           		    <input type="hidden" value="{{ session['user_name'] }}" name="user">
-                  {{ session['user_name'] }}
-                  <input type="hidden" name="runNumber" value={{ component['results']['runNumber'] }} >
-                  <input type="hidden" name="id" value={{ component['_id'] }} >
-                  <p><input type = "submit" value = "update"></p>
-                {% if session['edit'] == 1 %}
-                  <p><input type = "submit" value = "remove" formaction="remove_comment"></p>
-                {% endif %}
-                </td>
-              </form>
-            </tr>
-          {% endif %}
-        {% endif %}
       </tbody>
     </table>
+  <!-- <table class="table table-sm table-bordered" style="font-size: 8pt;">
+      <h4 style="font-size: 13pt;"><i class="fa fa-cog"></i> Comments</h4>
+      <thead class="table-dark" style="background: #222222;">
+          <tr>
+            <th scope="col" class="text-center" colspan="2">Comment</th>
+            <th scope="col" width=100 class="text-center">Name</th>
+            <th scope="col" width=100 class="text-center">Institution</th>
+            <th scope="col" width=100 class="text-center">Date</th>
+          </tr>
+      </thead>
+      <tbody>
+          {% for comment in component['results']['comments']%}
+            <tr>
+              <th scope="col" class="text-left" colspan="2"><h4 style="font-size: 8pt;">{{ comment['comment'] | safe }}</h4></th>
+              <th scope="col" class="text-center"><h4 style="font-size: 8pt;">{{ comment['name'] }}</h4></th>
+              <th scope="col" class="text-center"><h4 style="font-size: 8pt;">{{ comment['institution'] }}</h4></th>
+              <th scope="col" class="text-center"><h4 style="font-size: 8pt;">{{ comment['datetime'] }}</h4></th>
+            </tr>
+          {% endfor %}      
+          <tr>
+        	  <form action="{{ url_for('edit_comment', id=component['_id'],runId=session['runId']) }}" method="post" enctype="multipart/form-data">
+              <td scope="col" align="center" colspan="2"><textarea required="required" class="form-control input-normal" placeholder="comment" name = "text"></textarea></td>
+              <td scope="col" align="center"><input type = "txt" required="required" class="form-control input-normal" placeholder="name" name = "text2"></td>
+              <td scope="col" align="center"><input type = "txt" required="required" class="form-control input-normal" placeholder="institution" name = "text3"></td>
+              <td scope="col" align="center middle" >
+         		    <input type="hidden" value="{{ session['user_name'] }}" name="user">
+                {{ session['user_name'] }}
+                <input type="hidden" name="runNumber" value={{ component['results']['runNumber'] }} >
+                <input type="hidden" name="id" value={{ component['_id'] }} >
+                <input type="hidden" name="unit" value={{ component['unit'] }} >
+                <p><input type = "submit" value = "submit"></p>
+              </td>
+            </form>
+          </tr>
+      </tbody>
+    </table>-->
   </div>
 </div>
 
-  <h4 style="font-size: 10pt;"><i class="fa fa-file"></i> Config </h4>
-<!--
-   {% for key in component['results']['allconfig'] %}
-  <div class="row align-items-top">
-    <div class="col">
-      <a href="{{ url_for('download_config', code=component['results']['allconfig'][key]) }}" target="_brank" rel="noopener noreferrer">
-      <h4 style="font-size: 10pt;"><i class="fa fa-caret-right"></i>{{key}}:{{ component['results']['allconfig'][key]}}</h4></a>  
-      ( {{ component['results']['allconfig'][key] }} )
-      <a href="{{ url_for('config_downloader', configId=component['results']['allconfig'][key],config=key) }}" target="_brank" rel="noopener noreferrer">
-  		Download here
-  		</a>
-      <br>		
-    </div>
-  </div>
-  {% endfor %}
--->
-  
-  {% for key in component['results']['config'] %}
-  <div class="row align-items-top">
-    <div class="col">
-      <!--<a href="{{ url_for('download_config', code=component['results']['config'][key]['code']) }}" target="_brank" rel="noopener noreferrer">-->
-      <h4 style="font-size: 10pt;"><i class="fa fa-caret-right"></i>{{key}}:{{ component['results']['config'][key]['filename'] }}</h4>
-      <!--</a>-->  
-      <!--( {{ component['results']['config'][key]['configid'] }} )-->
-      <a href="{{ url_for('config_downloader', ModuleName=component['module']['serialNumber'], configType=key) }}">Download here</a>
-      <br>		
-    </div>
-  </div>
-  {% endfor %}
+<h4 style="font-size: 10pt;"><i class="fa fa-file"></i> Config 
+</h4>
 
-<h4 style="font-size: 10pt;"><i class="fa fa-folder-open"></i> Plot </h4>
 <div class="row align-items-top">
-    {% if not component['results']['plots'] == [] %}
-      {% for result in component['results']['plots'] %}
-        <div class="col-md-3">
-          {% if "url" in result %}
-            <a data-toggle="collapse" href='#{{ result['filename'] }}' aria-controls="testindex" style="color: green;"><h4 style="font-size: 10pt;"><i class="fa fa-caret-right"></i> {{ result['filename'] }} </h4></a>
-            <a href={{ result['url'] }} class="collapse" id={{ result['filename'] }} target="_brank" rel="noopener noreferrer">
-            <img src={{ result['url'] }} title={{ result['filename'] }} width="250" height="250">
-            </img>
-            </a>
-          {% else %}
-            <h4 style="font-size: 10pt;"><i class="fa fa-caret-right"></i> {{ result['filename'] }} </h4>
+  <div class="col">
+  {% for key in component['results']['config'] %}
+    {% if not component['results']['config'][key] == {} %}
+    <div style="display: flex;">
+      <h4 style="font-size: 10pt;">
+        <i class="fa fa-caret-right"></i> {{key}}:{{ component['results']['config'][key]['filename'] }}
+        {% if component['unit'] == 'Module' %}
+          {% if not key == 'beforeCfg' and not key == 'afterCfg' %}
+            <a class="data" href="{{ url_for('download_config', code=component['results']['config'][key]['code']) }}" target="_brank" rel="noopener noreferrer" title="Display json data">
+              <i class="fa fa-external-link-square"></i> 
+            </a> 
           {% endif %}
-        </div>
-      {% endfor %}
+        {% else %}
+          <a class="data" href="{{ url_for('download_config', code=component['results']['config'][key]['code']) }}" target="_brank" rel="noopener noreferrer" title="Display json data">
+            <i class="fa fa-external-link-square"></i> 
+          </a> 
+        {% endif %}
+    	  <a class="data" href="{{ url_for('config_downloader',ModuleName=component['module']['serialNumber'], configType=key) }}" title="Download">
+          <i class="fa fa-download"></i> 
+        </a>
+        <!-- ( {{ component['results']['config'][key]['configid'] }} ) -->
+      </h4>
+    </div>
     {% endif %}
+  {% endfor %}
+  <br>
+  </div>
 </div>
-<br>

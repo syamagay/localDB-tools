@@ -5,56 +5,57 @@
         <div class="row align-items-top justify-content-center">
             <div class="col">
 
-                {% if session['logged_in'] == True %}
-                  {% if session['edit'] == 1 %}
-                    <h1>{{ component['unit'] }} Summary : {{ component['serialNumber'] }} (admin page)</h1>
-                  {% else %}
-                    <h1>{{ component['unit'] }} Summary : {{ component['serialNumber'] }} (user page)</h1>
-                  {% endif %}
-                {% else %}
-                  <h1>{{ component['unit'] }} Summary : {{ component['serialNumber'] }}</h1>
-                {% endif %}
+               
+                <h1>{{ component['unit'] }} : {{ component['serialNumber'] }}</h1>
       
                 <table class="table table-sm table-bordered" style="font-size: 8pt;">
-                  <h4 style="font-size: 13pt;"><i class="fa fa-cog"></i> Index</h4>
-                  <thead class="table-dark" style="background: #222222;">
+                  <h4 style="font-size: 13pt;"><i class="fa fa-cog"></i> Component Data</h4>
+                  <thead class="table-dark" style="background: #222222; border-style: none;">
                     <tr>
-                      <th scope="col" width="100">Item</th>
+                      <th scope="col" class="text-center" width="100">Item</th>
                       <th scope="col"></th>
                     </tr>
                   </thead>
                   <tbody>
                     <tr>
-                      <td>
+                      <th scope="raw" class="text-center" width="100">
                         Serial Number 
-                      </td>
+                      </th>
                       <td>
                         {{ component['serialNumber'] }} 
                       </td>
                     </tr>
                     <tr>
-                      <td>
+                      <th scope="raw" class="text-center" width="100">
                         FE type
-                      </td>
+                      </th>
                       <td>
                         {{ component['chipType'] }}
                       </td>
                     </tr>
                     <tr>
-                      <td>
+                      <th scope="raw" class="text-center" width="100">
                         Module
-                      </td>
+                      </th>
                       <td>
+                        {% if component['dummy'] %}
+                          <a href="{{ url_for('show_dummy', id=component['module']['_id'], runId=session['runId']) }}">{{component['module']['serialNumber']}}</a>&ensp;
+                        {% else %}
                           <a href="{{ url_for('show_component', id=component['module']['_id']) }}">{{component['module']['serialNumber']}}</a>&ensp;
+                        {% endif %}
                       </td>
                     </tr>
                     <tr>
-                      <td>
+                      <th scope="raw" class="text-center" width="100">
                         Chips
-                      </td>
+                      </th>
                       <td>
                         {% for chip in component['chips'] %}
-                          <a href="{{ url_for('show_component', id=chip['_id']) }}">{{chip['serialNumber']}}</a>&ensp;
+                          {% if component['dummy'] %}
+                            <a href="{{ url_for('show_dummy', id=chip['_id'], runId=session['runId']) }}">{{chip['serialNumber']}}</a>&ensp;
+                          {% else %}
+                            <a href="{{ url_for('show_component', id=chip['_id']) }}">{{chip['serialNumber']}}</a>&ensp;
+                          {% endif %}
                         {% else %}
                           No match.
                         {% endfor %}
@@ -62,17 +63,73 @@
                     </tr>
                   </tbody>
                 </table>
+
+                <table class="table table-sm table-bordered" style="font-size: 8pt;">
+                  <h4 style="font-size: 13pt;"><i class="fa fa-cog"></i> Comments</h4>
+                  <thead class="table-dark" style="background: #222222;">
+                      <tr>
+                        <th scope="col" class="text-center">Comment</th>
+                        <th scope="col" width=100 class="text-center">componentType</th>
+                        <th scope="col" width=100 class="text-center">testlink</th>
+                        <th scope="col" width=100 class="text-center">Name</th>
+                        <th scope="col" width=100 class="text-center">Institution</th>
+                        <th scope="col" width=100 class="text-center">Date</th>
+                      </tr>
+                  </thead>
+                  <tbody>
+                      {% for comment in component['comments'] %}
+                        <tr>
+                          <th scope="col" class="text-left"><h4 style="font-size: 8pt;">{{ comment['comment'] | safe }}</h4></th>
+                          <th scope="col" class="text-center"><h4 style="font-size: 8pt;"></h4>{{ comment['componentType'] }}</th>
+                          <th scope="col" class="text-center"><h4 style="font-size: 8pt;"></h4>
+                          {% if comment['runId'] == -1 %}
+                            -
+                          {% else %}
+                            {% if component['dummy'] %}
+                              <a href="{{ url_for('show_dummy', id=comment['componentId'], runId=comment['runId']) }}">testlink</a>
+                            {% else %}
+                              <a href="{{ url_for('show_component', id=comment['componentId'], runId=comment['runId']) }}">testlink</a>
+                            {% endif %}      
+                          {% endif %}      
+                          </th>
+                          <th scope="col" class="text-center"><h4 style="font-size: 8pt;">{{ comment['name'] }}</h4></th>
+                          <th scope="col" class="text-center"><h4 style="font-size: 8pt;">{{ comment['institution'] }}</h4></th>
+                          <th scope="col" class="text-center"><h4 style="font-size: 8pt;">{{ comment['datetime'] }}</h4></th>
+                        </tr>
+                      {% endfor %}      
+                      {% if session['logged_in'] %}  
+                        <tr>
+                    	    <form action="{{ url_for('edit_comment', id=component['_id'],runId=session['runId']) }}" method="post" enctype="multipart/form-data">
+                            <td scope="col" align="center" colspan="3"><textarea required="required" class="form-control input-normal" placeholder="comment" name = "text"></textarea></td>
+                            <td scope="col" align="center"><input type = "txt" required="required" class="form-control input-normal" placeholder="name" name = "text2"></td>
+                            <td scope="col" align="center"><input type = "txt" required="required" class="form-control input-normal" placeholder="institution" name = "text3"></td>
+                            <td scope="col" align="center middle" >
+                     	  	    <input type="hidden" value="{{ session['user_name'] }}" name="user">
+                              {{ session['user_name'] }}
+                              <input type="hidden" name="runNumber" value={{ component['results']['runNumber'] }} >
+                              <input type="hidden" name="id" value={{ component['_id'] }} >
+                              <input type="hidden" name="unit" value={{ component['unit'] }} >
+                              <p><input type = "submit" value = "submit"></p>
+                            </td>
+                          </form>
+                        </tr>
+                      {% endif %}      
+                   </tbody>
+                 </table>
             </div>
         </div>
 
-        {% include "summary_index.html" %}
+        {% if not component['dummy'] %}
+          {% include "summary_index.html" %}
+        {% endif %}
 
-        {% if component['results'] == {} %}
-        {% else %}
+        {% if not component['results'] == {} %}
           {% include "result.html" %}
         {% endif %}
         {% include "root.html" %}
 
-        {% include "test_index.html" %}
+        {% if not component['dummy'] %}
+          {% include "test_index.html" %}
+        {% endif %}
     </div>
 {% endblock %}

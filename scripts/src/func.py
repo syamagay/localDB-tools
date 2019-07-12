@@ -6,7 +6,8 @@ import json
 import re
 import shutil
 import base64  # Base64 encoding scheme
-import datetime
+from datetime import datetime, timezone, timedelta
+import pytz
 import hashlib
 import gridfs # gridfs system 
 import io
@@ -36,14 +37,14 @@ except:
                |-- [reader1's userid] ... reader's directory (created and reset in app.py) 
                |      :
                |-- [reader#'s userid]
-               |        |-- dat    ... dat files  (reset in write_dat())
-               |        |-- plot   ... plot files (reset in make_plot()) 
-               |        |-- before ... previous summary plots in add_summary function (reset in first time fill_summary_test())
-               |        `-- after  ... modified summary plots in add_summary function (reset in first time fill_summary_test())
+               |        |-- dat    ... dat files  (reset in writeDat())
+               |        |-- plot   ... plot files (reset in makePlot()) 
+               |        |-- before ... previous summary plots in add_summary function (reset in first time setsummary_test())
+               |        `-- after  ... modified summary plots in add_summary function (reset in first time setsummary_test())
                | 
                |-- thumbnail ... summary plots (reset after add_summary function)
                |        `-- [reader's userid] ... summary plots for user (created and reset in show_summary())
-               `-- json ... json file ; <reader's userid>_parameter.json (created in make_plot())
+               `-- json ... json file ; <reader's userid>_parameter.json (created in makePlot())
 """
 
 TMP_DIR       = '/tmp/{}'.format(pwd.getpwuid(os.geteuid()).pw_name) 
@@ -60,17 +61,12 @@ client = MongoClient(_MONGO_URL)
 localdb = client[args.db]
 if args.username:
     localdb.authenticate(args.username, args.password)
-userdb = client[args.userdb]
 fs = gridfs.GridFS(localdb)
 
 #####
 _EXTENSIONS = ['png', 'jpeg', 'jpg', 'JPEG', 'jpe', 'jfif', 'pjpeg', 'pjp', 'gif']
 
-def allowed_file(filename):
-   return '.' in filename and \
-       filename.rsplit('.', 1)[1] in _EXTENSIONS
-
-def bin_to_image( typ, binary ):
+def bin2image( typ, binary ):
     if typ in _EXTENSIONS:
         data = 'data:image/png;base64,' + binary
     if typ == 'pdf':
@@ -87,46 +83,34 @@ def bin_to_image( typ, binary ):
         data = 'data:image/png;base64,' + byte
     return data
 
-
-
 #####
 # user funtion
-def add_request(userinfo):
+def addRequest(userinfo):
     password = hashlib.md5(userinfo[5].encode('utf-8')).hexdigest()
-    userdb.request.insert({ 'userName'   : userinfo[0],
-                            'firstName'  : userinfo[1],
-                            'lastName'   : userinfo[2],
-                            'email'      : userinfo[3],
-                            'institution': userinfo[4],
-                            'type'       : 'user', 
-                            'password'   : password })
-def add_user(userinfo):
-    userdb.user.insert({ 'userName'   : userinfo['userName'],
-                         'firstName'  : userinfo['firstName'],
-                         'lastName'   : userinfo['lastName'],
-                         'authority'  : int(userinfo['authority']),
-                         'institution': userinfo['institution'],
-                         'type'       : userinfo['type'], 
-                         'email'      : userinfo['email'],
-                         'passWord'   : userinfo['password'] })
+    localdb.request.insert({ 'userName'   : userinfo[0],
+                             'firstName'  : userinfo[1],
+                             'lastName'   : userinfo[2],
+                             'email'      : userinfo[3],
+                             'institution': userinfo[4],
+                             'type'       : 'user', 
+                             'password'   : password })
+def addUser(userinfo):
+    localdb.user.insert({ 'userName'   : userinfo['userName'],
+                          'firstName'  : userinfo['firstName'],
+                          'lastName'   : userinfo['lastName'],
+                          'authority'  : int(userinfo['authority']),
+                          'institution': userinfo['institution'],
+                          'type'       : userinfo['type'], 
+                          'email'      : userinfo['email'],
+                          'passWord'   : userinfo['password'] })
    
-def remove_request(userid):
-    userdb.request.remove({ '_id': ObjectId(userid) })
+def removeRequest(userid):
+    localdb.request.remove({ '_id': ObjectId(userid) })
 
-def remove_user(userid):
-    userdb.user.remove({ '_id': ObjectId(userid) })
+def removeUser(userid):
+    localdb.user.remove({ '_id': ObjectId(userid) })
 
-def input_v(message):
-    answer = ''
-    if args.fpython == 2: 
-        answer = raw_input(message) 
-    if args.fpython == 3: 
-        answer =     input(message)
-    return answer
-
-######################################################################
-# function 
-def make_dir():
+def makeDir():
     if not os.path.isdir(TMP_DIR): 
         os.mkdir(TMP_DIR)
     user_dir = TMP_DIR + '/' + str(session.get('uuid','localuser'))
@@ -136,35 +120,43 @@ def make_dir():
         if not os.path.isdir(dir_): 
             os.mkdir(dir_)
 
-def clean_dir(dir_name):
+def cleanDir(dir_name):
     if os.path.isdir(dir_name): 
         shutil.rmtree(dir_name)
     os.mkdir(dir_name)
 
-def update_mod(collection, query):
-    localdb[collection].update(query, 
-                                {'$set': {'sys.rev': int(localdb[collection].find_one(query)['sys']['rev']+1), 
-                                          'sys.mts': datetime.datetime.utcnow()}}, 
-                                multi=True)
+def updateData(collection, query):
+    localdb[collection].update(
+        query, 
+        {'$set': {'sys.rev': int(localdb[collection].find_one(query)['sys']['rev']+1), 
+                  'sys.mts': datetime.utcnow()}}, 
+        multi=True
+    )
 
-def count_photoNum():
-    if userdb.counter.find({'type': 'photoNumber'}).count() == 0:
-        userdb.counter.insert({'type': 'photoNumber', 'num': 1})
+def countPhotoNum():
+    if localdb.counter.find({'type': 'photoNumber'}).count() == 0:
+        localdb.counter.insert({'type': 'photoNumber', 'num': 1})
     else:
-        userdb.counter.update({'type': 'photoNumber'}, {'$set': {'num': int(userdb.counter.find_one({'type': 'photoNumber'})['num']+1)}})
-    return int(userdb.counter.find_one({'type': 'photoNumber'})['num'])
+        localdb.counter.update({'type': 'photoNumber'}, {'$set': {'num': int(localdb.counter.find_one({'type': 'photoNumber'})['num']+1)}})
+    return int(localdb.counter.find_one({'type': 'photoNumber'})['num'])
 
-def set_time(date):
-    DIFF_FROM_UTC = args.timezone 
-    time = (date+datetime.timedelta(hours=DIFF_FROM_UTC)).strftime('%Y/%m/%d %H:%M:%S')
+def setTime(date):
+    zone = session.get('timezone','UTC')
+    converted_time = date.replace(tzinfo=timezone.utc).astimezone(pytz.timezone(zone))
+    time = converted_time.strftime('%Y/%m/%d %H:%M:%S')
     return time
 
-def allowed_file(filename):
-    ALLOWED_EXTENSIONS = set(['txt', 'pdf', 'png', 'jpg', 'jpeg', 'gif'])
-    return '.' in filename and \
-        filename.rsplit('.', 1)[1] in ALLOWED_EXTENSIONS
+def setTimezone():
+    # timezone
+    timezones = []
+    for tz in pytz.all_timezones:
+        timezones.append(tz)
+    if not 'timezone' in session:
+        session['timezone'] = 'UTC'
 
-def fill_env(thisTestRun):
+    return timezones 
+
+def setEnv(thisTestRun):
     env_list = thisTestRun.get('environments',[])
     env_dict = { 'list': env_list,
                  'num' : len(env_list) }
@@ -172,109 +164,113 @@ def fill_env(thisTestRun):
 
 ######################################################################
 # component function
-def fill_photoDisplay(thisComponent):
-    photoDisplay = []
-    if 'attachments' in thisComponent: 
-        data_entries = thisComponent['attachments']
+def setPhotoDisplay(this_cmp):
+    photo_display = []
+    if 'attachments' in this_cmp: 
+        data_entries = this_cmp['attachments']
         for data in data_entries:
             if (data.get('imageType') == 'image') and (data.get('display') == True):
-                filePath = '{0}/{1}_{2}'.format(STATIC_DIR, data['photoNumber'], data['filename'])
-                f = open(filePath, 'wb')
+                file_path = '{0}/{1}_{2}'.format(STATIC_DIR, data['photoNumber'], data['filename'])
+                f = open(file_path, 'wb')
                 f.write(fs.get(ObjectId(data['code'])).read())
                 f.close()
                 url = url_for('upload.static', filename='{0}_{1}'.format(data['photoNumber'], data['filename']))
-                photoDisplay.append({'url': url,
-                                     'code': data['code'],
-                                     'photoNumber': data['photoNumber'],
-                                     'stage': data['stage'],
-                                     'filename': data['filename']})
-    return photoDisplay
+                photo_display.append({'url':         url,
+                                      'code':        data['code'],
+                                      'photoNumber': data['photoNumber'],
+                                      'stage':       data['stage'],
+                                      'filename':    data['filename']})
+    return photo_display
 
-def fill_photoIndex(thisComponent):
-    photoIndex = []
-    if 'attachments' in thisComponent: 
-        data_entries = thisComponent['attachments']
+def setPhotoIndex(this_cmp):
+    photo_index = []
+    if 'attachments' in this_cmp: 
+        data_entries = this_cmp['attachments']
         for data in data_entries:
             if data.get('imageType') == 'image':
-                photoIndex.append({'code': data['code'],
-                                   'photoNumber': data['photoNumber'],
-                                   'datetime': set_time(data['dateTime']),
-                                   'stage': data['stage']})
-    return photoIndex
+                photo_index.append({'code':        data['code'],
+                                    'photoNumber': data['photoNumber'],
+                                    'datetime':    setTime(data['dateTime']),
+                                    'stage':       data['stage']})
+    return photo_index
 
-def fill_photos(thisComponent, code):
+def setPhotos(this_cmp, code):
     photos = {}
     if not code == '':
-        data_entries = thisComponent['attachments']
+        data_entries = this_cmp['attachments']
         for data in data_entries:
             if code == data.get('code'):
-                filePath = '{0}/{1}'.format(STATIC_DIR, data['filename'])
-                f = open(filePath, 'wb')
+                file_path = '{0}/{1}'.format(STATIC_DIR, data['filename'])
+                f = open(file_path, 'wb')
                 f.write(fs.get(ObjectId(code)).read())
                 f.close()
 
                 url = url_for('upload.static', filename='{}'.format( data['filename']))
-                photos = {'url': url,
-                          'code': data['code'],
+                photos = {'url':         url,
+                          'code':        data['code'],
                           'photoNumber': data['photoNumber'],
-                          'stage': data['stage'],
-                          'display': data.get('display', 'False'),
-                          'filename': data['filename']}
+                          'stage':       data['stage'],
+                          'display':     data.get('display', 'False'),
+                          'filename':    data['filename']}
     return photos
 
-######################################################################
-
 # summary plot for each stage in component page
-def fill_summary():
+def setSummary():
 
     query = { '_id': ObjectId(session['this']) } 
-    thisComponent = localdb.component.find_one(query)
-    chipType = thisComponent['chipType']
-    serialNumber = thisComponent['serialNumber']
+    this_cmp = localdb.component.find_one(query)
+    chip_type = this_cmp['chipType']
+    serial_number = this_cmp['serialNumber']
 
-    summaryIndex = []
+    summary_index = []
 
     entries = {}
-    # pick runs with 'display: True' for each stage
+    # pick runs with 'summary: True' for each stage
     query = { 'component': session['this'] }
-    ctr_entries = localdb.componentTestRun.find( query )
-    for thisComponentTestRun in ctr_entries:
-        query = { '_id': ObjectId(thisComponentTestRun['testRun']) }
-        thisRun = localdb.testRun.find_one( query )
-        if 'stage' in thisRun:
-            stage = thisRun['stage']
+    ctr_entries = localdb.componentTestRun.find(query)
+    runoids = []
+    for ctr in ctr_entries:
+        runoids.append(ctr['testRun'])
+    for runoid in runoids:
+        query = { '_id': ObjectId(runoid) }
+        this_run = localdb.testRun.find_one( query )
+        if 'stage' in this_run:
+            stage = this_run['stage']
             if not stage in entries:
                 entries.update({ stage: {} })
-                for scan in listset.scan[chipType]:
+                for scan in listset.scan[chip_type]:
                     entries[stage].update({ scan: None })
-        if thisRun.get('display'): 
-            entries[stage].update({ thisRun['testType']: thisRun['_id'] })
+        if this_run.get('summary'): 
+            entries[stage].update({ this_run['testType']: this_run['_id'] })
 
     for stage in entries:
         scandict = {}
         datadict = { '1': { 'name': '_Dist', 'count': 0 }, '2': { 'name': '', 'count': 0 } }
         for scan in entries[stage]:
-            mapList = []
+            maplist = []
             total = False
             scandict.update({scan: {}})
             if entries[stage][scan]:
                 query = { '_id': entries[stage][scan] }
-                thisRun = localdb.testRun.find_one(query)
-                query = { '_id': ObjectId(thisRun['user_id']) }
-                thisUser = localdb.user.find_one( query )
-                query = { 'component': session['this'], 'testRun': str(entries[stage][scan]) }
-                thisComponentTestRun = localdb.componentTestRun.find_one(query)
-                for mapType in listset.scan[chipType][scan]:
-                    mapDict = {}
-                    mapDict.update({'mapType': mapType[0]})
-                    data_entries = thisComponentTestRun['attachments']
+                this_run = localdb.testRun.find_one(query)
+                query = { '_id': ObjectId(this_run['user_id']) }
+                this_user = localdb.user.find_one( query )
+                query = { 
+                    'component': session['this'],
+                    'testRun':   str(entries[stage][scan]) 
+                }
+                this_ctr = localdb.componentTestRun.find_one(query)
+                for maptype in listset.scan[chip_type][scan]:
+                    mapdict = {}
+                    mapdict.update({'mapType': maptype[0]})
+                    data_entries = this_ctr['attachments']
                     for data in data_entries:
                         for i in datadict:
-                            if data['filename'] == '{0}{1}.png'.format(mapType[0], datadict[i]['name']):
+                            if data['filename'] == '{0}{1}.png'.format(maptype[0], datadict[i]['name']):
                                 datadict[i].update({ 'count': int(datadict[i]['count'])+1 })
-                                filePath = '{0}/{1}_{2}_{3}_{4}.png'.format(THUMBNAIL_DIR, serialNumber, stage, scan, data['title'])
-                                mapDict.update({'code{}D'.format(i): data['code']})
-                                if not os.path.isfile(filePath):
+                                file_path = '{0}/{1}_{2}_{3}_{4}.png'.format(THUMBNAIL_DIR, serial_number, stage, scan, data['title'])
+                                mapdict.update({'code{}D'.format(i): data['code']})
+                                if not os.path.isfile(file_path):
                                     binary = fs.get(ObjectId(data['code'])).read()
                                     f = open( '{0}/image.png'.format( TMP_DIR ), 'wb' )
                                     f.write(binary)
@@ -282,272 +278,276 @@ def fill_summary():
                                     image_bin = io.BytesIO(binary)
                                     image = Image.open(image_bin)
                                     image.thumbnail((int(image.width/4),int(image.height/4)))
-                                    image.save(filePath)
+                                    image.save(file_path)
 
-                                url = url_for('thumbnail.static', filename='{0}_{1}_{2}_{3}.png'.format(serialNumber, stage, scan, data['title']))
-                                mapDict.update({'url{}Dthum'.format(i): url})
+                                url = url_for('thumbnail.static', filename='{0}_{1}_{2}_{3}.png'.format(serial_number, stage, scan, data['title']))
+                                mapdict.update({'url{}Dthum'.format(i): url})
 
-                    mapList.append(mapDict)
+                    maplist.append(mapdict)
 
                 #query = { 'resultId': str(entries[stage][scan]) }
-                #thisRunInLocal = userdb.localdb.find_one( query )
+                #thisRunInLocal = localdb.localdb.find_one( query )
                 #if thisRunInLocal:
                 #    count = thisRunInLocal['count']
                 #else:
-                #    write_dat(entries[stage][scan])
+                #    writeDat(entries[stage][scan])
                 #    count = {}
                 #    if DOROOT:
                 #        root.uuid = str(session.get('uuid','localuser'))
                 #        count = root.countPix( scan, session['plotList'] )
                 #    document = { 'resultId': str(entries[stage][scan]),
                 #                 'count': count }
-                #    userdb.localdb.insert( document )
+                #    localdb.localdb.insert( document )
 
                 count = {}
-                scandict[scan].update({'runNumber':    thisRun['runNumber'],
-                                       'institution':  thisUser['institution'],
-                                       'userName': thisUser['userName'], 
-                                       'total':        count.get('module',{}).get('score',None)})
+                scandict[scan].update({
+                    'runNumber':   this_run['runNumber'],
+                    'institution': this_user['institution'],
+                    'userName':    this_user['userName'], 
+                    'total':       count.get('module',{}).get('score',None)
+                })
 
-            scandict[scan].update({'map': mapList,
-                                   'num': len(mapList)})
+            scandict[scan].update({
+                'map': maplist,
+                'num': len(maplist)
+            })
 
         if not scandict == {}:
-            summaryIndex.append({'stage': stage,
-                                 'scan': scandict,
-                                 '2Dnum': datadict['2']['count'],
-                                 '1Dnum': datadict['1']['count'] })
+            summary_index.append({
+                'stage': stage,
+                'scan': scandict,
+                '2Dnum': datadict['2']['count'],
+                '1Dnum': datadict['1']['count']
+            })
 
-    return summaryIndex
+    return summary_index
 
-# summary plot in add summary function page
-def fill_summary_test():
-
-    summaryIndex = {}
-    scanList = ['digitalscan', 'analogscan', 'thresholdscan', 'totscan', 'noisescan', 'selftrigger'] 
-    
-    if not session.get('stage'): return summaryIndex 
-
-    stage = session['stage']
-    query = {'_id': ObjectId(session.get('this'))}
-    thisComponent = localdb.component.find_one(query)
-
-    # first step in add summary function: make current summary plots as thumbnail
-    if not session['summaryList']['before']:
-
-        after_dir  = '{0}/{1}/after'.format(TMP_DIR, session.get('uuid','localuser'))
-        clean_dir(after_dir)
-
-        before_dir = '{0}/{1}/before'.format(TMP_DIR, session.get('uuid','localuser'))
-        clean_dir(before_dir)
-     
-        for scan in scanList:
-            session['summaryList']['before'].update({scan: {'runId': None}})
-            session['summaryList']['after'].update({scan: {'runId': None}})
-
-            query = {'component': session.get('this'), 'stage': stage, 'testType': scan}
-            run_entries = localdb.componentTestRun.find(query)
-            for componentTestRun in run_entries:
-                query = {'_id': ObjectId(componentTestRun['testRun'])}
-                thisRun = localdb.testRun.find_one(query)
-                if thisRun.get('display'): 
-                    session['summaryList']['before'][scan].update({'runId': str(thisRun['_id'])})
-                    session['summaryList']['after'][scan].update({'runId': str(thisRun['_id'])})
-
-                    make_plot(str(thisRun['_id']))
-
-                    for mapType in session.get('plotList'):
-                        if not session['plotList'][mapType].get('HistoType') == 2: continue
-                        url = {} 
-                        path = {}
-                        datadict = {'1': '_Dist', '2': ''}
-                        for i in datadict:
-                            filepath = '{0}/{1}/plot/{2}_{3}_{4}.png'.format(TMP_DIR, str(session.get('uuid','localuser')), str(thisRun['testType']), str(mapType), i)
-                            if os.path.isfile(filepath):
-                                binary_file = open(filepath, 'rb')
-                                binary = binary_file.read()
-                                binary_file.close()
-
-                                image_bin = io.BytesIO(binary)
-                                image = Image.open(image_bin)
-                                image.thumbnail((int(image.width/4),int(image.height/4)))
-                                filename_before = '{0}/{1}_{2}_{3}_{4}{5}.png'.format(before_dir, stage, scan, thisComponent['serialNumber'], mapType, datadict[i])
-                                image.save(filename_before)
-                                filename_after  = '{0}/{1}_{2}_{3}_{4}{5}.png'.format(after_dir,  stage, scan, thisComponent['serialNumber'], mapType, datadict[i])
-                                image.save(filename_after)
-
-    # remove/replace summary plot: make replaced summary plots as thumbnail
-    elif session['step'] == 1:
-        after_dir  = '{0}/{1}/after'.format(TMP_DIR, session.get('uuid','localuser'))
-
-        for scan in scanList:
-            if not session.get('testType') == scan: continue
-
-            for r in glob.glob('{0}/{1}_{2}*'.format(after_dir, stage, scan)): os.remove(r)
-            
-            if session['summaryList']['after'][scan]['runId']:
-                query = {'_id': ObjectId(session['summaryList']['after'][scan]['runId'])}
-                thisRun = localdb.testRun.find_one(query)
-
-                make_plot(str(thisRun['_id']))
-
-                for mapType in session.get('plotList'):
-                    if not session['plotList'][mapType].get('HistoType') == 2: continue
-                    url = {} 
-                    path = {}
-                    datadict = {'1': '_Dist', '2': ''}
-                    for i in datadict:
-                        filepath = '{0}/{1}/plot/{2}_{3}_{4}.png'.format(TMP_DIR, str(session.get('uuid','localuser')), str(thisRun['testType']), str(mapType), i)
-                        if os.path.isfile( filepath ):
-                            binary_file = open(filepath, 'rb')
-                            binary = binary_file.read()
-                            binary_file.close()
-
-                            image_bin = io.BytesIO(binary)
-                            image = Image.open(image_bin)
-                            image.thumbnail((int(image.width/4),int(image.height/4)))
-                            filename_after = '{0}/{1}_{2}_{3}_{4}{5}.png'.format(after_dir, stage, scan, thisComponent['serialNumber'], mapType, datadict[i])
-                            image.save(filename_after)
-
-    # check path to thumbnails 
-    scandict = {'before': {},
-                'after': {}}
-    total = 0
-    submit = True
-    for scan in scanList:
-
-        abType = {'before': '{0}/{1}/before'.format(TMP_DIR,session.get('uuid','localuser')), 
-                  'after': '{0}/{1}/after'.format(TMP_DIR,session.get('uuid','localuser'))}
-
-        for ab in abType:
-
-            scandict[ab].update({scan: {}})
-            mapList = []
-
-            for mapType in listset.scan[scan]:
-
-                mapDict = {'mapType': mapType[0]}
-
-                total += 1
-
-                if session['summaryList'][ab][scan]['runId']:
-
-                    query = {'_id': ObjectId(session['summaryList'][ab][scan]['runId'])}
-                    thisRun = localdb.testRun.find_one(query)
-                    query = {'testRun': session['summaryList'][ab][scan]['runId']}
-                    thisComponentTestRun = localdb.componentTestRun.find_one(query)
-                    env_dict = fill_env(thisComponentTestRun)
-
-                    datadict = {'1': '_Dist', '2': ''}
-                    for i in datadict:
-
-                        filename = '{0}/{1}_{2}_{3}_{4}{5}.png'.format(abType[ab], stage, scan, thisComponent['serialNumber'], mapType[0], datadict[i])
-                        if os.path.isfile(filename):
-                            binary_image = open(filename, 'rb')
-                            code_base64 = base64.b64encode(binary_image.read()).decode()
-                            binary_image.close()
-                            url = bin_to_image('png', code_base64) 
-                            mapDict.update({'url{}Dthum'.format(i): url})
-
-                    scandict[ab][scan].update({'runNumber': thisRun['runNumber'],
-                                               'runId': str(thisRun['_id']),
-                                               'institution': thisRun['institution'],
-                                               'userIdentity': thisRun['userIdentity'],
-                                               'environment': env_dict})
-                mapList.append(mapDict)
-
-            # put suitable comment for each run
-            comment = '...'
-            if session['summaryList']['before'][scan]['runId'] == session['summaryList']['after'][scan]['runId']: 
-                comment = None
-            elif session['summaryList']['after'][scan].get('comment') in listset.summary_comment: 
-                comment = session['summaryList']['after'][scan]['comment']
-            elif not session['summaryList']['before'][scan]['runId']:
-                comment = 'add'
-            else:
-                submit =  False
-
-            scandict[ab][scan].update({'map': mapList,
-                                       'num': len(mapList),
-                                       'comment': comment})
-
-    if not scandict == {}:
-        summaryIndex.update({'stage': stage,
-                             'scan': scandict,
-                             'total': total,
-                             'submit': submit})
-
-    return summaryIndex
-
-def grade_module(moduleId):
-    scoreIndex = { 'stage': None }
-    scoreIndex.update({ 'module': {} })
-
-    query = { '_id': ObjectId(moduleId) }
-    thisModule = localdb.component.find_one( query )
-
-    query = { 'parent': moduleId }
-    child_entries = localdb.childParentRelation.find( query )
-    for child in child_entries:
-        query = { '_id': ObjectId(child['child']) }
-        thisChip = localdb.component.find_one( query )
-        if 'chipId' in thisChip['serialNumber']:
-            scoreIndex.update({ str(thisChip['serialNumber'].split('chipId')[1]): {} })
-        else:
-            scoreIndex.update({ '1': {} })
-
-    entries = {}
-    for stage in listset.stage:
-        query = { 'component': moduleId, 'stage': stage }
-        run_entries = localdb.componentTestRun.find( query )
-        if run_entries.count() == 0: continue
-
-        scoreIndex.update({ 'stage': stage })
-
-        for run in run_entries:
-            query = { '_id': ObjectId(run['testRun']), 'display': True }
-            thisRun = localdb.testRun.find_one( query )
-            if thisRun:
-                entries.update({ thisRun['testType']: str(thisRun['_id']) }) 
-        break
-
-    if entries == {}: return scoreIndex
-
-    for scan in listset.scan:
-        count = {}
-        if scan in entries : 
-            session['this'] = moduleId 
-
-            query = { 'resultId': str(entries[scan]) }
-            thisRunInLocal = userdb.localdb.find_one( query )
-            if thisRunInLocal:
-                count = thisRunInLocal['count']
-            else:
-                write_dat( entries[scan] )
-                count = {}
-                if DOROOT:
-                    root.uuid = str(session.get('uuid','localuser'))
-                    count = root.countPix( scan, session['plotList'] )
-                document = { 'resultId': str(entries[scan]),
-                             'count': count }
-                userdb.localdb.insert( document )
-
-        for component in scoreIndex:
-            if component == 'stage': continue
-            scoreIndex[component].update({ scan: count.get(component,0) })
-            scoreIndex[component].update({ 'total': scoreIndex[component].get('total',0) + count.get(component,{}).get('score',0) })
-
-    return scoreIndex
-
+## summary plot in add summary function page
+#def setSummaryTest():
+#
+#    summary_index = {}
+#    scanList = ['digitalscan', 'analogscan', 'thresholdscan', 'totscan', 'noisescan', 'selftrigger'] 
+#    
+#    if not session.get('stage'): return summary_index 
+#
+#    stage = session['stage']
+#    query = {'_id': ObjectId(session.get('this'))}
+#    this_cmp = localdb.component.find_one(query)
+#
+#    # first step in add summary function: make current summary plots as thumbnail
+#    if not session['summaryList']['before']:
+#
+#        after_dir  = '{0}/{1}/after'.format(TMP_DIR, session.get('uuid','localuser'))
+#        cleanDir(after_dir)
+#
+#        before_dir = '{0}/{1}/before'.format(TMP_DIR, session.get('uuid','localuser'))
+#        cleanDir(before_dir)
+#     
+#        for scan in scanList:
+#            session['summaryList']['before'].update({scan: {'runId': None}})
+#            session['summaryList']['after'].update({scan: {'runId': None}})
+#
+#            query = {'component': session.get('this'), 'stage': stage, 'testType': scan}
+#            run_entries = localdb.componentTestRun.find(query)
+#            for componentTestRun in run_entries:
+#                query = {'_id': ObjectId(componentTestRun['testRun'])}
+#                this_run = localdb.testRun.find_one(query)
+#                if this_run.get('summary'): 
+#                    session['summaryList']['before'][scan].update({'runId': str(this_run['_id'])})
+#                    session['summaryList']['after'][scan].update({'runId': str(this_run['_id'])})
+#
+#                    makePlot(str(this_run['_id']))
+#
+#                    for maptype in session.get('plotList'):
+#                        if not session['plotList'][maptype].get('HistoType') == 2: continue
+#                        url = {} 
+#                        path = {}
+#                        datadict = {'1': '_Dist', '2': ''}
+#                        for i in datadict:
+#                            filepath = '{0}/{1}/plot/{2}_{3}_{4}.png'.format(TMP_DIR, str(session.get('uuid','localuser')), str(this_run['testType']), str(maptype), i)
+#                            if os.path.isfile(filepath):
+#                                binary_file = open(filepath, 'rb')
+#                                binary = binary_file.read()
+#                                binary_file.close()
+#
+#                                image_bin = io.BytesIO(binary)
+#                                image = Image.open(image_bin)
+#                                image.thumbnail((int(image.width/4),int(image.height/4)))
+#                                filename_before = '{0}/{1}_{2}_{3}_{4}{5}.png'.format(before_dir, stage, scan, this_cmp['serialNumber'], maptype, datadict[i])
+#                                image.save(filename_before)
+#                                filename_after  = '{0}/{1}_{2}_{3}_{4}{5}.png'.format(after_dir,  stage, scan, this_cmp['serialNumber'], maptype, datadict[i])
+#                                image.save(filename_after)
+#
+#    # remove/replace summary plot: make replaced summary plots as thumbnail
+#    elif session['step'] == 1:
+#        after_dir  = '{0}/{1}/after'.format(TMP_DIR, session.get('uuid','localuser'))
+#
+#        for scan in scanList:
+#            if not session.get('testType') == scan: continue
+#
+#            for r in glob.glob('{0}/{1}_{2}*'.format(after_dir, stage, scan)): os.remove(r)
+#            
+#            if session['summaryList']['after'][scan]['runId']:
+#                query = {'_id': ObjectId(session['summaryList']['after'][scan]['runId'])}
+#                this_run = localdb.testRun.find_one(query)
+#
+#                makePlot(str(this_run['_id']))
+#
+#                for maptype in session.get('plotList'):
+#                    if not session['plotList'][maptype].get('HistoType') == 2: continue
+#                    url = {} 
+#                    path = {}
+#                    datadict = {'1': '_Dist', '2': ''}
+#                    for i in datadict:
+#                        filepath = '{0}/{1}/plot/{2}_{3}_{4}.png'.format(TMP_DIR, str(session.get('uuid','localuser')), str(this_run['testType']), str(maptype), i)
+#                        if os.path.isfile( filepath ):
+#                            binary_file = open(filepath, 'rb')
+#                            binary = binary_file.read()
+#                            binary_file.close()
+#
+#                            image_bin = io.BytesIO(binary)
+#                            image = Image.open(image_bin)
+#                            image.thumbnail((int(image.width/4),int(image.height/4)))
+#                            filename_after = '{0}/{1}_{2}_{3}_{4}{5}.png'.format(after_dir, stage, scan, this_cmp['serialNumber'], maptype, datadict[i])
+#                            image.save(filename_after)
+#
+#    # check path to thumbnails 
+#    scandict = {'before': {},
+#                'after': {}}
+#    total = 0
+#    submit = True
+#    for scan in scanList:
+#
+#        abType = {'before': '{0}/{1}/before'.format(TMP_DIR,session.get('uuid','localuser')), 
+#                  'after': '{0}/{1}/after'.format(TMP_DIR,session.get('uuid','localuser'))}
+#
+#        for ab in abType:
+#
+#            scandict[ab].update({scan: {}})
+#            maplist = []
+#
+#            for maptype in listset.scan[scan]:
+#
+#                mapdict = {'mapType': maptype[0]}
+#
+#                total += 1
+#
+#                if session['summaryList'][ab][scan]['runId']:
+#
+#                    query = {'_id': ObjectId(session['summaryList'][ab][scan]['runId'])}
+#                    this_run = localdb.testRun.find_one(query)
+#                    query = {'testRun': session['summaryList'][ab][scan]['runId']}
+#                    this_ctr = localdb.componentTestRun.find_one(query)
+#                    env_dict = setEnv(this_ctr)
+#
+#                    datadict = {'1': '_Dist', '2': ''}
+#                    for i in datadict:
+#
+#                        filename = '{0}/{1}_{2}_{3}_{4}{5}.png'.format(abType[ab], stage, scan, this_cmp['serialNumber'], maptype[0], datadict[i])
+#                        if os.path.isfile(filename):
+#                            binary_image = open(filename, 'rb')
+#                            code_base64 = base64.b64encode(binary_image.read()).decode()
+#                            binary_image.close()
+#                            url = bin2image('png', code_base64) 
+#                            mapdict.update({'url{}Dthum'.format(i): url})
+#
+#                    scandict[ab][scan].update({'runNumber': this_run['runNumber'],
+#                                               'runId': str(this_run['_id']),
+#                                               'institution': this_run['institution'],
+#                                               'userIdentity': this_run['userIdentity'],
+#                                               'environment': env_dict})
+#                maplist.append(mapdict)
+#
+#            # put suitable comment for each run
+#            comment = '...'
+#            if session['summaryList']['before'][scan]['runId'] == session['summaryList']['after'][scan]['runId']: 
+#                comment = None
+#            elif session['summaryList']['after'][scan].get('comment') in listset.summary_comment: 
+#                comment = session['summaryList']['after'][scan]['comment']
+#            elif not session['summaryList']['before'][scan]['runId']:
+#                comment = 'add'
+#            else:
+#                submit =  False
+#
+#            scandict[ab][scan].update({'map': maplist,
+#                                       'num': len(maplist),
+#                                       'comment': comment})
+#
+#    if not scandict == {}:
+#        summary_index.update({'stage': stage,
+#                             'scan': scandict,
+#                             'total': total,
+#                             'submit': submit})
+#
+#    return summary_index
+#
+#def grade_module(moduleId):
+#    scoreIndex = { 'stage': None }
+#    scoreIndex.update({ 'module': {} })
+#
+#    query = { '_id': ObjectId(moduleId) }
+#    this_module = localdb.component.find_one( query )
+#
+#    query = { 'parent': moduleId }
+#    child_entries = localdb.childParentRelation.find( query )
+#    for child in child_entries:
+#        query = { '_id': ObjectId(child['child']) }
+#        this_chip = localdb.component.find_one( query )
+#        if 'chipId' in this_chip['serialNumber']:
+#            scoreIndex.update({ str(this_chip['serialNumber'].split('chipId')[1]): {} })
+#        else:
+#            scoreIndex.update({ '1': {} })
+#
+#    entries = {}
+#    for stage in listset.stage:
+#        query = { 'component': moduleId, 'stage': stage }
+#        run_entries = localdb.componentTestRun.find( query )
+#        if run_entries.count() == 0: continue
+#
+#        scoreIndex.update({ 'stage': stage })
+#
+#        for run in run_entries:
+#            query = { '_id': ObjectId(run['testRun']), 'summary': True }
+#            this_run = localdb.testRun.find_one( query )
+#            if this_run:
+#                entries.update({ this_run['testType']: str(this_run['_id']) }) 
+#        break
+#
+#    if entries == {}: return scoreIndex
+#
+#    for scan in listset.scan:
+#        count = {}
+#        if scan in entries : 
+#            session['this'] = moduleId 
+#
+#            query = { 'resultId': str(entries[scan]) }
+#            thisRunInLocal = localdb.localdb.find_one( query )
+#            if thisRunInLocal:
+#                count = thisRunInLocal['count']
+#            else:
+#                writeDat( entries[scan] )
+#                count = {}
+#                if DOROOT:
+#                    root.uuid = str(session.get('uuid','localuser'))
+#                    count = root.countPix( scan, session['plotList'] )
+#                document = { 'resultId': str(entries[scan]),
+#                             'count': count }
+#                localdb.localdb.insert( document )
+#
+#        for component in scoreIndex:
+#            if component == 'stage': continue
+#            scoreIndex[component].update({ scan: count.get(component,0) })
+#            scoreIndex[component].update({ 'total': scoreIndex[component].get('total',0) + count.get(component,{}).get('score',0) })
+#
+#    return scoreIndex
+#
 
 ######################################################################
 
 # run number list
-def fill_resultIndex():
+def setResultIndex():
 
-    resultIndex = {}
-    testIndex = []
-    runs = []
+    result_index = {}
 
     chips = []
     query = { 'parent': session['this'] }
@@ -557,402 +557,409 @@ def fill_resultIndex():
 
     query = { 'component': session['this'] }
     run_entries = localdb.componentTestRun.find( query )
+    runoids = []
     for run in run_entries:
-        query = { '_id': ObjectId(run['testRun']) }
-        thisRun = localdb.testRun.find_one(query)
+        runoids.append(run['testRun'])
+
+    for runoid in runoids:
+        query = { '_id': ObjectId(runoid) }
+        this_run = localdb.testRun.find_one(query)
+        query = { 
+            'component': session['this'],
+            'testRun': runoid 
+        }
+        this_ctr = localdb.componentTestRun.find_one( query )
 
         if chips == []:
-            result = 'attachments' in run
+            result = 'attachments' in this_ctr
         else:
             query = { '$or': chips }
             chip_run_entries = localdb.componentTestRun.find( query )
             result = True in [ 'attachments' in chip_run for chip_run in chip_run_entries ]
 
-        stage = thisRun.get('stage','null')
-        testType = thisRun.get('testType')
+        stage = this_run.get('stage','null')
+        test_type = this_run.get('testType')
 
-        if not testType in resultIndex: 
-            resultIndex.update({ testType: { 'run': [] } })
+        if not test_type in result_index: 
+            result_index.update({ test_type: { 'run': [] } })
 
         count = {}
         #TODO
-        #query = { 'resultId': str(thisRun['_id']) }
-        #thisRunInLocal = userdb.localdb.find_one( query )
+        #query = { 'resultId': str(this_run['_id']) }
+        #thisRunInLocal = localdb.localdb.find_one( query )
         #if thisRunInLocal:
         #    count = thisRunInLocal['count']
         #else:
-        #    write_dat(str(thisRun['_id'])) 
+        #    writeDat(str(this_run['_id'])) 
         #    count = {}
         #    if DOROOT:
         #        root.uuid = str(session.get('uuid','localuser'))
-        #        count = root.countPix( run.get('testType'), session['plotList'] )
-        #    document = { 'resultId': str(thisRun['_id']),
+        #        count = root.countPix( run.get('test_type'), session['plotList'] )
+        #    document = { 'resultId': str(this_run['_id']),
         #                 'count': count }
-        #    userdb.localdb.insert( document )
+        #    localdb.localdb.insert( document )
         #TODO
 
-        resultIndex[testType]['run'].append({ '_id'      : str(thisRun['_id']),
-                                              'runNumber': thisRun['runNumber'],
-                                              'datetime' : set_time(thisRun['startTime']),
-                                              'result'   : result,
-                                              'chips'    : len(chips),
-                                              'stage'    : stage,
-                                              'rate'     : count.get('module',{}).get('rate','-'),
-                                              'score'    : count.get('module',{}).get('score',None),
-                                              'values'   : count.get('module',{}).get('parameters',{}),
-                                              'summary'  : thisRun.get('display') })
-    for scan in resultIndex:
-        runInd = sorted(resultIndex[scan]['run'], key=lambda x:x['datetime'], reverse=True)
-        resultIndex.update({ scan: { 'num': len(runInd),
-                                     'run': runInd } })
-        testIndex.append( scan )
-    testIndex.sort()
-    resultIndex.update({ "index": testIndex })
-    return resultIndex
+        result_index[test_type]['run'].append({ 
+            '_id'      : str(this_run['_id']),
+            'runNumber': this_run['runNumber'],
+            'datetime' : setTime(this_run['startTime']),
+            'result'   : result,
+            'chips'    : len(chips),
+            'stage'    : stage,
+            'rate'     : count.get('module',{}).get('rate','-'),
+            'score'    : count.get('module',{}).get('score',None),
+            'values'   : count.get('module',{}).get('parameters',{}),
+            'summary'  : this_run.get('summary') 
+        })
+    test_index = []
+    for scan in result_index:
+        run_index = sorted(result_index[scan]['run'], key=lambda x:x['datetime'], reverse=True)
+        result_index.update({ 
+            scan: { 
+                'num': len(run_index),
+                'run': run_index 
+            }
+        })
+        test_index.append( scan )
+    test_index.sort()
+    result_index.update({ "index": test_index })
+
+    return result_index
 
 # make result plot in component page for the run
-def fill_results():
+def setResults():
 
     results = {}
 
-    if session.get('runId'):
-        query = { '_id':ObjectId(session['this']) } 
-        thisComponent = localdb.component.find_one(query)
-        query = { 'component': session['this'], 
-                  'testRun'  : session['runId'] }
-        thisComponentTestRun = localdb.componentTestRun.find_one(query)
-        query = { '_id': ObjectId(session['runId']) }
-        thisRun = localdb.testRun.find_one(query)
+    if not session.get('runId'): return results
 
-        plots = []
-        data_entries = thisComponentTestRun.get('attachments', [])
-        for data in data_entries:
-            if data['contentType'] == 'pdf' or data['contentType'] == 'png':
-                binary = base64.b64encode(fs.get(ObjectId(data['code'])).read()).decode()
-                url = bin_to_image(data['contentType'], binary)
-                plots.append({ 'code'    : data['code'],
-                               'url'     : url,
-                               'filename': data['title'] })
-        
-         
-        # Change scheme
-        ctrlconfig = {}
-        if not thisRun.get('ctrlCfg','...')=='...':
-            query = { '_id': ObjectId(thisRun['ctrlCfg']) }
-            config_data = localdb.config.find_one( query )
-            #fs.get(ObjectId(config_data['data_id'])).read()
-            ctrlconfig.update({ "filename" : config_data['filename'],
-                                "code"     : [config_data['data_id']],
-                                "configid" : [thisRun['ctrlCfg']] })
-        scanconfig = {}
-        if not thisRun.get('scanCfg','...')=='...':
-            query = { '_id': ObjectId(thisRun['scanCfg']) }
-            config_data = localdb.config.find_one( query )
-            #fs.get(ObjectId(config_data['data_id'])).read()
-            scanconfig.update({ "filename" : config_data['filename'],
-                                "code"     : [config_data['data_id']],
-                                "configid" : [thisRun['scanCfg']] })
+    query = { 
+        'component': session['this'], 
+        'testRun'  : session['runId'] 
+    }
+    this_ctr = localdb.componentTestRun.find_one(query)
+    query = { '_id': ObjectId(session['runId']) }
+    this_run = localdb.testRun.find_one(query)
 
-        query = [{ 'parent': session['this'] }, { 'child': session['this'] }]
-        child_entries = localdb.childParentRelation.find({'$or': query})
-        chipId = []
-        after_code = []
-        after_configId = []
-        before_code = []
-        before_configId = []
+    # get comments for this run
+    query = { 'runId': session['runId'] }
+    comments_entries = localdb.comments.find(query)
+    comments = []
+    for comment in comments_entries:
+        comments.append(comment)
 
-        for child in child_entries:
-            query = { 'component': child['child'], 'testRun': session['runId'] }
-            thisChipComponentTestRun = localdb.componentTestRun.find_one(query)
-            chipId.append(child['chipId'])
+    # Change scheme
+    ctrlconfig = {}
+    if not this_run.get('ctrlCfg','...')=='...':
+        query = { '_id': ObjectId(this_run['ctrlCfg']) }
+        config_data = localdb.config.find_one( query )
+        ctrlconfig.update({ 
+            "filename" : config_data['filename'],
+            "code"     : [config_data['data_id']],
+            "configid" : [this_run['ctrlCfg']]
+        })
+    scanconfig = {}
+    if not this_run.get('scanCfg','...')=='...':
+        query = { '_id': ObjectId(this_run['scanCfg']) }
+        config_data = localdb.config.find_one( query )
+        scanconfig.update({ 
+            "filename" : config_data['filename'],
+            "code"     : [config_data['data_id']],
+            "configid" : [this_run['scanCfg']] 
+        })
 
-            after_configId.append(thisChipComponentTestRun['afterCfg'])   
-         
-            query = { '_id': ObjectId(thisChipComponentTestRun['afterCfg']) }
+    is_module = False
+    if this_run['dummy']:
+        if session['this'] == this_run['serialNumber']:
+            is_module = True
+    else:
+        query = { '_id': ObjectId(session['this']) }
+        this_cmp = localdb.component.find_one( query )
+        if this_cmp['serialNumber'] == this_run['serialNumber']:
+            is_module = True
+
+    chipoids = []
+    if is_module:
+        query = { 'testRun': session['runId'] }
+        ctr_entries = localdb.componentTestRun.find( query )
+        for ctr in ctr_entries:
+            if ctr['component'] != session['this']:
+                chipoids.append( ctr['component'] )
+    else:
+        chipoids.append( session['this'] )
+
+    chipid = []
+    after_code = []
+    after_configid = []
+    before_code = []
+    before_configid = []
+
+    for i, chipoid in enumerate(chipoids):
+        query = { 'component': chipoid, 'testRun': session['runId'] }
+        this_chip_ctr = localdb.componentTestRun.find_one(query)
+        chipid.append(i+1)
+
+        afterconfig = {}
+        if not this_chip_ctr.get('afterCfg','...')=='...':
+            after_configid.append(this_chip_ctr['afterCfg'])   
+            query = { '_id': ObjectId(this_chip_ctr['afterCfg']) }
             config_data = localdb.config.find_one(query)
             after_code.append(config_data['data_id'])
 
-            afterconfig = {}
-            if not thisChipComponentTestRun.get('afterCfg','...')=='...':
-                query = { '_id': ObjectId(thisChipComponentTestRun['afterCfg']) }
-                #fs.get(ObjectId(config_data['data_id'])).read()
-                afterconfig.update({ "filename" : config_data['filename'],
-                                     "code"     : after_code,
-                                     "chipId"   : chipId, 
-                                     "configid" : after_configId })
+            query = { '_id': ObjectId(this_chip_ctr['afterCfg']) }
+            afterconfig.update({ 
+                "filename" : config_data['filename'],
+                "code"     : after_code,
+                "chipId"   : chipid, 
+                "configid" : after_configid 
+            })
 
-            before_configId.append(thisChipComponentTestRun['beforeCfg'])   
-
-            query = { '_id': ObjectId(thisChipComponentTestRun['beforeCfg']) }
+        beforeconfig = {}
+        if not this_chip_ctr.get('beforeCfg','...')=='...':
+            before_configid.append(this_chip_ctr['beforeCfg'])   
+            query = { '_id': ObjectId(this_chip_ctr['beforeCfg']) }
             config_data = localdb.config.find_one(query)
             before_code.append(config_data['data_id'])
+            beforeconfig.update({ 
+                "filename" : config_data['filename'],
+                "code"     : before_code,
+                "chipId"   : chipid,
+                "configid" : before_configid 
+            })
 
-            beforeconfig = {}
-            if not thisChipComponentTestRun.get('beforeCfg','...')=='...':
-                #fs.get(ObjectId(config_data['data_id'])).read()
-                beforeconfig.update({ "filename" : config_data['filename'],
-                                      "code"     : before_code,
-                                      "chipId"   : chipId,
-                                      "configid" : before_configId })
-
-        query = { '_id': ObjectId(thisRun['user_id']) }
-        user = localdb.user.find_one( query )
-        results.update({ 'testType'    : thisRun['testType'],
-                         'runNumber'   : thisRun['runNumber'],
-                         'comments'    : list(thisRun['comments']),
-                         'stage'       : thisRun.get('stage'),
-                         'address'     : thisRun.get('address','null'),
-                         'institution' : user['institution'],
-                         'userIdentity': user['userName'],
-                         'plots'       : plots,
-                         'config'      : { 'ctrlCfg': ctrlconfig, 'scanCfg': scanconfig, 'beforeCfg': beforeconfig, 'afterCfg': afterconfig }}) 
+    query = { '_id': ObjectId(this_run['user_id']) }
+    user = localdb.user.find_one( query )
+    query = { '_id': ObjectId(this_run['address']) }
+    site = localdb.institution.find_one( query )
+    results.update({ 
+        'datetime'    : setTime(this_run['startTime']),
+        'testType'    : this_run['testType'],
+        'runNumber'   : this_run['runNumber'],
+        'comments'    : comments,
+        'stage'       : this_run.get('stage'),
+        'site'        : site['institution'].replace('_', ' '),
+        'institution' : user['institution'].replace('_', ' '),
+        'userIdentity': user['userName'].replace('_', ' '),
+        'config'      : { 
+            'ctrlCfg':   ctrlconfig, 
+            'scanCfg':   scanconfig, 
+            'beforeCfg': beforeconfig, 
+            'afterCfg':  afterconfig 
+        }
+    }) 
 
     return results
 
 
-# create dat file from dat data in attachments of run
-def write_dat(runId):
+def writeDat(cmpoid, runoid):
 
-    session['plotList'] = {}
+    query = { 'testRun': runoid, 'component': cmpoid }
+    this_ctr = localdb.componentTestRun.find_one( query )
+    if not this_ctr: return
 
-    plot_dir = TMP_DIR + '/' + str(session.get('uuid','localuser')) + '/plot'
-    clean_dir(plot_dir)
-
-    dat_dir = TMP_DIR + '/' + str(session.get('uuid','localuser')) + '/dat'
-    clean_dir(dat_dir)
-    
-    jsonFile = JSON_DIR + '/{}_parameter.json'.format(session.get('uuid','localuser'))
-    if not os.path.isfile( jsonFile ):
-        jsonFile_default = './scripts/json/parameter_default.json'
-        with open(jsonFile_default, 'r') as f: jsonData_default = json.load(f)
-        with open(jsonFile,         'w') as f: json.dump(jsonData_default, f, indent=4)
- 
-    query = { '_id': ObjectId(runId) }
-    thisRun = localdb.testRun.find_one(query)
-
-    chipIds = {}
-    chipIdNums = []
-
-    chips = []
-    query = [{ 'parent': session['this'] }, { 'child': session['this'] }]
-    child_entries = localdb.childParentRelation.find({'$or': query})
-    for child in child_entries:
-        chips.append({ 'component': child['child'] })
-        query = { '_id': ObjectId(child['child']) }
-        thisChip = localdb.component.find_one( query )
-        chipIds.update({ child['child']: { 'chipId': str(thisChip.get('chipId',-1)),
-                                           'name':   thisChip['name'] }})
-        chipIdNums.append( str(thisChip.get('chipId',-1)) )
-
-    query = { 'testRun': str(thisRun['_id']) }
-    run_entries = localdb.componentTestRun.find(query)
-
-    for run in run_entries:
-        query = { '_id': ObjectId(run['testRun']) }
-        chiprun = localdb.testRun.find_one(query)
-
-        data_entries = chiprun.get('attachments')
-        for data in data_entries:
-            if data['contentType'] == 'dat':
-
-                mapType = data['title']
-                f = open( '{0}/{1}/dat/{2}_chipId{3}.dat'.format( TMP_DIR, session.get('uuid','localuser'), mapType, chipIds[run['component']]['chipId'] ), 'wb' )
-                f.write(fs.get(ObjectId(data['code'])).read())
-                f.close()
-                session['plotList'].update({mapType: {'draw': True, 'chips': chipIdNums}})
- 
-# make plot using PyROOT
-def make_plot(runId):
-    query = { '_id': ObjectId(runId) }
-    thisRun = localdb.testRun.find_one( query )
-
-    if DOROOT:
-        root.uuid = str(session.get('uuid','localuser'))
-
-        if session.get('rootType'):
-            mapType = session['mapType']
-
-            if session['rootType'] == 'set': 
-                root.setParameter(thisRun['testType'], mapType, session['plotList'])
-                for mapType in session['plotList']: session['plotList'][mapType].update({'draw': True, 'parameter': {}})
-
-            elif session['rootType'] == 'make':
-                session['plotList'][mapType].update({'draw': True, 'parameter': session['parameter']})
-
-        else:
-            write_dat(runId)
-
-        session['plotList'] = root.drawScan(thisRun['testType'], session['plotList'])
-
-        session.pop('rootType', None)
-        session.pop('mapType', None)
-        session.pop('parameter', None)
-
-def write_dat_for_component(componentId, runId):
-
-    query = { 'testRun': runId, 'component': componentId }
-    thisComponentTestRun = localdb.componentTestRun.find_one( query )
-    if not thisComponentTestRun: return
-
-    query = { '_id': ObjectId(componentId) }
-    thisComponent = localdb.component.find_one( query )
-    chipId = thisComponent.get('chipId',-1)
-    for data in thisComponentTestRun.get('attachments', []):
+    chipid = this_ctr.get('geomId',1)
+    for data in this_ctr.get('attachments', []):
         if data['contentType'] == 'dat':
             query = { '_id': ObjectId(data['code']) }
-            filePath = '{0}/{1}/dat/{2}-{3}.dat'.format(TMP_DIR, session.get('uuid','localuser'), chipId, data['title'])
-            f = open(filePath, 'wb')
+            file_path = '{0}/{1}/dat/{2}-{3}.dat'.format(TMP_DIR, session.get('uuid','localuser'), chipid, data['title'])
+            f = open(file_path, 'wb')
             f.write(fs.get(ObjectId(data['code'])).read())
             f.close()
             if data['title'] in session['plotList']:
-                session['plotList'][data['title']]['chipIds'].append( chipId )
+                session['plotList'][data['title']]['chipIds'].append( chipid )
+    return
 
-
-def make_plot_for_run(componentId, runId):
-    query = { '_id': ObjectId(runId) }
-    thisRun = localdb.testRun.find_one( query )
+def makePlot(cmpoid, runoid):
+    query = { '_id': ObjectId(runoid) }
+    this_run = localdb.testRun.find_one( query )
     if session.get('rootType'):
-        mapType = session['mapType']
+        root.uuid = str(session.get('uuid','localuser'))
+        maptype = session['mapType']
         if session['rootType'] == 'set':
-            root.setParameter( thisRun['testType'], mapType, session['plotList'] )
-            for mapType in session['plotList']: session['plotList'][mapType].update({'draw': True, 'parameter': {}})
+            root.setParameter( this_run['testType'], maptype, session['plotList'] )
+            for maptype in session['plotList']: session['plotList'][maptype].update({'draw': True, 'parameter': {}})
         elif session['rootType'] == 'make':
-            session['plotList'][mapType].update({'draw': True, 'parameter': session['parameter']})
+            session['plotList'][maptype].update({'draw': True, 'parameter': session['parameter']})
     else:
         dat_dir = TMP_DIR + '/' + str(session.get('uuid','localuser')) + '/dat'
-        clean_dir(dat_dir)
+        cleanDir(dat_dir)
 
         session['plotList'] = {}
-        for mapType in thisRun.get('plots',[]):
-            session['plotList'].update({mapType: {'draw': True, 'chipIds': []}})
-        query = [{ 'parent': componentId }, { 'child': componentId }]
-        child_entries = localdb.childParentRelation.find({'$or': query})
-        for child in child_entries:
-            write_dat_for_component( child['child'], runId )
+        for maptype in this_run.get('plots',[]):
+            session['plotList'].update({maptype: {'draw': True, 'chipIds': []}})
+        is_module = False
+        if this_run['dummy']:
+            if session['this'] == this_run['serialNumber']:
+                is_module = True
+        else:
+            query = { '_id': ObjectId(session['this']) }
+            this_cmp = localdb.component.find_one( query )
+            if this_cmp['serialNumber'] == this_run['serialNumber']:
+                is_module = True
 
-    for mapType in thisRun.get('plots',[]):
-        if not session['plotList'][mapType]['draw']: continue
-        session['plotList'][mapType]['filled'] = False
-        chipIds = session['plotList'][mapType]['chipIds']
-        for chipId in chipIds:
-            session['plotList'] = root.fillHisto(thisRun['testType'], mapType, int(chipId), session['plotList'])
-        if session['plotList'][mapType]['filled']:
-            root.outHisto(thisRun['testType'], mapType, session['plotList'])
-        session['plotList'][mapType]['draw'] = False
+        chipoids = []
+        if is_module:
+            query = { 'testRun': session['runId'] }
+            ctr_entries = localdb.componentTestRun.find( query )
+            for ctr in ctr_entries:
+                if ctr['component'] != session['this']:
+                    chipoids.append( ctr['component'] )
+        else:
+            chipoids.append( session['this'] )
+        for chipoid in chipoids:
+            writeDat( chipoid, runoid )
+
+    if DOROOT:
+        root.uuid = str(session.get('uuid','localuser'))
+        for maptype in this_run.get('plots',[]):
+            if not session['plotList'][maptype]['draw']: continue
+            session['plotList'][maptype]['filled'] = False
+            chipids = session['plotList'][maptype]['chipIds']
+            for chipid in chipids:
+                session['plotList'] = root.fillHisto(this_run['testType'], maptype, int(chipid), session['plotList'])
+            if session['plotList'][maptype]['filled']:
+                root.outHisto(this_run['testType'], maptype, session['plotList'])
+            session['plotList'][maptype]['draw'] = False
 
     session.pop('rootType',  None)
     session.pop('mapType',   None)
     session.pop('parameter', None)
 
-# list plot created by 'make_plot' using PyROOT
-def fill_roots():
+    return
+
+# list plot created by 'makePlot' using PyROOT
+def setRoots():
 
     roots = {}
 
     if not session.get('runId'): return roots
 
-    if not DOROOT:
-        roots.update({'rootsw': False})
-        return roots
-
-    root.uuid = str(session.get('uuid','localuser'))
-    make_plot_for_run( session['this'], session['runId'] )
+    makePlot( session['this'], session['runId'] )
     query = { '_id': ObjectId(session['runId']) }
-    thisRun = localdb.testRun.find_one(query)
+    this_run = localdb.testRun.find_one(query)
 
     results = []
-    for mapType in thisRun.get('plots',[]):
-        if not session['plotList'][mapType].get('HistoType') == 2: continue
-        url = {} 
-        for i in ['1', '2']:
-            filename = TMP_DIR + '/' + str(session.get('uuid','localuser')) + '/plot/' + str(thisRun['testType']) + '_' + str(mapType) + '_{}.png'.format(i)
-            if os.path.isfile(filename):
-                binary_image = open(filename, 'rb')
-                code_base64 = base64.b64encode(binary_image.read()).decode()
-                binary_image.close()
-                url.update({i: bin_to_image('png', code_base64)}) 
-        results.append({ 'mapType' : mapType, 
-                         'sortkey' : '{}0'.format(mapType), 
-                         'runId'   : session['runId'],
-                         'urlDist' : url.get('1'), 
-                         'urlMap'  : url.get('2'), 
-                         'setLog'  : session['plotList'][mapType]['parameter']['log'], 
-                         'minValue': session['plotList'][mapType]['parameter']['min'],
-                         'maxValue': session['plotList'][mapType]['parameter']['max'],
-                         'binValue': session['plotList'][mapType]['parameter']['bin']})
+    for maptype in this_run.get('plots',[]):
+        result = {
+            'mapType' : maptype,
+            'sortkey' : '{}0'.format(maptype),
+            'runId'   : session['runId'],
+            'plot'    : False
+        }
+        if session['plotList'][maptype].get('HistoType') == 2:
+            url = {} 
+            for i in ['1', '2']:
+                filename = TMP_DIR + '/' + str(session.get('uuid','localuser')) + '/plot/' + str(this_run['testType']) + '_' + str(maptype) + '_{}.png'.format(i)
+                if os.path.isfile(filename):
+                    binary_image = open(filename, 'rb')
+                    code_base64 = base64.b64encode(binary_image.read()).decode()
+                    binary_image.close()
+                    url.update({i: bin2image('png', code_base64)}) 
+            result.update({
+                'plot'    : True,
+                'setLog'  : session['plotList'][maptype]['parameter']['log'], 
+                'minValue': session['plotList'][maptype]['parameter']['min'],
+                'maxValue': session['plotList'][maptype]['parameter']['max'],
+                'binValue': session['plotList'][maptype]['parameter']['bin'],
+                'urlDist' : url.get('1'),
+                'urlMap'  : url.get('2')
+            })
+        results.append(result)
 
     results = sorted(results, key=lambda x:int((re.search(r'[0-9]+',x['sortkey'])).group(0)), reverse=True)
 
-    roots.update({ 'rootsw' : True,
-                   'results': results})
+    if DOROOT:
+        roots.update({'rootsw': True})
+    else:
+        roots.update({'rootsw': False})
+
+    roots.update({'results': results})
 
     return roots
 
-def get_data(ModuleName,mapType):
+def getData(mo_serial_number,maptype):
 
-    myzip = zipfile.ZipFile('{0}/{1}/dat/{2}_{3}.zip'.format(TMP_DIR, session.get('uuid','localuser'),ModuleName,mapType),'a')
-    for i in session['plotList'][mapType]['chipIds']:
-        myzip.write('{0}/{1}/dat/{2}-{3}.dat'.format(TMP_DIR, session.get('uuid','localuser'), i, mapType),'{0}_chip{1}_{2}.dat'.format(ModuleName,i,mapType))
+    myzip = zipfile.ZipFile('{0}/{1}/dat/{2}_{3}.zip'.format(TMP_DIR, session.get('uuid','localuser'),mo_serial_number,maptype),'a')
+    for i in session['plotList'][maptype]['chipIds']:
+        myzip.write('{0}/{1}/dat/{2}-{3}.dat'.format(TMP_DIR, session.get('uuid','localuser'), i, maptype),'{0}_chip{1}_{2}.dat'.format(mo_serial_number,i,maptype))
     myzip.close()
-    fileName = TMP_DIR + '/' + str(session.get('uuid','localuser')) + '/dat/' + str(ModuleName) + '_' + str(mapType) + '.zip'
+    filename = TMP_DIR + '/' + str(session.get('uuid','localuser')) + '/dat/' + str(mo_serial_number) + '_' + str(maptype) + '.zip'
 
-    return fileName
+    return filename
 
-def write_config(ModuleName,configType):
+def writeConfig(mo_serial_number,config_type):
     
     config_dir = TMP_DIR + '/' + str(session.get('uuid','localuser')) + '/config'
-    clean_dir(config_dir)
-    myzip = zipfile.ZipFile('{0}/{1}/config/{2}_{3}.zip'.format(TMP_DIR, session.get('uuid','localuser'),ModuleName, configType),'a')
+    cleanDir(config_dir)
+    myzip = zipfile.ZipFile('{0}/{1}/config/{2}_{3}.zip'.format(TMP_DIR, session.get('uuid','localuser'),mo_serial_number, config_type),'a')
 
     if session.get('runId'):
-        query = { '_id':ObjectId(session['this']) } 
-        thisComponent = localdb.component.find_one(query)
         query = { 'component': session['this'], 
                   'testRun'  : session['runId'] }
-        thisComponentTestRun = localdb.componentTestRun.find_one(query)
+        this_ctr = localdb.componentTestRun.find_one(query)
         query = { '_id': ObjectId(session['runId']) }
-        thisRun = localdb.testRun.find_one(query)
+        this_run = localdb.testRun.find_one(query)
 
 
         # Change scheme
-        if configType == 'ctrlCfg' or configType == 'scanCfg':
-            if thisRun.get('scanCfg','...')=='...':
-                print('no config files')
-                pass
-            if not thisRun.get(configType,'...')=='...':
-                query = { '_id': ObjectId(thisRun[configType]) }
+        if config_type == 'ctrlCfg' or config_type == 'scanCfg':
+            if not this_run.get(config_type,'...')=='...':
+                query = { '_id': ObjectId(this_run[config_type]) }
                 config_data = localdb.config.find_one( query )
-                filePath = '{0}/{1}/config/{2}_{3}.json'.format(TMP_DIR, session.get('uuid','localuser'),ModuleName, configType)
-                f = open(filePath, 'wb')
+                file_path = '{0}/{1}/config/{2}_{3}.json'.format(TMP_DIR, session.get('uuid','localuser'),mo_serial_number, config_type)
+                f = open(file_path, 'wb')
                 f.write(fs.get(ObjectId(config_data['data_id'])).read())
                 f.close()
                 
-                myzip.write('{0}/{1}/config/{2}_{3}.json'.format(TMP_DIR, session.get('uuid','localuser'),ModuleName, configType),'{0}_{1}.json'.format(ModuleName, configType))
+                myzip.write('{0}/{1}/config/{2}_{3}.json'.format(TMP_DIR, session.get('uuid','localuser'),mo_serial_number, config_type),'{0}_{1}.json'.format(mo_serial_number, config_type))
 
-        elif configType == 'afterCfg' or 'beforeCfg':        
-            query = [{ 'parent': session['this'] }, { 'child': session['this'] }]
-            child_entries = localdb.childParentRelation.find({'$or': query})
+        elif config_type == 'afterCfg' or 'beforeCfg':        
+            
+            if not this_run['dummy']:
+                query = [{ 'parent': session['this'] }, { 'child': session['this'] }]
+                child_entries = localdb.childParentRelation.find({'$or': query})
+          
+                 
 
-            for child in child_entries:
-                query = { 'component': child['child'], 'testRun': session['runId'] }
-                thisChipComponentTestRun = localdb.componentTestRun.find_one(query)
-                if not thisChipComponentTestRun.get(configType,'...')=='...':
-                    chipId = child['chipId']
-                    configId = thisChipComponentTestRun[configType] 
-             
-                    query = { '_id': ObjectId(configId) }
-                    config_data = localdb.config.find_one(query)
+                for child in child_entries:
+                    query = { 'component': child['child'], 'testRun': session['runId'] }
+                    this_chip_ctr = localdb.componentTestRun.find_one(query)
+                    if not this_chip_ctr.get(config_type,'...')=='...':
+                        chipid = child['chipId']
+                        configid = this_chip_ctr[config_type] 
+                 
+                        query = { '_id': ObjectId(configid) }
+                        config_data = localdb.config.find_one(query)
 
-                    filePath = '{0}/{1}/config/{2}_chip{3}_{4}.json'.format(TMP_DIR, session.get('uuid','localuser'),ModuleName, chipId, configType)
-                    f = open(filePath, 'wb')
-                    f.write(fs.get(ObjectId(config_data['data_id'])).read())
-                    f.close()
-                    
-                    myzip.write('{0}/{1}/config/{2}_chip{3}_{4}.json'.format(TMP_DIR, session.get('uuid','localuser'),ModuleName, chipId, configType),'{0}_chip{1}_{2}.json'.format(ModuleName, chipId, configType))
+                        file_path = '{0}/{1}/config/{2}_chip{3}_{4}.json'.format(TMP_DIR, session.get('uuid','localuser'),mo_serial_number, chipid, config_type)
+                        f = open(file_path, 'wb')
+                        f.write(fs.get(ObjectId(config_data['data_id'])).read())
+                        f.close()
+                        
+                        myzip.write('{0}/{1}/config/{2}_chip{3}_{4}.json'.format(TMP_DIR, session.get('uuid','localuser'),mo_serial_number, chipid, config_type),'{0}_chip{1}_{2}.json'.format(mo_serial_number, chipid, config_type))
         
+            else:
+                query = {'testRun': session['runId'] }
+                this_chip_ctrs = localdb.componentTestRun.find(query)
+                for this_chip_ctr in this_chip_ctrs: 
+                    if not this_chip_ctr.get(config_type,'...')=='...':
+                        chipid = '1'
+                        configid = this_chip_ctr[config_type] 
+                          
+                        query = { '_id': ObjectId(configid) }
+                        config_data = localdb.config.find_one(query)
+
+                        file_path = '{0}/{1}/config/{2}_chip{3}_{4}.json'.format(TMP_DIR, session.get('uuid','localuser'),mo_serial_number, chipid, config_type)
+                        f = open(file_path, 'wb')
+                        f.write(fs.get(ObjectId(config_data['data_id'])).read())
+                        f.close()
+                        
+                        myzip.write('{0}/{1}/config/{2}_chip{3}_{4}.json'.format(TMP_DIR, session.get('uuid','localuser'),mo_serial_number, chipid, config_type),'{0}_chip{1}_{2}.json'.format(mo_serial_number, chipid, config_type))
+        
+
     myzip.close()
     
-    fileName = TMP_DIR + '/' + str(session.get('uuid','localuser')) + '/config/' + str(ModuleName) + '_' + str(configType) + '.zip'
-    return fileName
-
+    filename = TMP_DIR + '/' + str(session.get('uuid','localuser')) + '/config/' + str(mo_serial_number) + '_' + str(config_type) + '.zip'
+    return filename
 
