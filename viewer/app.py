@@ -7,10 +7,12 @@
 # Usage: python app.py --config conf.yml 
 # Date: Feb 2019
 ################################
+import os
+import sys
+sys.path.append( os.path.dirname(os.path.dirname(os.path.abspath(__file__)) ) )
 from configs.imports import *
 
 # module
-import os
 import hashlib
 import datetime
 import shutil
@@ -18,7 +20,6 @@ import uuid
 import base64                          # Base64 encoding scheme
 import gridfs                          # gridfs system 
 import io
-import sys
 import yaml
 import pytz
 
@@ -29,7 +30,6 @@ from bson.objectid    import ObjectId
 from werkzeug         import secure_filename # for upload system
 from PIL              import Image
 
-sys.path.append( os.path.dirname(os.path.dirname(os.path.abspath(__file__)) ) )
 
 # Config python logging
 # https://stackoverflow.com/questions/17743019/flask-logging-cannot-get-it-to-write-to-a-file
