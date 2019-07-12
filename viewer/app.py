@@ -102,6 +102,7 @@ else:
 url = "mongodb://" + args.host + ":" + str(args.port)
 print("Connecto to mongoDB server: " + url + "/" + args.db)
 mongo     = PyMongo(app, uri=MONGO_URL+'/'+args.db)
+LocalDB.setMongo(mongo)
 fs = gridfs.GridFS(mongo.db)
 dbv=args.version
 

@@ -4,37 +4,35 @@ retrieve_component_api = Blueprint('retrieve_component_api', __name__)
 
 @retrieve_component_api.route('/retrieve/component', methods=['GET'])
 def retrieve_component():
-    MONGO_URL = 'mongodb://' + args.host + ':' + str(args.port) 
-    mongo = MongoClient(MONGO_URL)["localdb"]
-
+    localdb = LocalDB.getMongo().db
     return_json = {}
 
     run_oid = None
     if request.args.get('dummy',False)==True:
         query = { 'dummy': True }
-        run_entry = mongo.testRun.find(query).sort([( '$natural', -1 )]).limit(1)
+        run_entry = localdb.testRun.find(query).sort([( '$natural', -1 )]).limit(1)
         if not run_entry.count()==0:
             run_oid = str(run_entry[0]['_id'])
             serialnumber = run_entry[0]['serialNumber']
     elif request.args.get('testRun',None):
         query = { 'testRun': request.args['testRun'] }
-        this_run = mongo.componentTestRun.find_one(query) 
+        this_run = localdb.componentTestRun.find_one(query) 
         if this_run:
             run_oid = request.args['testRun']
             query = { '_id': ObjectId(run_oid) }
-            this_run = mongo.testRun.find_one(query)
+            this_run = localdb.testRun.find_one(query)
             serialnumber = this_run['serialNumber']
     elif request.args.get('serialNumber',None):
         query = { 'serialNumber': request.args['serialNumber'] }
-        this_cmp = mongo.component.find_one(query)
+        this_cmp = localdb.component.find_one(query)
         if this_cmp:
             serialnumber = request.args['serialNumber']
             query = { 'component': str(this_cmp['_id']) }
-            run_entry = mongo.componentTestRun.find(query).sort([( '$natural', -1 )]).limit(1)
+            run_entry = localdb.componentTestRun.find(query).sort([( '$natural', -1 )]).limit(1)
             if not run_entry.count()==0:
                 run_oid = run_entry[0]['testRun']
     else:
-        run_entry = mongo.testRun.find({}).sort([( '$natural', -1 )]).limit(1)
+        run_entry = localdb.testRun.find({}).sort([( '$natural', -1 )]).limit(1)
         if not run_entry.count()==0:
             run_oid = str(run_entry[0]['_id'])
             serialnumber = run_entry[0]['serialNumber']
@@ -53,7 +51,7 @@ def retrieve_component():
         return jsonify(return_json)
 
     query = { 'serialNumber': serialnumber }
-    this_cmp = mongo.component.find_one(query)
+    this_cmp = localdb.component.find_one(query)
     if this_cmp: cmp_oid = str(this_cmp['_id'])
     else:        cmp_oid = serialnumber
 
@@ -75,10 +73,10 @@ def retrieve_component():
     if chip_type == 'FE-I4B': chip_type = 'FEI4B'
 
     query = { '_id': ObjectId(this_run['user_id']) }
-    this_user = mongo.user.find_one(query)
+    this_user = localdb.user.find_one(query)
 
     query = { '_id': ObjectId(this_run['address']) }
-    this_site = mongo.institution.find_one(query)
+    this_site = localdb.institution.find_one(query)
 
     return_json = {
         'testRun':       run_oid,

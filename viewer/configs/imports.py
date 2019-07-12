@@ -52,3 +52,14 @@ from scripts.src.func import *
 #-----------------------------------------------------------------
 from controllers.callback   import callback_api
 from controllers.component_dev   import component_dev_api
+
+#-----------------------------------------------------------------
+# Global Variables
+#-----------------------------------------------------------------
+class LocalDB:
+    db_mongo = ""
+    def getMongo():
+        return LocalDB.db_mongo
+
+    def setMongo(mongo):
+        LocalDB.db_mongo = mongo

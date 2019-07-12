@@ -10,9 +10,7 @@ def retrieve_log():
         time = converted_time.strftime('%Y/%m/%d %H:%M:%S')
         return time
 
-    MONGO_URL = 'mongodb://' + args.host + ':' + str(args.port) 
-    mongo = MongoClient(MONGO_URL)["localdb"]
-
+    localdb = LocalDB.getMongo().db
     return_json = {}
 
     run_query = {}
@@ -21,7 +19,7 @@ def retrieve_log():
         log_query.update({'dummy': True})
     elif request.args.get('serialNumber',None): 
         query = { 'serialNumber': request.args['serialNumber'] }
-        this_cmp = mongo.component.find_one( query )
+        this_cmp = localdb.component.find_one( query )
         if not this_cmp:
             return_json = {
                 'message': 'Not found component data: {}'.format(request.args['serialNumber']),
@@ -31,7 +29,7 @@ def retrieve_log():
         run_query.update({ 'component': str(this_cmp['_id']) })
 
     if not run_query == {}:
-        run_entries = mongo.componentTestRun.find(run_query)
+        run_entries = localdb.componentTestRun.find(run_query)
         run_oids = []
         for run_entry in run_entries:
             run_oids.append({ '_id': ObjectId(run_entry['testRun']) })
@@ -39,7 +37,7 @@ def retrieve_log():
 
     if request.args.get('user',None):
         query = { 'userName': request.args['user'] }
-        this_user = mongo.user.find_one( query )
+        this_user = localdb.user.find_one( query )
         if not this_user:
             return_json = {
                 'message': 'Not found user data: {}'.format(request.args['user']),
@@ -50,7 +48,7 @@ def retrieve_log():
 
     if request.args.get('site',None):
         query = { 'institution': request.args['site'] }
-        this_site = mongo.user.find_one( query )
+        this_site = localdb.user.find_one( query )
         if not this_site:
             return_json = {
                 'message': 'Not found site data: {}'.format(request.args['site']),
@@ -59,14 +57,14 @@ def retrieve_log():
             return jsonify(return_json)
         log_query.update({ 'address': str(this_site['_id']) })
 
-    run_entries = mongo.testRun.find( log_query ).sort([( '$natural', -1 )])
+    run_entries = localdb.testRun.find( log_query ).sort([( '$natural', -1 )])
 
     return_json = { 'log': [] }
     for run_entry in run_entries:
         query = { '_id': ObjectId(run_entry['user_id']) }
-        this_user = mongo.user.find_one( query )
+        this_user = localdb.user.find_one( query )
         query = { '_id': ObjectId(run_entry['address']) }
-        this_site = mongo.institution.find_one( query )
+        this_site = localdb.institution.find_one( query )
         test_data = {
             'user': this_user['userName'],
             'site': this_site['institution'],

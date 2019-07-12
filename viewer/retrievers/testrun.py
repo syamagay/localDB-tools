@@ -10,21 +10,20 @@ def retrieve_testrun():
         time = converted_time.strftime('%Y/%m/%d %H:%M:%S')
         return time
 
-    MONGO_URL = 'mongodb://' + args.host + ':' + str(args.port) 
-    mongo = MongoClient(MONGO_URL)["localdb"]
+    localdb = LocalDB.getMongo().db
 
     run_id = request.args.get('testRun', None)
     return_json = {}
 
     query = { '_id': ObjectId(run_id) }
-    this_run = mongo.testRun.find_one(query)
+    this_run = localdb.testRun.find_one(query)
 
     query = { '_id': ObjectId(this_run['user_id']) }
-    this_user = mongo.user.find_one(query)
+    this_user = localdb.user.find_one(query)
     query = { '_id': ObjectId(this_run['address']) }
-    this_site = mongo.institution.find_one(query)
+    this_site = localdb.institution.find_one(query)
     query = { 'testRun': run_id }
-    run_entries = mongo.componentTestRun.find(query)
+    run_entries = localdb.componentTestRun.find(query)
     return_json = {
         'testRun': run_id,
         'runNumber': this_run['runNumber'],
