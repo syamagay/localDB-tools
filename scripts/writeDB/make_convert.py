@@ -318,6 +318,7 @@ def registerComponentTestRun(i_cmp_id, i_tr_id):
         'tx'         : -1, 
         'rx'         : -1, 
         'geomId'     : thisCmp.get('chipId',-1),
+        'chipId'     : thisCmp.get('chipId',-1),
         'beforeCfg'  : '...', 
         'afterCfg'   : '...', 
         'dbVersion'  : db_version
@@ -837,6 +838,12 @@ def convert():
                                             {'$set': { 'geomId': return_doc['chip_id'] }}
                                         )
                                         new_thisComponentTestRun = localdb.componentTestRun.find_one( new_ctr_query )
+                                    if not return_doc['chip_id'] == -1 and new_thisComponentTestRun['chipId'] == -1:
+                                        localdb.component.update(
+                                            new_ctr_query,
+                                            {'$set': { 'chipId': return_doc['chip_id'] }}
+                                        )
+                                        new_thisComponentTestRun = localdb.componentTestRun.find_one( new_ctr_query )
                                     if new_thisComponentTestRun['tx'] == -1 and not return_doc['tx'] == -1:
                                         localdb.component.update(
                                             new_ch_query,
@@ -856,6 +863,12 @@ def convert():
                                         localdb.component.update(
                                             new_ctr_query,
                                             {'$set': { 'geomId': return_doc['chip_id'] }}
+                                        )
+                                        new_thisComponentTestRun = localdb.componentTestRun.find_one( new_ctr_query )
+                                    if not return_doc['chip_id'] == -1 and new_thisComponentTestRun['chipId'] == -1:
+                                        localdb.component.update(
+                                            new_ctr_query,
+                                            {'$set': { 'chipId': return_doc['chip_id'] }}
                                         )
                                         new_thisComponentTestRun = localdb.componentTestRun.find_one( new_ctr_query )
                                     if new_thisComponentTestRun['tx'] == -1 and not return_doc['tx'] == -1:
