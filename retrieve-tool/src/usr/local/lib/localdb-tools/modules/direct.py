@@ -238,14 +238,14 @@ def __checkout(args, serialnumber=None, runid=None):
     chip_data = []
     if this_run['serialNumber'] == serialnumber:
         component_type = 'Module'
-        chip_type = this_run['chipType']
+        chip_type = this_run.get('chipType','NULL')
         query = { 'testRun': run_oid, 'component': {'$ne': cmp_oid} }
         ctr_entries = localdb.componentTestRun.find(query)
         for ctr in ctr_entries:
             chip_data.append({ 'component': ctr['component'] })
     else:
         component_type = 'Front-end Chip'
-        chip_type = this_run['chipType']
+        chip_type = this_run.get('chipType','NULL')
         chip_data.append({ 'component': cmp_oid })
 
     if chip_type == 'FE-I4B': chip_type = 'FEI4B'
