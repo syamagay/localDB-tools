@@ -1,0 +1,270 @@
+#!/usr/bin/env python3
+#################################
+# Author: Arisa Kubota
+# Email: arisa.kubota at cern.ch
+# Date: July 2019
+# Project: Local Database for YARR
+#################################
+
+# Common
+import os
+import sys
+import shutil
+import requests
+import json
+import signal
+
+import argparse 
+
+from getpass    import getpass
+from pymongo    import MongoClient, errors
+from datetime   import datetime
+
+sys.path.append(os.path.join(os.path.dirname(os.path.abspath(__file__)),'../lib/localdb-tools/modules'))
+
+import register
+
+DB_DEBUG=False
+
+def readConfig(conf_path):
+    f = open(conf_path, 'r')
+    conf = json.load(f)
+    return conf
+
+def getArgs():
+    parser = argparse.ArgumentParser(formatter_class=argparse.ArgumentDefaultsHelpFormatter)
+    parser.add_argument('--config', help='Set config file path.', type=str)
+    parser.add_argument('--host', help='Set the Local DB Server Host.', type=str)
+    parser.add_argument('--port', help='Set the Local DB Server Port.', type=str)
+    parser.add_argument('--username', help='Set the User Name of Local DB Server.', type=str)
+    parser.add_argument('--password', help='Set the Password of Local DB Server.', type=str)
+    parser.add_argument('--database', help='Set the Local DB Name.', type=str, default='localdb')
+    args = parser.parse_args()
+
+    if args.config is not None:
+        conf = readConfig(args.config)    # Read from config file
+        if 'hostIp'   in conf and not args.host:     args.host     = conf['hostIp']
+        if 'hostPort' in conf and not args.port:     args.port     = conf['portPort']
+        if 'dbName'   in conf and not args.database: args.database = conf['dbName']
+    return args
+
+def getTestRunData(tr_oid, serial_number, timestamp):
+    if DB_DEBUG: print('DBHandler: Get TestRun Data')
+
+    global localdb
+
+    m_tr_oid_str = "";
+
+    if tr_oid=='' and (serial_number=='' or timestamp==-1):
+        #TODO alert
+        return
+
+    if tr_oid=='':
+        start_time = datetime.utcfromtimestamp(now)
+        doc_value = {
+            'startTime': start_time,
+            'serialNumber': serial_number
+        }
+    else:
+        doc_value = {
+            '_id': ObjectId(tr_oid)
+        }
+    this_run = localdb.testRun.find_one(doc_value)
+    if this_run: m_tr_oid_str = this_run['_id']
+
+    return m_tr_oid_str
+
+def __init(url, name):
+    global localdb
+
+    max_server_delay = 1
+    client = MongoClient(url, serverSelectionTimeoutMS=max_server_delay)
+    try:
+        client.server_info()
+        #print('SUCCESS: The connection of Local DB {} is GOOD.\n'.format(url))
+    except errors.ServerSelectionTimeoutError as err:
+        #print('WARNING: The connection of Local DB {} is BAD.'.format(url))
+        #print('         {}\n'.format(err))
+        return False
+    except errors.OperationFailure as err:
+        #print('Need users authenticated.')
+        db = client[name]
+        try:
+            db.authenticate(args.username, args.password)
+            #print('SUCCESS: The connection of Local DB {} is GOOD.\n'.format(url))
+        except errors.OperationFailure as err: 
+            #print('ERROR: Authentication failed.')
+            return False
+
+    localdb = client[name]
+    register.__set_localdb(localdb)
+    localdb['fs.files'].create_index([('hash', pymongo.DESCENDING), ('_id', pymongo.DESCENDING)])
+
+    conf = readConfig(args.config)
+    register.__set_stage_list(conf['stage'])
+    register.__set_env_list(conf['environment'])
+    register.__set_cmp_list(conf['component'])
+
+    global m_cache_dir
+    m_cache_dir = conf["cachePath"];
+
+    #else m_log_dir = m_cache_dir+"/tmp/log";//TODO
+    #m_log_path = m_log_dir + "/cacheLog.json";
+    #this->mkdir(m_log_dir);
+    #m_log_json["version"] = m_db_version;
+    #m_log_json["logPath"] = m_log_dir;
+    #m_log_json["dbOption"] = m_option;
+    #this->writeJson("status", "running", m_log_path, m_log_json);
+    #this->cacheDBCfg(); 
+
+    return True
+
+def __set_cache(cache_dir):
+    if DB_DEBUG: print('DBHandler: Write cache data: {}'.format(cache_dir))
+
+    global m_cache_path
+    global m_cache_json
+
+    m_cache_path = cache_dir+'/cacheLog.json'
+    with open(cache_path) as f:
+        m_cache_json = json.load(f)
+    option = m_cache_json.get('dbOption', 'null')
+    if option=='scan': writeScan(cache_dir)
+    if option=='dcs': writeDCS(cache_dir)
+
+def __write_scan(cache_dir):
+    if DB_DEBUG: print('DBHandler: Write cache scan data: {}'.format(cache_dir))
+
+    global m_cache_json
+    global m_cache_dir
+
+    now = datetime.now().timestamp()
+    if m_cache_json['status']=='done':
+        # print('Already uploaded, then move cache files to temporary...')
+        shutil.move(cache_dir, '{0}/tmp/db/{1}'.format(m_cache_dir, now))
+        return
+    elif m_cache_json['status']=='failure':
+        shutil.move(cache_dir, '{0}/tmp/failed/{1}'.format(m_cache_dir, now))
+        return
+
+    if m_cache_json['status']!='waiting': return
+    writeJson('status', 'writing', m_cache_path, m_cache_json);
+
+    register.__set_user('{}/user.json'.format(cache_dir))
+    register.__set_site('{}/address.json'.format(cache_dir))
+
+    timestamp = m_cache_json['startTime']
+    conn_paths = []
+    for i, conn_cfg in enumerate(m_cache_json['configs']['connCfg']):
+        conn_path = conn_cfg['path']
+        with open(conn_path, 'r') as f:
+            conn_json = json.load(f)
+        serial_number = conn_json['module']['serialNumber']
+        if getTestRunData('', serial_number, timestamp)!='':
+            #TODO alert
+            continue
+        conn_paths.append(conn_path)
+
+    register.__set_conn(conn_paths)
+
+ 
+
+    
+def __write_dcs(cache_dir):
+    if DB_DEBUG: print('DBHandler: Write cache DCS data: {}'.format(cache_dir))
+ 
+def cache():
+#    args = getArgs()
+#    #with open(args.config) as f: db_cfg_json = json.load(f)
+#    #db_cache_path = db_cfg_json['cachePath']+'var/localdb/cache'
+#    if DB_DEBUG: print('DBHandler: Register Cache in "{}"'.format(db_cache_path))
+#
+#    db_url = 'mongodb://{0}:{1}'.format(args.host, args.port)
+#    db_name = args.dbname
+#    if not __init(db_url, db_name)==True:
+#        sys.exit()
+#
+#     for file_name in os.listdir(db_cache_path):
+#        if not file_name.isdecimal(): continue
+#        cache_path = db_cache_path+'/'+file_name
+#        db_cfg_path = cache_path+'/database.json'
+#        __set_cache(cache_path)
+#        __clear()
+
+    register.test()
+    register.test2()
+    register.__set_localdb('A')
+    register.test()
+    register.test2()
+
+#
+#        std::string db_tmp_path = std::string(db_cfg_json["cachePath"])+"/tmp/db";
+#
+#        int now = std::time(NULL);
+#
+#        DIR *t_dp;
+#        struct dirent *t_dirp;
+#
+#	      t_dp = opendir(db_tmp_path.c_str());
+#	      if (t_dp==NULL) {
+#		        return 0; 
+#	      }
+#	      while ((t_dirp = readdir(t_dp))) {
+#		        std::string file_name = t_dirp->d_name;
+#            if (file_name=="."||file_name=="..") continue;
+#            //if (now-stoi(file_name)>604800) { // temporary cache files older than one week are deleted 
+#            if (now-stoi(file_name)>304800) { // temporary cache files older than one week are deleted 
+#                std::cout << "rm -r " << file_name << std::endl;
+#                std::string cmd = "rm -r "+db_tmp_path+"/"+file_name;
+#                if (system(cmd.c_str()) < 0) {
+#                    std::cerr << "Problem removing files in " << db_tmp_path << "/" << file_name << std::endl;
+#                }
+#            }
+#        }
+#    }
+#
+# 
+#
+#
+#
+#
+#
+#
+#
+#
+#
+#
+#
+#
+#
+#
+#
+#
+#
+#
+#
+#    register.test()
+#    register.test2()
+#    #args = getArgs()
+#    #command = args.command[0]
+#    #nargs = len(args.command)-1
+#    #first_arg = None
+#    #second_arg = None
+#    #if nargs == 1: 
+#    #    first_arg = args.command[1]
+#    #elif nargs == 2: 
+#    #    first_arg = args.command[1]
+#    #    second_arg = args.command[2]
+#    #    if command == 'fetch':
+#    #        print('ERROR: Unknown subcommand: {}'.format(second_arg))
+#    #elif not nargs == 0:
+#    #    print('ERROR: Unknown subcommand: {}'.format(args.command[3]))
+#    #    print('Usage: {} <remote>'.format(command))
+#    #    if not command == 'fetch':
+#    #        print('   or: {} <serial number>'.format(command))
+#    #        print('    or {} <remote> <serial number>'.format(command))
+#    #    if command == 'checkout':
+#    #        print('   or: {} <test data id>'.format(command))
+#    #    sys.exit()
+#
+if __name__ == '__main__': cache()
