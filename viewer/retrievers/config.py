@@ -4,53 +4,45 @@ retrieve_config_api = Blueprint('retrieve_config_api', __name__)
 
 @retrieve_config_api.route('/retrieve/config', methods=['GET'])
 def retrieve_config():
-    MONGO_URL = 'mongodb://' + args.host + ':' + str(args.port) 
-    mongo = MongoClient(MONGO_URL)["localdb"]
+    localdb = LocalDB.getMongo().db
+    fs = gridfs.GridFS(localdb)
 
     get_list = {}
 
-    get_list['component'] = request.args.get('component', None)
-    get_list['configType'] = request.args.get('configType', None)
-    get_list['testRun'] = request.args.get('testRun', None)
+    cmp_oid = request.args['component']
+    config = request.args['configType']
+    run_oid = request.args['testRun']
 
     return_json = {}
 
-    for get_key in get_list:
-        if not get_list[get_key]:
-            return_json = {
-                'message': 'Not provide {} value'.format(get_key),
-                'error': True
-            }
-            return jsonify(return_json)
-
     query = { 
-        'component': get_list['component'],
-        'testRun': get_list['testRun']
+        'component': cmp_oid,
+        'testRun': run_oid 
     }
-    this_ctr = mongo.componentTestRun.find_one(query)
+    this_ctr = localdb.componentTestRun.find_one(query)
     if not this_ctr:
         return_json = {
-            'message': 'Not found test data: component: {0}, run: {1}'.format( get_list['component'], get_list['testRun'] ),
+            'message': 'Not found test data: component: {0}, run: {1}'.format( cmp_oid, run_oid ),
             'error': True
         }
         return jsonify(return_json)
-    if get_list['configType'] == 'ctrl' or get_list['configType'] == 'scan':
-        query = { '_id': ObjectId(get_list['testRun']) }
-        this_run = mongo.testRun.find_one(query)
-    elif get_list['configType'] == 'after' or get_list['configType'] == 'before':
+    if config == 'ctrl' or config == 'scan':
+        query = { '_id': ObjectId(run_oid) }
+        this_run = localdb.testRun.find_one(query)
+    elif config == 'after' or config  == 'before':
         this_run = this_ctr
     else:
         return_json = {
-            'message': 'Not exist config type: {}'.format( get_list['configType'] ),
+            'message': 'Not exist config type: {}'.format( config ),
             'error': True
         }
         return jsonify(return_json)
 
-    if this_run['{}Cfg'.format(get_list['configType'])] == '...':
+    if this_run['{}Cfg'.format(config)] == '...':
         return_json.update({ 'data': 'Not found', 'write': False })
     else:
-        query = { '_id': ObjectId(this_run['{}Cfg'.format(get_list['configType'])]) }
-        this_cfg = mongo.config.find_one(query)
+        query = { '_id': ObjectId(this_run['{}Cfg'.format(config)]) }
+        this_cfg = localdb.config.find_one(query)
         return_json.update({ 
             'data': 'Found',
             'write': True,

@@ -7,10 +7,12 @@
 # Usage: python app.py --config conf.yml 
 # Date: Feb 2019
 ################################
-from configs import *
+import os
+import sys
+sys.path.append( os.path.dirname(os.path.dirname(os.path.abspath(__file__)) ) )
+from configs.imports import *
 
 # module
-import os
 import hashlib
 import datetime
 import shutil
@@ -18,7 +20,6 @@ import uuid
 import base64                          # Base64 encoding scheme
 import gridfs                          # gridfs system 
 import io
-import sys
 import yaml
 import pytz
 
@@ -29,11 +30,6 @@ from bson.objectid    import ObjectId
 from werkzeug         import secure_filename # for upload system
 from PIL              import Image
 
-sys.path.append( os.path.dirname(os.path.dirname(os.path.abspath(__file__)) ) )
-
-from scripts.src      import listset
-from scripts.src      import static
-from scripts.src.func import *
 
 # Config python logging
 # https://stackoverflow.com/questions/17743019/flask-logging-cannot-get-it-to-write-to-a-file
@@ -49,6 +45,7 @@ from retrievers.component import retrieve_component_api
 from retrievers.testrun import retrieve_testrun_api
 from retrievers.config import retrieve_config_api
 from retrievers.log import retrieve_log_api
+from retrievers.remote import retrieve_remote_api
 
 if os.path.isdir( TMP_DIR ): 
     shutil.rmtree( TMP_DIR )
@@ -70,6 +67,7 @@ app.register_blueprint(retrieve_component_api)
 app.register_blueprint(retrieve_testrun_api)
 app.register_blueprint(retrieve_config_api)
 app.register_blueprint(retrieve_log_api)
+app.register_blueprint(retrieve_remote_api)
 
 # Prefix
 class PrefixMiddleware(object):
@@ -104,6 +102,7 @@ else:
 url = "mongodb://" + args.host + ":" + str(args.port)
 print("Connecto to mongoDB server: " + url + "/" + args.db)
 mongo     = PyMongo(app, uri=MONGO_URL+'/'+args.db)
+LocalDB.setMongo(mongo)
 fs = gridfs.GridFS(mongo.db)
 dbv=args.version
 

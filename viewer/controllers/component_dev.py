@@ -7,6 +7,7 @@ component_dev_api = Blueprint('component_dev_api', __name__)
 def show_component_dev():
     MONGO_URL = 'mongodb://' + args.host + ':' + str(args.port) 
     mongo = MongoClient(MONGO_URL)["localdb"]
+    print(mongo.collection_name())
 
     make_dir()
 
@@ -17,6 +18,7 @@ def show_component_dev():
     # this component
     query = { '_id': ObjectId(session['this']) }
     thisComponent = mongo.db.component.find_one( query )
+    print(thisComponent)
     componentType = thisComponent['componentType']
 
     # chips and parent

@@ -4,53 +4,88 @@ retrieve_component_api = Blueprint('retrieve_component_api', __name__)
 
 @retrieve_component_api.route('/retrieve/component', methods=['GET'])
 def retrieve_component():
-    MONGO_URL = 'mongodb://' + args.host + ':' + str(args.port) 
-    mongo = MongoClient(MONGO_URL)["localdb"]
-
-    serial_number = request.args.get('serialNumber', None)
-    run_id = request.args.get('testRun', None)
+    localdb = LocalDB.getMongo().db
     return_json = {}
-    if not serial_number and not run_id:
-        return_json = {
-            'message': 'Not provide serial number or test data id',
-            'error': True
-        }
-        return jsonify(return_json)
 
-    query = {}
-    if run_id:
-        query = { '_id': ObjectId(run_id) }
-        this_run = mongo.testRun.find_one(query)
-        serial_number =  this_run['serialNumber']
-
-    query = { 'serialNumber': serial_number }
-    this_cmp = mongo.component.find_one(query)
-    if not this_cmp:
-        return_json = {
-            'message': 'Not found component data: {}'.format(serial_number),
-            'error': True
-        }
-        return jsonify(return_json)
-
-    query = { 'parent': str(this_cmp['_id']) }
-    children = mongo.childParentRelation.find(query)
-    return_json['componentType'] = this_cmp['componentType']
-    return_json['chipType'] = this_cmp['chipType']
-    return_json.update({ 'chips': [] })
-    if children:
-        for child in children:
-            query = { '_id': ObjectId(child['child']) }
-            this_cmp = mongo.component.find_one(query)
-            return_json['chips'].append({
-                'component': child['child'],
-                'chipId': child['chipId'],
-                'serialNumber': this_cmp['serialNumber']
-            })
+    run_oid = None
+    if request.args.get('dummy',False)==True:
+        query = { 'dummy': True }
+        run_entry = localdb.testRun.find(query).sort([( '$natural', -1 )]).limit(1)
+        if not run_entry.count()==0:
+            run_oid = str(run_entry[0]['_id'])
+            serialnumber = run_entry[0]['serialNumber']
+    elif request.args.get('testRun',None):
+        query = { 'testRun': request.args['testRun'] }
+        this_run = localdb.componentTestRun.find_one(query) 
+        if this_run:
+            run_oid = request.args['testRun']
+            query = { '_id': ObjectId(run_oid) }
+            this_run = localdb.testRun.find_one(query)
+            serialnumber = this_run['serialNumber']
+    elif request.args.get('serialNumber',None):
+        query = { 'serialNumber': request.args['serialNumber'] }
+        this_cmp = localdb.component.find_one(query)
+        if this_cmp:
+            serialnumber = request.args['serialNumber']
+            query = { 'component': str(this_cmp['_id']) }
+            run_entry = localdb.componentTestRun.find(query).sort([( '$natural', -1 )]).limit(1)
+            if not run_entry.count()==0:
+                run_oid = run_entry[0]['testRun']
     else:
-        return_json['chips'].append({
-            'component': str(this_cmp['_id']),
-            'chipId': this_cmp['chipId'],
-            'serialNumber': this_cmp['serialNumber']
-        })
+        run_entry = localdb.testRun.find({}).sort([( '$natural', -1 )]).limit(1)
+        if not run_entry.count()==0:
+            run_oid = str(run_entry[0]['_id'])
+            serialnumber = run_entry[0]['serialNumber']
+
+    if not run_oid:
+        if serialnnumber:
+            return_json = {
+                'message': 'Not exist test data of the component: {}'.format(serialnumber),
+                'error': True
+            }
+        else:
+            return_json = {
+                'message': 'Not exist test data',
+                'error': True
+            }
+        return jsonify(return_json)
+
+    query = { 'serialNumber': serialnumber }
+    this_cmp = localdb.component.find_one(query)
+    if this_cmp: cmp_oid = str(this_cmp['_id'])
+    else:        cmp_oid = serialnumber
+
+    query = { '_id': ObjectId(run_oid) }
+    this_run = localdb.testRun.find_one(query)
+    chip_data = []
+    if this_run['serialNumber'] == serialnumber:
+        component_type = 'Module'
+        chip_type = this_run.get('chipType','NULL')
+        query = { 'testRun': run_oid, 'component': {'$ne': cmp_oid} }
+        ctr_entries = localdb.componentTestRun.find(query)
+        for ctr in ctr_entries:
+            chip_data.append({ 'component': ctr['component'] })
+    else:
+        component_type = 'Front-end Chip'
+        chip_type = this_run.get('chipType','NULL')
+        chip_data.append({ 'component': cmp_oid })
+
+    if chip_type == 'FE-I4B': chip_type = 'FEI4B'
+
+    query = { '_id': ObjectId(this_run['user_id']) }
+    this_user = localdb.user.find_one(query)
+
+    query = { '_id': ObjectId(this_run['address']) }
+    this_site = localdb.institution.find_one(query)
+
+    return_json = {
+        'testRun':       run_oid,
+        'component':     cmp_oid,
+        'componentType': component_type,
+        'chipType':      chip_type,
+        'chips':         chip_data,
+        'user':          this_user['userName'],
+        'sute':          this_site['institution']
+    }
 
     return jsonify(return_json)

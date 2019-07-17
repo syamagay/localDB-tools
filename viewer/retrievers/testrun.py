@@ -10,76 +10,36 @@ def retrieve_testrun():
         time = converted_time.strftime('%Y/%m/%d %H:%M:%S')
         return time
 
-    MONGO_URL = 'mongodb://' + args.host + ':' + str(args.port) 
-    mongo = MongoClient(MONGO_URL)["localdb"]
+    localdb = LocalDB.getMongo().db
 
-    serial_number = request.args.get('serialNumber', None)
     run_id = request.args.get('testRun', None)
     return_json = {}
-    if not serial_number and not run_id:
-        return_json = {
-            'message': 'Not provide serial number or test data id',
-            'error': True
-        }
-        return jsonify(return_json)
 
-    if run_id:
-        query = { '_id': ObjectId(run_id) }
-        this_run = mongo.testRun.find_one(query)
-        if not this_run:
-            return_json = {
-                'message': 'Not found test data: {}'.format(run_id),
-                'error': True
-            }
-            return jsonify(return_json)
-     
-    elif serial_number:
-        query = { 'serialNumber': serial_number }
-        this_cmp = mongo.component.find_one(query)
-        if not this_cmp:
-            return_json = {
-                'message': 'Not found component data: {}'.format(serial_number),
-                'error': True
-            }
-            return jsonify(return_json)
+    query = { '_id': ObjectId(run_id) }
+    this_run = localdb.testRun.find_one(query)
 
-    if run_id:
-        query = { 'testRun': run_id }
-    else:
-        query = { 'component': str(this_cmp['_id']) }
-    run_entries = mongo.componentTestRun.find(query).sort([( '$natural', -1 )] )
-    this_run = None
-    for run in run_entries:
-        this_run = run
-        break
-    if not this_run:
-        return_json = {
-            'message': 'Not exist test data of the component: {}'.format(serial_number),
-            'error': True
-        }
-        return jsonify(return_json)
-    query = { '_id': ObjectId(this_run['testRun']) }
-    this_testrun = mongo.testRun.find_one(query)
-    query = { '_id': ObjectId(this_testrun['user_id']) }
-    this_user = mongo.user.find_one(query)
-    query = { '_id': ObjectId(this_testrun['address']) }
-    this_site = mongo.institution.find_one(query)
-    query = { 'testRun': this_run['testRun'] }
-    run_entries = mongo.componentTestRun.find(query)
+    query = { '_id': ObjectId(this_run['user_id']) }
+    this_user = localdb.user.find_one(query)
+    query = { '_id': ObjectId(this_run['address']) }
+    this_site = localdb.institution.find_one(query)
+    query = { 'testRun': run_id }
+    run_entries = localdb.componentTestRun.find(query)
     return_json = {
-        'testRun': this_run['testRun'],
+        'testRun': run_id,
         'runNumber': this_run['runNumber'],
         'testType': this_run['testType'],
-        'datetime': setTime(this_testrun['startTime']),
-        'serialNumber': this_testrun['serialNumber'],
+        'datetime': setTime(this_run['startTime']),
+        'serialNumber': this_run['serialNumber'],
         'user': this_user['userName'],
         'site': this_site['institution'],
+        'chipId': {},
         'geomId': {},
         'tx': {},
         'rx': {}
     }
     for run in run_entries:
-        return_json['geomId'][run['component']] = run['geomId']
+        return_json['chipId'][run['component']] = run.get('chipId',-1)
+        return_json['geomId'][run['component']] = run.get('geomId',-1)
         return_json['tx'][run['component']] = run['tx']
         return_json['rx'][run['component']] = run['rx']
  

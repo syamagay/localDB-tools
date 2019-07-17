@@ -1,4 +1,5 @@
 #!/usr/bin/env python3
+# -*- coding: utf-8 -*
 #################################
 # Author: Eunchong Kim
 # Email: eunchong.kim at cern.ch
@@ -15,12 +16,22 @@ def sync():
     # Private methods
     ##################################################################################
 
+    # status
+    def __status():
+        FUNCNAME = "STATUS\t"
+
+        commit_cnt = __pull(True)
+        print(TOOLNAME + FUNCNAME + "You have " + str(commit_cnt) + " commits to pull!")
+
+        doc_cnt = __commit(True)
+        print(TOOLNAME + FUNCNAME + "You have " + str(doc_cnt) + " documents to commit!")
+
     # construct query
     def __query():
         return {"sys": {"rev": 0, "cts": current_datetime, "mts": current_datetime}}
 
     # commit
-    def __commit():
+    def __commit(is_status = False):
         # Get last commit
         query = {"local_server_name": my_doc["server"]["name"]}
         commit_doc = dbs_sync["local"]["commits"].find_one(query, sort=[("sys.cts", -1)])
@@ -29,7 +40,6 @@ def sync():
         last_sync_datetime = last_sync_datetime_default
         if commit_doc: last_sync_datetime = commit_doc["sys"]["cts"]
         print(TOOLNAME + "Last sync time is: " + str(last_sync_datetime))
-
 
         # Construct query for commit
         query = __query()
@@ -40,6 +50,7 @@ def sync():
 
         # Add _id each collection
         is_empty = True
+        doc_cnt = 0
         for collection_name in collection_names:
             if "fs.chunks" == collection_name: continue # Treat fs.chunks with fs.files
 
@@ -50,12 +61,17 @@ def sync():
                 query_key = "uploadDate"
             documents = dbs["local"][collection_name].find({query_key: {"$gt": last_sync_datetime} })
             ids = []
-            for document in documents:
-                ids.append(document["_id"])
+            for document in documents: ids.append(document["_id"])
 
             temp_collection_name = collection_name.replace(".", "_") # key cannot contain '.'. i.e. 'fs.files' --> 'fs_files'
             query[temp_collection_name] = ids
-            if len(ids) is not 0: is_empty = False
+            if len(ids) is not 0:
+                is_empty = False
+                doc_cnt += len(ids)
+
+        # For status
+        if is_status:
+            return doc_cnt
 
         # Insert object
         if is_empty:
@@ -90,10 +106,6 @@ def sync():
                     dbs_sync["local"]["refs"].update({"_id": doc["_id"]}, doc)
                     ref_cnt += 1
         print(TOOLNAME + "Downloaded " + str(ref_cnt) + " refs from master server")
-
-    # status
-    def __status():
-        print("to be continued...")
 
     # pull
     def __push_one_way():
@@ -287,6 +299,11 @@ def sync():
     elif args.sync_opt == "fetch": __fetch()
     elif args.sync_opt == "pull": __pull()
     elif args.sync_opt == "push": __push()
+    elif args.sync_opt == "auto":
+        __commit()
+        __fetch()
+        __pull()
+        __push()
     else:
         print(TOOLNAME + "--sync-opt not given or not matched! exit!")
         exit(1)

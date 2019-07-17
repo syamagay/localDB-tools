@@ -265,6 +265,7 @@ def registerTestRun(i_doc):
         'finishTime'  : finish_time,
         'plots'       : [], 
         'serialNumber': i_doc['serialNumber'],
+        'chipType'    : '...',
         'dummy'       : False,
         'stage'       : '...', 
         'ctrlCfg'     : '...', 
@@ -317,6 +318,7 @@ def registerComponentTestRun(i_cmp_id, i_tr_id):
         'tx'         : -1, 
         'rx'         : -1, 
         'geomId'     : thisCmp.get('chipId',-1),
+        'chipId'     : thisCmp.get('chipId',-1),
         'beforeCfg'  : '...', 
         'afterCfg'   : '...', 
         'dbVersion'  : db_version
@@ -758,7 +760,13 @@ def convert():
                         # stage
                         addStage(thisComponentTestRun.get('stage',''), new_thisRun['stage'], new_trid)
                         addStage(thisRun.get('stage',''), new_thisRun['stage'], new_trid)
-
+                        # chiptype
+                        if new_thisRun['chipType'] == '...':
+                            localdb.testRun.update(
+                                new_tr_query,
+                                {'$set': {'chipType': chip_type }}
+                            )
+                            new_thisRun = localdb.testRun.find_one( new_tr_query )
                         # environment
                         if (not thisComponentTestRun.get('environments',[]) == []) and new_thisRun['environment'] == '...':
                             env_id = registerEnvFromCtr(thisComponentTestRun, new_thisRun['startTime'])
@@ -766,6 +774,7 @@ def convert():
                                 new_tr_query,
                                 {'$set': {'environment': env_id}}   
                             )
+                            new_thisRun = localdb.testRun.find_one( new_tr_query )
                         # controller config
                         if 'ctrlCfg' in thisRun and new_thisRun['ctrlCfg'] == '...':
                             ctrl_id = registerConfigFromJson(thisRun['ctrlCfg'])
@@ -773,6 +782,7 @@ def convert():
                                 new_tr_query,
                                 {'$set': {'ctrlCfg': ctrl_id}}
                             )
+                            new_thisRun = localdb.testRun.find_one( new_tr_query )
                         # scan config
                         if 'scanCfg' in thisRun and new_thisRun['scanCfg'] == '...':
                             scan_id = registerConfigFromJson(thisRun['scanCfg'])
@@ -780,6 +790,7 @@ def convert():
                                 new_tr_query,
                                 {'$set': {'scanCfg': scan_id}}
                             )
+                            new_thisRun = localdb.testRun.find_one( new_tr_query )
                         attachments = thisComponentTestRun.get('attachments',[])
                         for attachment in attachments: 
                             title = registerDatFromDat(attachment, new_ctrid)
@@ -827,6 +838,12 @@ def convert():
                                             {'$set': { 'geomId': return_doc['chip_id'] }}
                                         )
                                         new_thisComponentTestRun = localdb.componentTestRun.find_one( new_ctr_query )
+                                    if not return_doc['chip_id'] == -1 and new_thisComponentTestRun['chipId'] == -1:
+                                        localdb.component.update(
+                                            new_ctr_query,
+                                            {'$set': { 'chipId': return_doc['chip_id'] }}
+                                        )
+                                        new_thisComponentTestRun = localdb.componentTestRun.find_one( new_ctr_query )
                                     if new_thisComponentTestRun['tx'] == -1 and not return_doc['tx'] == -1:
                                         localdb.component.update(
                                             new_ch_query,
@@ -846,6 +863,12 @@ def convert():
                                         localdb.component.update(
                                             new_ctr_query,
                                             {'$set': { 'geomId': return_doc['chip_id'] }}
+                                        )
+                                        new_thisComponentTestRun = localdb.componentTestRun.find_one( new_ctr_query )
+                                    if not return_doc['chip_id'] == -1 and new_thisComponentTestRun['chipId'] == -1:
+                                        localdb.component.update(
+                                            new_ctr_query,
+                                            {'$set': { 'chipId': return_doc['chip_id'] }}
                                         )
                                         new_thisComponentTestRun = localdb.componentTestRun.find_one( new_ctr_query )
                                     if new_thisComponentTestRun['tx'] == -1 and not return_doc['tx'] == -1:
