@@ -53,7 +53,7 @@ done
 
 # Check python modules
 #echo -e "$ITSNAME Check python modules..."
-#/usr/bin/env python3 ../scripts/check_python_modules.py
+#/usr/bin/env python3 ../setting/check_python_modules.py
 
 
 # Create bin

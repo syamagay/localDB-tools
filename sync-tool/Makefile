@@ -53,7 +53,7 @@ uninstall:
 	@rm -rf ${TARGETDIR}${CONFIGURE} ${TARGETDIR}${CRONTAB} ${TARGETDIR}${BINFILE} ${TARGETDIR}${BASHCOMPLETION}
 
 check:
-	@/usr/bin/env python3 ../scripts/check_python_modules.py
+	@/usr/bin/env python3 ../setting/check_python_modules.py
 
 clean:
 	@echo "USE 'make uninstall'!"

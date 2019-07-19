@@ -14,7 +14,7 @@ echo -e "$ITSNAME Welcome!"
 
 # Check python modules
 echo -e "$ITSNAME Check python modules..."
-cd ../scripts
+cd ../setting
 /usr/bin/env python3 check_python_modules.py || return
 cd - >/dev/null
 

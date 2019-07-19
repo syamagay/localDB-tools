@@ -12,7 +12,7 @@ import os, sys
 import pkg_resources
 
 module_names = []
-requirement_file = os.path.dirname(os.path.abspath(__file__))+"/../setting/requirements-pip.txt"
+requirement_file = os.path.dirname(os.path.abspath(__file__))+"/requirements-pip.txt"
 if os.path.isfile(requirement_file):
     for line in open(requirement_file):
         if line[0] != '#':
