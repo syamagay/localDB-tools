@@ -7,8 +7,7 @@
 # Description: Get arguments
 #################################
 
-from __future__ import print_function # Use print() in python2 and 3
-import yaml, argparse
+from configs.development import * # Omajinai
 
 menus=["summary", "verify", "sync"]
 
@@ -22,7 +21,7 @@ def getArgs():
     for menu in menus:  menus_str += menu + ", "
 
     parser = argparse.ArgumentParser(formatter_class=argparse.ArgumentDefaultsHelpFormatter)
-    #parser.add_argument("menu", nargs="+", help="Choose: "+menus_str, type=str)
+    parser.add_argument("menu", nargs="+", help="Choose: "+menus_str, type=str)
     parser.add_argument("-y", help="Yes to confirmation", action="store_true")
     parser.add_argument("--config", "-f", help="Config file path", type=str)
     parser.add_argument("--host", help="LocalDB Server Host", type=str, default="localhost")

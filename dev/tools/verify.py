@@ -7,7 +7,9 @@
 # Description: Verify integrity of data in DB
 #################################
 
-from imports.imports import * # Omajinai
+from configs.imports import * # Omajinai
+from configs.route import * # Omajinai
+TOOLNAME = "[VERIFYTOOL] "
 
 def verify():
     # Get username and hostname

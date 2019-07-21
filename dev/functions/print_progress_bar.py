@@ -7,8 +7,7 @@
 # Description: Common imports
 #################################
 
-from __future__ import print_function # Use print() in python2 and 3
-import os
+from configs.development import * # Omajinai
 
 # Print iterations progress
 def printProgressBar(iteration, total, prefix = '', suffix = '', decimals = 1, fill = '*'):

@@ -7,7 +7,9 @@
 # Description: Summary of local database server
 #################################
 
-from imports import * # Omajinai
+from configs.imports import * # Omajinai
+from configs.route import * # Omajinai
+TOOLNAME = "[SUMMARYTOOL] "
 
 def summary():
     args = getArgs()

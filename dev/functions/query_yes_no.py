@@ -7,7 +7,7 @@
 # Description: Query yes or no
 #################################
 
-import sys
+from configs.development import * # Omajinai
 
 def queryYesNo(question, default="no"):
     """Ask a yes/no question via raw_input() and return their answer.

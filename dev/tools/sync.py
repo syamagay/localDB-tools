@@ -1,15 +1,16 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*
-#################################
-# Author: Eunchong Kim
-# Email: eunchong.kim at cern.ch
-# Date: April 2019
-# Project: Local Database for YARR
-# Description: Sync servers
-#   The config file path: /etc/mongo.d/mongosync.conf
-#################################
+##################################
+## Author1: Eunchong Kim (eunchong.kim at cern.ch)
+## Copyright: Copyright 2019, ldbtools
+## Date: Jul. 2019
+## Project: Local Database Tools
+## Description: Sync tool
+##################################
 
-from imports.imports import * # Omajinai
+from configs.imports import * # Omajinai
+from configs.route import * # Omajinai
+TOOLNAME = "[SYNCTOOL] "
 
 def sync():
     ##################################################################################
