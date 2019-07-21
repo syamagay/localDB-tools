@@ -13,7 +13,7 @@ ITSNAME="[LocalDB Tool Setup Archive Tool]"
 echo -e "$ITSNAME Welcome!"
 
 # Copy bin
-cp -r src/usr/bin .
+cp -r src/bin .
 chmod +x bin/*
 
 # Copy yml configure
@@ -23,7 +23,7 @@ fi
 $EDITOR my_archive_configure.yml
 
 # Enable bash completion
-source src/usr/share/bash-completion/completions/localdbtool-archive
+source src/share/bash-completion/completions/localdbtool-archive
 complete -F _localdbtool_archive ./bin/localdbtool-archive.sh
 
 echo -e "$ITSNAME Finish!"

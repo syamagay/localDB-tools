@@ -7,12 +7,12 @@
 #################################
 
 TOOLNAME="LocalDB Tool - Archive"
-TARGETDIR?=/
+TARGETDIR?=/usr/local/
 SRC=src/
 CONFIGURE=etc/localdbtools/archive.yml
 CRONTAB=etc/cron.d/localdbtool-archive
-BINFILE=usr/bin/localdbtool-archive.sh
-BASHCOMPLETION=usr/share/bash-completion/completions/localdbtool-archive
+BINFILE=bin/localdbtool-archive.sh
+BASHCOMPLETION=share/bash-completion/completions/localdbtool-archive
 
 ## DO NOT TOUCH THESE
 CONFIGUREDIR = $(patsubst %/,%,$(dir ${CONFIGURE}))
