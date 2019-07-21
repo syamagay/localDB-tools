@@ -1,11 +1,12 @@
 #!/usr/bin/env python3
-#################################
-# Author: Eunchong Kim
-# Email: eunchong.kim at cern.ch
-# Date: April 2019
-# Project: Local Database for YARR
-# Description: Verify integrity of data in DB
-#################################
+# -*- coding: utf-8 -*
+##################################
+## Author1: Eunchong Kim (eunchong.kim at cern.ch)
+## Copyright: Copyright 2019, ldbtools
+## Date: Jul. 2019
+## Project: Local Database Tools
+## Description: Verify tool
+##################################
 
 from configs.imports import * # Omajinai
 from configs.route import * # Omajinai

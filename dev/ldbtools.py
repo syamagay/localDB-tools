@@ -19,3 +19,5 @@ if __name__ == '__main__':
         sync()
     elif args.menu[0] == "verify":
         verify()
+    elif args.menu[0] == "verify2":
+        verify2()

@@ -17,3 +17,4 @@ from functions.query_yes_no import queryYesNo #
 from tools.summary import summary
 from tools.sync import sync
 from tools.verify import verify
+from tools.verify2 import verify2

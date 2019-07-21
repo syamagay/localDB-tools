@@ -1,11 +1,12 @@
 #!/usr/bin/env python3
-#################################
-# Author: Eunchong Kim
-# Email: eunchong.kim at cern.ch
-# Date: April 2019
-# Project: Local Database for YARR
-# Description: Summary of local database server
-#################################
+# -*- coding: utf-8 -*
+##################################
+## Author1: Eunchong Kim (eunchong.kim at cern.ch)
+## Copyright: Copyright 2019, ldbtools
+## Date: Jul. 2019
+## Project: Local Database Tools
+## Description: Summary tool
+##################################
 
 from configs.imports import * # Omajinai
 from configs.route import * # Omajinai
