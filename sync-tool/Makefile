@@ -7,12 +7,12 @@
 #################################
 
 TOOLNAME="LocalDB Tool - Synchronization"
-TARGETDIR?=/
+TARGETDIR?=/usr/local/
 SRC=src/
 CONFIGURE=etc/localdbtools/default.yml
 CRONTAB=etc/cron.d/localdbtool-sync
-BINFILE=usr/bin/localdbtool-sync.py
-BASHCOMPLETION=usr/share/bash-completion/completions/localdbtool-sync
+BINFILE=bin/localdbtool-sync.py
+BASHCOMPLETION=share/bash-completion/completions/localdbtool-sync
 
 ## DO NOT TOUCH THESE
 CONFIGUREDIR = $(patsubst %/,%,$(dir ${CONFIGURE}))
