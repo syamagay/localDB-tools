@@ -14,13 +14,13 @@ TOOLNAME = "[SUMMARYTOOL] "
 
 def summary():
     args = getArgs()
-    print(args.dbVersion)
+    logging.info(args.dbVersion)
 
-    mongo = MongoClient("mongodb://" + args.host + ":" + args.port)
+    mongo = MongoClient("mongodb://%s:%d" % (args.host, args.port) )
     db = mongo['localdb']
 
     # Basic info
-    print("[LocalDB] DB summary")
+    logging.info("[LocalDB] DB summary")
     table = PrettyTable(["Collection name", "# of documents"])
     collection_names = db.collection_names()
     for collection_name in collection_names:
@@ -29,7 +29,7 @@ def summary():
     print(table)
 
     # Get modules info
-    print("[LocalDB] Each module summary")
+    logging.info("[LocalDB] Each module summary")
     table_module = PrettyTable(["# of modules", "# of tests"])
     table_all = PrettyTable(["Module S/N", "Chip type", "Chip S/N", "# of Tests", "# of files"])
     query = {"componentType": "Module"}

@@ -27,7 +27,7 @@ def verify():
         local_url = "mongodb://" + args.host + ":" + str(args.port)
     else:
         local_url = "mongodb://" + args.username + ":" + args.password + "@" + args.host + ":" + str(args.port) + "/localdb"
-    print(local_url)
+    logging.info(local_url)
     client = MongoClient(local_url)
     db = client["olddb"]
 
@@ -36,11 +36,11 @@ def verify():
     query = {"componentType": "Module"}
     modules = db.component.find(query)
     nmodules = modules.count()
-    print("Found " + str(nmodules) + " modules!")#count of the module number
+    logging.info("Found " + str(nmodules) + " modules!")#count of the module number
     
     module_cnt = 1
     for module in modules:
-        print("Verifying for module " + module["serialNumber"] + " (" + str(module_cnt) + "/" + str(nmodules) + ") ...")
+        logging.info("Verifying for module " + module["serialNumber"] + " (" + str(module_cnt) + "/" + str(nmodules) + ") ...")
         # Get child chips
         query = {"parent": str(module['_id'])}
         cprelations = db.childParentRelation.find(query)
@@ -79,12 +79,12 @@ def verify():
                     fsfile = db.fs.files.find_one(query)
                     if not fsfile:
                         defects.append({"collection": "fs.files", "_id": attachment["code"]})
-                        #print("No fs file found! '_id': " + attachment["code"] + attachment["filename"] + attachment["contentType"])
+                        logging.warning("No fs file found! '_id': " + attachment["code"] + attachment["filename"] + attachment["contentType"])
                     query = {"files_id" : ObjectId(attachment["code"])}
                     fschunk = db.fs.chunks.find_one(query)
                     if not fschunk:
                         defects.append({"collection": "fs.chunks", "files_id": attachment["code"]})
-                        #print("No fs file found! '_id': " + attachment["code"] + attachment["filename"] + attachment["contentType"])
+                        logging.warning("No fs file found! '_id': " + attachment["code"] + attachment["filename"] + attachment["contentType"])
 
                 scan_cnt += 1
                 printProgressBar(scan_cnt_offset+scan_cnt, total_scans, prefix = 'Progress verify data', suffix = 'Complete')
@@ -94,8 +94,8 @@ def verify():
         module_cnt += 1
 
         if len(defects) != 0:
-            print("\tFound defects!")
-            print(defects)
+            logging.info("\tFound defects!")
+            logging.info(defects)
 
         ## End of modules loop
 

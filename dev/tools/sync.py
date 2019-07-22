@@ -10,28 +10,32 @@
 
 from configs.imports import * # Omajinai
 from configs.route import * # Omajinai
-TOOLNAME = "[SYNCTOOL] "
 
 def sync():
-    ##################################################################################
-    # Private methods
-    ##################################################################################
+    TOOLNAME = "[SYNCTOOL] "
 
+    #================================================================================
+    #
+    #                               Private methods
+    #
+    #================================================================================
     # status
     def __status():
         FUNCNAME = "STATUS\t"
 
         commit_cnt = __pull(True)
-        print(TOOLNAME + FUNCNAME + "You have " + str(commit_cnt) + " commits to pull!")
+        logging.info(TOOLNAME + FUNCNAME + "You have " + str(commit_cnt) + " commits to pull!")
 
         doc_cnt = __commit(True)
-        print(TOOLNAME + FUNCNAME + "You have " + str(doc_cnt) + " documents to commit!")
+        logging.info(TOOLNAME + FUNCNAME + "You have " + str(doc_cnt) + " documents to commit!")
 
     # construct query
     def __query():
         return {"sys": {"rev": 0, "cts": current_datetime, "mts": current_datetime}}
 
+    #================================
     # commit
+    #================================
     def __commit(is_status = False):
         # Get last commit
         query = {"local_server_name": my_doc["server"]["name"]}
@@ -40,7 +44,7 @@ def sync():
         # Get last commit datetime
         last_sync_datetime = last_sync_datetime_default
         if commit_doc: last_sync_datetime = commit_doc["sys"]["cts"]
-        print(TOOLNAME + "Last sync time is: " + str(last_sync_datetime))
+        logging.info(TOOLNAME + "Last sync time is: " + str(last_sync_datetime))
 
         # Construct query for commit
         query = __query()
@@ -76,11 +80,11 @@ def sync():
 
         # Insert object
         if is_empty:
-            print(TOOLNAME + "Nothing to commit!")
+            logging.info(TOOLNAME + "Nothing to commit!")
         else:
             #pprint.PrettyPrinter(indent=4).pprint(query) ## debug
             oid = dbs_sync["local"]["commits"].insert(query)
-            print(TOOLNAME + "Finished commit! The oid is " + str(oid))
+            logging.info(TOOLNAME + "Finished commit! The oid is " + str(oid))
 
     # fetch
     def __fetch():
@@ -92,7 +96,7 @@ def sync():
             if not doc_dup:
                 dbs_sync["local"]["commits"].insert(doc)
                 commit_cnt += 1
-        print(TOOLNAME + "Downloaded " + str(commit_cnt) + " commits from master server")
+        logging.info(TOOLNAME + "Downloaded " + str(commit_cnt) + " commits from master server")
 
         # Download refs
         ref_docs = dbs_sync["master"]["refs"].find()
@@ -106,7 +110,7 @@ def sync():
                 if doc_dup != doc:
                     dbs_sync["local"]["refs"].update({"_id": doc["_id"]}, doc)
                     ref_cnt += 1
-        print(TOOLNAME + "Downloaded " + str(ref_cnt) + " refs from master server")
+        logging.info(TOOLNAME + "Downloaded " + str(ref_cnt) + " refs from master server")
 
     # pull
     def __push_one_way():
@@ -142,7 +146,7 @@ def sync():
                 else:
                     missing_docs.append(oid)
             log_doc[temp_collection_name] = missing_docs
-            if len(missing_docs) > 0: print(TOOLNAME + "There are missing files! Please look at log.")
+            if len(missing_docs) > 0: logging.warning(TOOLNAME + "There are missing files! Please look at log.")
 
     def __construct_log_doc(local_server_name, parent_id, oid, method):
         log_doc = __query()
@@ -158,7 +162,7 @@ def sync():
         ref_docs = dbs_sync["local"]["refs"].find()
 
         if ref_docs.count() == 0:
-            print(TOOLNAME + "ERROR! No refs found! '--sync-opt fetch' first!")
+            logging.error(TOOLNAME + "ERROR! No refs found! '--sync-opt fetch' first!")
             exit(1)
 
         for ref_doc in ref_docs:
@@ -187,7 +191,7 @@ def sync():
                 dbs_sync["local"]["logs"].insert(log_doc)
                 commit_cnt += 1
 
-            print(TOOLNAME + "Finished pull for local server name: " + ref_doc["local_server_name"] + " with " + str(commit_cnt) + " commits.")
+            logging.info(TOOLNAME + "Finished pull for local server name: " + ref_doc["local_server_name"] + " with " + str(commit_cnt) + " commits.")
 
     def __push():
         # Get last log from master
@@ -200,7 +204,7 @@ def sync():
         else:
             commit_doc = dbs_sync["local"]["commits"].find_one({"local_server_name": my_doc["server"]["name"]}) # Find oldest commit of local server
             if not commit_doc:
-                print(TOOLNAME + "ERROR! No commit found on local server! Exit!")
+                logging.error(TOOLNAME + "ERROR! No commit found on local server! Exit!")
                 exit(1)
             temp_id = "bottausshiwasshi"
         commit_cnt = 0
@@ -237,9 +241,14 @@ def sync():
 
             commit_cnt += 1
 
-        print(TOOLNAME + "Finished push! Uploaded " + str(commit_cnt) + " commits.")
+        logging.info(TOOLNAME + "Finished push! Uploaded " + str(commit_cnt) + " commits.")
 
 
+    #================================================================================
+    #
+    #                               Main function
+    #
+    #================================================================================
     # Get username and hostname
     user = os.environ["USER"] # TODO, use from master db username?
     hostname = os.environ["HOSTNAME"] # and also password?
@@ -250,12 +259,12 @@ def sync():
 
     # URLs
     if not args.host or not args.port or not args.mhost or not args.mport:
-        print(TOOLNAME+"ERROR! Local/Master host/port are not set!")
+        logging.error(TOOLNAME+"ERROR! Local/Master host/port are not set!")
         exit(1)
-    local_url = "mongodb://" + args.host + ":" + str(args.port)
-    master_url = "mongodb://" + args.mhost + ":" + str(args.mport)
-    print(TOOLNAME + "LocalDB server is: " + local_url)
-    print(TOOLNAME + "Master server is: " + master_url)
+    local_url = "mongodb://%s:%d" % (args.host, args.port)
+    master_url = "mongodb://%s:%d" % (args.mhost, args.mport)
+    logging.info(TOOLNAME + "LocalDB server is: " + local_url)
+    logging.info(TOOLNAME + "Master server is: " + master_url)
 
     # Local or Master
     server_names = ["local", "master"]
@@ -279,7 +288,7 @@ def sync():
     if not my_doc:
         my_doc = __query()
         my_doc["server"] = {}
-        print(TOOLNAME + "Hello! It seems that it is your first time to use sync_tool!")
+        logging.info(TOOLNAME + "Hello! It seems that it is your first time to use sync_tool!")
         name = input(TOOLNAME + "Enter a server name: ")
         answer = ""
         while answer not in ("yes", "no"):
@@ -296,7 +305,8 @@ def sync():
 
 
     # process sync option
-    if args.sync_opt == "commit": __commit()
+    if args.sync_opt == "status": __status()
+    elif args.sync_opt == "commit": __commit()
     elif args.sync_opt == "fetch": __fetch()
     elif args.sync_opt == "pull": __pull()
     elif args.sync_opt == "push": __push()
@@ -306,7 +316,7 @@ def sync():
         __pull()
         __push()
     else:
-        print(TOOLNAME + "--sync-opt not given or not matched! exit!")
+        logging.error(TOOLNAME + "--sync-opt not given or not matched! exit!")
         exit(1)
 
 
