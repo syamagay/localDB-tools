@@ -14,6 +14,7 @@ import io
 import zipfile
 
 from flask         import url_for, session  # use Flask scheme
+from flask_pymongo import PyMongo
 from pymongo       import MongoClient, DESCENDING  # use mongodb scheme
 from bson.objectid import ObjectId  # handle bson format
 from binascii      import a2b_base64  # convert a block of base64 data back to binary

@@ -3,6 +3,7 @@ coloredlogs
 Flask
 Flask-PyMongo
 Flask-HTTPAuth
+Flask-Mail
 pdf2image
 Pillow
 prettytable

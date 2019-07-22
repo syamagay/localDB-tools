@@ -1,0 +1,12 @@
+Dear, registrant<br><br>
+Admin created your account for localDB. Resistered username and Email address is the following.<br><br>
+<b>
+Username: USERNAME<br>
+Email Address: ADDRESS<br><br>
+</b>
+Password is not registered yet. You have to set your password imediately from the following link.<br>
+<a href='http://192.168.1.32:5000/localdb/register_password'>
+Set Your Password
+</a>
+<br><br>
+localDB Admin

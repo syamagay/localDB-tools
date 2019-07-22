@@ -21,6 +21,10 @@ def getArgs():
     parser.add_argument("--password", "-p", help="User password",    type=str)
     parser.add_argument("--fhost",          help="Flask Host",       type=str)
     parser.add_argument("--fport",          help="Flask Port",       type=int)
+    parser.add_argument("--userdb",         help="userdb",           type=str, default="localdb_user")
+    parser.add_argument("--uusername", "-uu", help="User name(userdb)",        type=str)
+    parser.add_argument("--upassword", "-up", help="User password(userdb)",    type=str)
+    parser.add_argument("--fpython",        help="Python Version",   type=int, default=2)
     parser.add_argument("--ssl",            help="Enable ssl",       action='store_true')
     parser.add_argument("--sslPEMKeyFile",  help="Specify client certificate", type=str)
     parser.add_argument("--sslCAFile",      help="Specify CA certificate", type=str)
@@ -51,7 +55,10 @@ def getArgs():
     if not args.host: args.host="localhost"
     if not args.port: args.port=27017
     if not args.db: args.db="localdb"
+<<<<<<< HEAD
     if not args.fhost: args.fhost="localhost"
     if not args.fport: args.fport=5000
 
+=======
+>>>>>>> updated user registration function
     return args
