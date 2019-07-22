@@ -18,4 +18,12 @@ from configs.environment import * #
 from configs.route import * #
 
 # Tool name?
-TOOLNAME = "[LDBTool] dev "
+TOOLNAME = "[LDBTool-dev] "
+
+# Python logging
+# https://stackoverflow.com/questions/17743019/flask-logging-cannot-get-it-to-write-to-a-file
+directory = "logs"
+if not os.path.exists(directory):
+    os.makedirs(directory)
+logging.config.dictConfig(yaml.safe_load(open('./configs/logging.yml')))
+coloredlogs.install()

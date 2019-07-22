@@ -1,4 +1,5 @@
 arguments
+coloredlogs
 Flask
 Flask-PyMongo
 Flask-HTTPAuth

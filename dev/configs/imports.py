@@ -18,6 +18,10 @@ import os, sys
 import datetime
 import dateutil.parser
 
+# Log
+import logging, logging.config
+import coloredlogs
+
 # Pymongo and Bson
 from bson.objectid import ObjectId
 from pymongo import MongoClient
