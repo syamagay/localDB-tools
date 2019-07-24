@@ -39,13 +39,13 @@ def printLog(message):
     global size
 
     if lines<size:
-        print(message)
+        logger.info(message)
         lines+=1
     else:
         try:
             input(message)
         except KeyboardInterrupt:
-            print('')
+            logger.info('')
             sys.exit()
 
 def getConfigJson(cmp_oid, config, run_oid):
