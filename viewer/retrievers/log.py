@@ -57,7 +57,7 @@ def retrieve_log():
             return jsonify(return_json)
         log_query.update({ 'address': str(this_site['_id']) })
 
-    run_entries = localdb.testRun.find( log_query ).sort([( '$natural', -1 )])
+    run_entries = localdb.testRun.find( log_query ).sort([('startTime', DESCENDING)])
 
     return_json = { 'log': [] }
     for run_entry in run_entries:
