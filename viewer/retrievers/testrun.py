@@ -32,15 +32,28 @@ def retrieve_testrun():
         'serialNumber': this_run['serialNumber'],
         'user': this_user['userName'],
         'site': this_site['institution'],
-        'chipId': {},
-        'geomId': {},
-        'tx': {},
-        'rx': {}
+        'chips': {
+            'serialNumber': {},
+            'chipId': {},
+            'geomId': {},
+            'tx': {},
+            'rx': {}
+        }
     }
-    for run in run_entries:
-        return_json['chipId'][run['component']] = run.get('chipId',-1)
-        return_json['geomId'][run['component']] = run.get('geomId',-1)
-        return_json['tx'][run['component']] = run['tx']
-        return_json['rx'][run['component']] = run['rx']
+    for i, run in enumerate(run_entries):
+        try:
+            query = { '_id': ObjectId(run['component']) }
+            this_cmp = localdb.component.find_one(query)
+            ch_serial_number = this_cmp['serialNumber']
+            ch_id = this_cmp['chipId']
+        except:
+            ch_serial_number = run['component']
+            ch_id = run.get('chipId',-1)
+
+        return_json['chips']['serialNumber'][run['component']] = ch_serial_number
+        return_json['chips']['chipId'][run['component']] = ch_id
+        return_json['chips']['geomId'][run['component']] = run.get('geomId', i+1)
+        return_json['chips']['tx'][run['component']] = run['tx']
+        return_json['chips']['rx'][run['component']] = run['rx']
  
     return jsonify(return_json)
