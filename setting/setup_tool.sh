@@ -9,6 +9,8 @@
 
 set -e
 
+echo $0
+
 DEBUG=false
 
 # Usage
@@ -26,6 +28,12 @@ EOF
 }
 
 # Start
+if [ `echo ${0} | grep bash` ]; then
+    echo "DO NOT 'source'"
+    usage
+    return
+fi
+
 shell_dir=$(cd $(dirname ${BASH_SOURCE}); pwd)
 while getopts i:p:n:hr OPT
 do

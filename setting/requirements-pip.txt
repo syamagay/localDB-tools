@@ -1,17 +1,17 @@
-arguments       # Get arguments from command line
-coloredlogs     # Colored logging
-Flask           # Web platform
+arguments
+coloredlogs
+Flask
 Flask-PyMongo
 Flask-HTTPAuth
-pdf2image       # PDF to JPG/PNG
+pdf2image
 Pillow
-prettytable     # Output a pretty table on terminal
-pymongo         # Python MongoDB client
+prettytable
+pymongo
 python-dateutil
-PyYAML          # Input YAML file
+PyYAML
 pytz
-plotly          # Plot a pretty plot
-matplotlib      # Plot a dirty plot
+plotly
+matplotlib
 numpy
-requests        # Get/Post via http/https host
+requests
 tzlocal
