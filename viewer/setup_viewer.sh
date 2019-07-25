@@ -15,31 +15,37 @@ function usage {
     cat <<EOF
 
 Usage:
-    ./setup_viewer.sh [-i ip address] [-p port]
+    ./setup_viewer.sh [-i ip address] [-p port] [-c config]
 
 Options:
     - i <IP address>  Local DB server IP address, default: 127.0.0.1
     - p <port>        Local DB server port, default: 27017
+    - c <config>      Config file name, default: conf.yml
 
 EOF
 }
 
-ip=`hostname -i`
+ip=`ip -f inet -o addr show| grep -e en -e eth|cut -d\  -f 7 | cut -d/ -f 1`
 dbip=127.0.0.1
 dbport=27017
+config=conf.yml
 
-while getopts i:p:c:n:d OPT
+while getopts i:p:c: OPT
 do
     case ${OPT} in
         i ) dbip=${OPTARG} ;;
         p ) dbport=${OPTARG} ;;
+        c ) config=${OPTARG} ;;
         * ) usage
             exit ;;
     esac
 done
 
+config=${viewer_dir}/${config}
+
 echo "Local DB Server IP address: ${dbip}"
 echo "Local DB Server port: ${dbport}"
+echo "Viewer Application Config: ${config}"
 echo " "
 echo "Are you sure that's correct? [y/n]"
 read -p "> " answer
@@ -57,18 +63,18 @@ if [ ${answer} != "y" ]; then
 fi
 
 #setting up web-base DB viewer
-cp ${viewer_dir}/../scripts/yaml/web-conf.yml conf.yml
-sed -i -e "s/DBIPADDRESS/${dbip}/g" conf.yml 
-sed -i -e "s/DBPORT/${dbport}/g" conf.yml 
+cp ${viewer_dir}/../scripts/yaml/web-conf.yml ${config}
+sed -i -e "s/DBIPADDRESS/${dbip}/g" ${config}
+sed -i -e "s/DBPORT/${dbport}/g" ${config} 
 
 echo ""
 echo "Finished setting up of Viewer Application!!"
 echo ""
 echo "Start Viewer Application by..."
 echo ""
-echo "python36 app.py --config conf.yml &"
+echo "python36 app.py --config ${config} &"
 echo ""
 echo "Try accessing the DB viewer in your web browser..." 
-echo "From the DB machine: http://localhost:5000/localdb/" 
+echo "From the DAQ machine: http://localhost:5000/localdb/" 
 echo "From other machines : http://${ip}/localdb/"
 echo ""
