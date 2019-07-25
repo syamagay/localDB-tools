@@ -24,7 +24,7 @@ Options:
 EOF
 }
 
-ip=`ip -f inet -o addr show| grep -e en -e eth|cut -d\  -f 7 | cut -d/ -f 1`
+ip=`hostname -i`
 dbip=127.0.0.1
 dbport=27017
 
@@ -69,6 +69,6 @@ echo ""
 echo "python36 app.py --config conf.yml &"
 echo ""
 echo "Try accessing the DB viewer in your web browser..." 
-echo "From the DAQ machine: http://localhost:5000/localdb/" 
+echo "From the DB machine: http://localhost:5000/localdb/" 
 echo "From other machines : http://${ip}/localdb/"
 echo ""

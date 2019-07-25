@@ -1,11 +1,13 @@
 #!/bin/bash
-##################################################################
-# Installation for setting up Local DB Server
-# Usage : ./db_server_install.sh
-# Instruction : https://github.com/jlab-hep/Yarr/wiki/Installation
-#
-# Contacts : Arisa Kubota (kubota.a.af@m.titech.ac.jp)
-##################################################################
+#################################
+# Contacts: Arisa Kubota
+# Email: arisa.kubota at cern.ch
+# Date: July 2019
+# Project: Local Database for Yarr
+# Description: Login Database 
+# Usage: ./db_server_install.sh
+################################
+
 set -e
 
 # Usage
@@ -18,92 +20,136 @@ Usage:
 EOF
 }
 
-ip=`ip -f inet -o addr show| grep -e en -e eth|cut -d\  -f 7 | cut -d/ -f 1`
-
-echo " "
-echo "Local DB Server IP address: ${ip}"
-echo " "
-echo "Are you sure that's correct? [y/n]"
-read -p "> " answer
-while [ -z ${answer} ]; 
-do
-    echo "Are you sure that's correct? [y/n]"
-    read -p "> " answer
-done
-echo " "
-
-if [ ${answer} != "y" ]; then
-    echo "Try again db_server_install.sh, Exit ..."
-    echo " "
-    exit
+# Start
+if [ `echo ${0} | grep bash` ]; then
+    echo -e "[LDB] DO NOT 'source'"
+    usage
+    return
 fi
-
-setting_dir=`pwd`
-
-### start installation
-
-LOGFILE="instlog_"`date "+%Y%m%d_%H%M%S"`
-exec 2> >(awk '{print strftime("[%Y-%m-%d %H:%M:%S] "),$0 } { fflush() } ' | tee $LOGFILE) 1>&2
-
-trap 'echo ""; echo "Installation stopped by SIGINT!!"; echo "You may be in unknown state."; echo "Check ${LOGFILE} for debugging in case of a problem of re-executing this script."; exit 1' 2
-
-#packages list to be required
-yumpackages=(
-    "epel-release.noarch"
-    "centos-release-scl.noarch"
-    "bc.x86_64"
-    "mongodb-org.x86_64"
-    "devtoolset-7.x86_64"
-    "gnuplot.x86_64"
-    "python.x86_64"
-    "httpd.x86_64"
-    "python36" 
-    "python36-devel" 
-    "python36-pip" 
-    "python36-tkinter"
-)
+shell_dir=$(cd $(dirname ${BASH_SOURCE}); pwd)
+ip=`hostname -i`
+today=`date +%y%m%d`
+# packages list to be required
+yumpackages=$(cat ${shell_dir}/requirements-yum.txt)
+pippackages=$(cat ${shell_dir}/requirements-pip.txt)
+LOGDIR="${shell_dir}/instlog"
+if [ ! -d ${LOGDIR} ]; then
+    mkdir ${LOGDIR}
+fi
+port=true
+initialize=true
 services=(
     "mongod"
     "httpd"
 )
+while getopts hpi OPT
+do
+    case ${OPT} in
+        h ) usage ;;
+        p ) port=false ;;
+        i ) initialize=false ;; 
+        * ) usage
+            exit ;;
+    esac
+done
 
-#checking what is missing for localDB and viewer
-echo "Looking for missing things for Yarr-localDB and its viewer..."
-echo "-------------------------------------------------------------"
+# Confirmation
+echo -e "[LDB] This script performs ..."
+echo -e ""
+echo -e "[LDB]  - Install yum packages: '${shell_dir}/requirements-yum.txt'"
+echo -e "[LDB]         $ sudo yum install \$(cat ${shell_dir}/requirements-yum.txt)"
+echo -e "[LDB]  - Install pip modules: '${shell_dir}/requirements-pip.txt'"
+echo -e "[LDB]         $ sudo pip3 install \$(cat ${shell_dir}/requirements-pip.txt)"
+echo -e "[LDB]  - Start Apache Service:"
+echo -e "[LDB]         $ sudo /usr/sbin/setsebool -P httpd_can_network_connect 1"
+if "${port}"; then
+    echo -e "[LDB]         $ sudo firewall-cmd --add-service=http --permanent"
+    echo -e "[LDB]         $ sudo firewall-cmd --reload"
+fi
+echo -e "[LDB]         $ sudo systemctl start httpd"
+echo -e "[LDB]  - Initialize Local DB Server:"
+echo -e "[LDB]         IP address: ${ip}"
+echo -e "[LDB]         port      : 27017"
+if "${initialize}"; then
+    echo -e "[LDB]         Backup data in Local DB ('/var/lib/mongo') into '/var/lib/mongo-${today}.tar.gz'"
+    echo -e "[LDB]         Reset data in Local DB"
+fi
+echo -e "[LDB]  - Start MongoDB Service:"
+if "${port}"; then
+    echo -e "[LDB]         $ sudo firewall-cmd --zone=public --add-port=27017/tcp --permanent" 
+    echo -e "[LDB]         $ sudo firewall-cmd --reload"
+fi
+echo -e "[LDB]         $ sudo systemctl start mongod"
+echo -e "[LDB]         $ sudo systemctl enable mongod"
+echo -e ""
+echo -e "[LDB] Continue? [y/n]"
+while [ -z ${answer} ]; 
+do
+    read -p "> " answer
+done
+echo -e ""
+if [ ${answer} != "y" ]; then
+    echo -e "[LDB] Exit..."
+    echo -e "[LDB] You can install packages without opening port by:"
+    echo -e "[LDB]     $ ./db_server_install.sh -p"
+    echo -e "[LDB] You can install packages without initialize Local DB Server by:"
+    echo -e "[LDB]     $ ./db_server_install.sh -i"
+    echo -e ""
+    echo -e "[LDB] If you want to setup them manually, the page 'https://github.com/jlab-hep/Yarr/wiki/Installation' should be helpful!"
+    echo -e ""
+    exit
+fi
+sudo echo -e "[LDB] OK!"
+
+# Set log file
+LOGFILE="${LOGDIR}/`date "+%Y%m%d_%H%M%S"`"
+exec 2> >(awk '{print strftime("[%Y-%m-%d %H:%M:%S] "),$0 } { fflush() } ' | tee ${LOGFILE}) 1>&2
+trap 'echo -e ""; echo -e "[LDB] Installation stopped by SIGINT!!"; echo -e "[LDB] You may be in unknown state."; echo -e "[LDB] Check ${LOGFILE} for debugging in case of a problem of re-executing this script."; exit 1' 2
+
+# Check what is missing for Local DB
+echo -e "[LDB] Looking for missing things for Local DB and its Tools..."
+echo -e "[LDB] -------------------------------------------------------------"
 if [ ! -e "/etc/yum.repos.d/mongodb-org-3.6.repo" ]; then
-    echo "Add: mongodb-org-3.6 repository in /etc/yum.repos.d/mongodb-org-3.6.repo."
+    echo -e "[LDB] Add: mongodb-org-3.6 repository in /etc/yum.repos.d/mongodb-org-3.6.repo."
 fi
 for pac in ${yumpackages[@]}; do
-    if ! yum info ${pac} 2>&1 | grep "Installed Packages" > /dev/null; then
-	echo "yum install: ${pac}"
+    if ! yum list installed 2>&1 | grep ${pac} > /dev/null; then
+	echo -e "[LDB] yum install: ${pac}"
+    fi
+done
+for pac in ${pippackages[@]}; do
+    if ! pip3 list 2>&1 | grep ${pac} 2>&1 > /dev/null; then
+       echo -e "[LDB] pip3 install: ${pac}"
     fi
 done
 if ! getsebool httpd_can_network_connect | grep off > /dev/null; then
-    echo "SELinux: turning on httpd_can_network_connect"
+    echo -e "[LDB] SELinux: turning on httpd_can_network_connect"
 fi
-if ! sudo firewall-cmd --list-all | grep http > /dev/null; then
-    echo "Firewall: opening port=80/tcp for appache."
-fi
-if ! sudo firewall-cmd --list-ports --zone=public --permanent | grep 5000/tcp > /dev/null; then
-    echo "Firewall: opening port=5000/tcp for viewer application."
+if "${port}"; then
+    if ! sudo firewall-cmd --list-all | grep http > /dev/null; then
+        echo -e "[LDB] Firewall: opening port=80/tcp for appache."
+    fi
+    if ! sudo firewall-cmd --list-ports --zone=public --permanent | grep 27017/tcp > /dev/null; then
+        echo -e "[LDB] Firewall: opening port=27017/tcp for viewer application."
+    fi
 fi
 for svc in ${services[@]}; do
     if ! systemctl status ${svc} 2>&1 | grep running > /dev/null; then
-        echo "Start: ${svc}"
+        echo -e "[LDB] Start: ${svc}"
     fi
     if ! systemctl list-unit-files -t service|grep enabled 2>&1 | grep ${svc} > /dev/null; then
-        echo "Enable: ${svc}"
+        echo -e "[LDB] Enable: ${svc}"
     fi
 done
-echo "----------------------------------------------------"
+echo -e "[LDB] ----------------------------------------------------"
 
-#installing necessary packages if not yet installed
-echo "Start installing necessary packages..."
-#adding mongoDB repository and installing mongoDB
+# Install necessary packages if not yet installed
+echo -e "[LDB] Start installing necessary packages..."
+# Add mongoDB repository and installing mongoDB
 if [ -e "/etc/yum.repos.d/mongodb-org-3.6.repo" ]; then
-    echo "mongodb-org-3.6 repository already installed. Nothing to do."
+    echo -e "[LDB] mongodb-org-3.6 repository already installed. Nothing to do."
 else
-    echo "Adding mongodb-org-3.6 repository."
+    echo -e "[LDB] Adding mongodb-org-3.6 repository."
     sudo sh -c "echo \"[mongodb-org-3.6]
 name=MongoDB Repository
 baseurl=https://repo.mongodb.org/yum/redhat/7Server/mongodb-org/3.6/x86_64/
@@ -111,122 +157,157 @@ gpgcheck=1
 enabled=1
 gpgkey=https://www.mongodb.org/static/pgp/server-3.6.asc\" > /etc/yum.repos.d/mongodb-org-3.6.repo"
 fi
-#installing yum packages
+# Install yum packages
 for pac in ${yumpackages[@]}; do
-    if yum info ${pac} | grep "Installed Packages" > /dev/null; then
-        echo "${pac} already installed. Nothing to do."
+    if yum list installed 2>&1 | grep ${pac} > /dev/null; then
+        echo -e "[LDB] ${pac} already installed. Nothing to do."
     else
-        echo "${pac} not found. Starting to install..."
+        echo -e "[LDB] ${pac} not found. Starting to install..."
         sudo yum install -y ${pac}
     fi
 done
 
-#enabling RedHad SCL packages
-scl_sw=(
-    "devtoolset-7"
-)
-for sw in ${scl_sw[@]}; do
-    source /opt/rh/${sw}/enable
+# Enable RedHad SCL packages
+source /opt/rh/devtoolset-7/enable
+
+# Install python packages by pip for the DB viewer
+for pac in ${pippackages[@]}; do
+    if pip3 list 2>&1 | grep ${pac} 2>&1 > /dev/null; then
+        echo "${pac} already installed. Nothing to do."
+    else
+        echo "${pac} not found. Starting to install..."
+        sudo pip3 install ${pac}
+    fi
 done
+/usr/bin/env python3 ${shell_dir}/check_python_modules.py
+if [ $? = 1 ]; then
+    echo -e "[LDB] Failed, exit..."
+    exit
+fi
 
-#install python packages by pip for the DB viewer
-cd ${setting_dir}
-sudo pip3 install -r requirements-pip.txt
-
-#setting up apache to use DB
+# Setup apache to use DB
 if getsebool httpd_can_network_connect | grep off > /dev/null; then
-    echo "Boolian:httpd_can_network_connect is turning on."
+    echo -e "[LDB] Boolian:httpd_can_network_connect is turning on."
     sudo /usr/sbin/setsebool -P httpd_can_network_connect 1
 else
-    echo "httpd_can_network_connect is already on. Nothing to do."
+    echo -e "[LDB] httpd_can_network_connect is already on. Nothing to do."
 fi
 
-#opening port
-echo ""
-echo "Opening port for httpd..."
-if sudo firewall-cmd --list-all | grep http > /dev/null; then
-    echo "http is already allowed by firewall."
-else
-    sudo firewall-cmd --add-service=http --permanent
-    sudo firewall-cmd --reload
-fi
-echo "Opening port for viewer..."
-if sudo firewall-cmd --list-ports --zone=public --permanent | grep 5000/tcp > /dev/null; then
-    echo "port=5000/tcp is already allowed by firewall."
-else
-    sudo firewall-cmd --zone=public --add-port=5000/tcp --permanent
-    sudo firewall-cmd --reload
+# Setup Viewer Application
+echo -e ""
+echo -e "[LDB] Setting up the Viewer Application..."
+echo -e "[LDB] Create config file in /etc/httpd/conf.d/localDB-tools.conf"
+sudo cp ${shell_dir}/../scripts/apache/config.conf /etc/httpd/conf.d/localDB-tools.conf
+
+# Open port
+if "${port}"; then
+    echo -e ""
+    echo -e "[LDB] Opening port for httpd..."
+    if sudo firewall-cmd --list-all | grep http > /dev/null; then
+        echo -e "[LDB] http is already allowed by firewall."
+    else
+        sudo firewall-cmd --add-service=http --permanent
+        sudo firewall-cmd --reload
+    fi
 fi
 
-#Preparing database directory
-echo ""
-echo "Preparing initial data in localdb..."
-sudo systemctl stop mongod
-if [ -e /var/lib/mongo ]; then
-    today=`date +%y%m%d`
-    echo "Found /var/lib/mongo. Backing up the contents in /var/lib/mongo-${today}.tar.gz..."
-    cd /var/lib
-    sudo tar zcf mongo-${today}.tar.gz mongo
-    cd ${setting_dir} > /dev/null
-    sudo rm -rf /var/lib/mongo
+# Prepare database directory
+if "${initialize}"; then
+    echo -e ""
+    echo -e "[LDB] Preparing initial data in localdb..."
+    sudo systemctl stop mongod
+    if [ -e /var/lib/mongo ]; then
+        echo -e "[LDB] Found /var/lib/mongo. Backing up the contents in /var/lib/mongo-${today}.tar.gz..."
+        cd /var/lib
+        sudo tar zcf mongo-${today}.tar.gz mongo
+        cd - > /dev/null
+        sudo rm -rf /var/lib/mongo
+    fi
+    sudo mkdir -p /var/lib/mongo
+    
+    sudo chcon -R -u system_u -t mongod_var_lib_t /var/lib/mongo/
+    sudo chown -R mongod:mongod /var/lib/mongo
 fi
-sudo mkdir -p /var/lib/mongo
 
-cd ${setting_dir}
-sudo chcon -R -u system_u -t mongod_var_lib_t /var/lib/mongo/
-sudo chown -R mongod:mongod /var/lib/mongo
+# Modify mongod.conf
+if ! cat /etc/mongod.conf | grep "bindIp: 127.0.0.1,${ip}" > /dev/null; then
+    sudo sed -i -e "s/bindIp: 127.0.0.1/bindIp: 127.0.0.1,${ip}/g" /etc/mongod.conf
+fi
 
-#starting and enabling DB and http servers
+# Open port
+if "${port}"; then
+    echo -e ""
+    echo -e "[LDB] Opening port for Local DB access"
+    if sudo firewall-cmd --list-ports --zone=public --permanent | grep 27017/tcp > /dev/null; then
+        echo -e "[LDB] port=27017/tcp is already allowed by firewall."
+    else
+        sudo firewall-cmd --zone=public --add-port=27017/tcp --permanent
+        sudo firewall-cmd --reload
+    fi
+fi
+
+# Start and enable DB and http servers
 services=(
     "mongod"
     "httpd"
 )
 for svc in ${services[@]}; do
-    echo ""
-    echo "Setting up ${svc}..."
+    echo -e ""
+    echo -e "[LDB] Setting up ${svc}..."
     if systemctl status ${svc} | grep running > /dev/null; then
-        echo "${svc} is already running. Nothing to do."
+        echo -e "[LDB] ${svc} is already running. Nothing to do."
     else
-        echo "Starting ${svc} on your local machine."
+        echo -e "[LDB] Starting ${svc} on your local machine."
         sudo systemctl start ${svc}
     fi
     if systemctl list-unit-files -t service|grep enabled | grep ${svc} > /dev/null; then
-        echo "${svc} is already enabled. Nothing to do."
+        echo -e "[LDB] ${svc} is already enabled. Nothing to do."
     else
-        echo "Enabling ${svc} on your local machine."
+        echo -e "[LDB] Enabling ${svc} on your local machine."
         sudo systemctl enable ${svc}
     fi
 done
 
-## Needed to avoid tons of warnings by mongod in /var/log/messages
-#sudo ausearch -c 'ftdc' --raw | audit2allow -M my-ftdc
-#sudo semodule -i my-ftdc.pp
+mongo --host ${ip} --port 27017 <<EOF
 
-#setting up web-base DB viewer
-echo ""
-echo "Setting up the web-base DB viewer..."
-cd ${setting_dir}
-cd ../
-cp ./scripts/apache/config.conf /etc/httpd/conf.d/localDB-tools.conf
+use localdb
+db.createCollection('childParentRelation');
+db.createCollection('component');
+db.createCollection('componentTestRun');
+db.createCollection('config');
+db.createCollection('fs.chunks');
+db.createCollection('fs.files');
+db.createCollection('institution');
+db.createCollection('testRun');
+db.createCollection('user');
+db.createCollection('environment');
+db.createCollection('comment');
+db.createCollection('tag');
 
-echo ""
-echo "Finished installation!!"
-echo "Install log can be found in: $LOGFILE"
-echo ""
-echo "----------------------------------------------------------------"
-echo "-- First thing to do..."
-echo "----------------------------------------------------------------"
-echo "Start the web application by..." | tee README
-echo "cd /var/www/localDB-tools/viewer" | tee -a README
-echo "python36 app.py --config conf.yml" | tee -a README
-echo "" | tee -a README
-echo "Try accessing the DB viewer in your web browser..." | tee -a README
-echo "From the DAQ machine: http://localhost:5000/localdb/" | tee -a README
-echo "From other machines : http://${ip}/localdb/" | tee -a README
-echo "" | tee -a README
-echo "To register QA/QC data, check usage at..." | tee -a README
-echo "" | tee -a README
-echo "https://github.com/jlab-hep/Yarr/wiki/Quick-tutorial" | tee -a README
-echo ""
-echo "Prepared a README file for the reminder. Enjoy!!"
-echo ""
+EOF
+
+echo -e "[LDB] Done."
+echo -e ""
+
+readme=${shell_dir}/README
+
+echo -e ""
+echo -e "Finished installation!!"
+echo -e "Install log can be found in: ${LOGFILE}"
+echo -e ""
+echo -e "# Local DB Installation for DB Server" | tee ${readme} 
+echo -e "" | tee -a ${readme}
+echo -e "## 1. Setup Viewer Application" | tee -a ${readme}
+echo -e "\`\`\`" | tee -a ${readme}
+echo -e "cd localDB-tools/viewer" | tee -a ${readme}
+echo -e "./setup_viewer.sh" | tee -a ${readme}
+echo -e "python3 app.py --config conf.yml" | tee -a ${readme}
+echo -e "\`\`\`" | tee -a ${readme}
+echo -e "" | tee -a ${readme}
+echo -e "## 2. Access Viewer Application" | tee -a ${readme}
+echo -e "- From the DB machine: http://localhost:5000/localdb/" | tee -a ${readme}
+echo -e "- From other machines : http://${ip}/localdb/" | tee -a ${readme}
+echo -e "" | tee -a ${readme}
+echo -e "## 3.Check more detail" | tee -a ${readme}
+echo -e "- https://github.com/jlab-hep/Yarr/wiki" | tee -a ${readme}
+echo -e "This description is saved as ${readme}. Enjoy!!"

@@ -9,10 +9,6 @@
 
 set -e
 
-echo $0
-
-DEBUG=false
-
 # Usage
 function usage {
     cat <<EOF
@@ -35,7 +31,8 @@ if [ `echo ${0} | grep bash` ]; then
 fi
 
 shell_dir=$(cd $(dirname ${BASH_SOURCE}); pwd)
-while getopts i:p:n:hr OPT
+reset=false
+while getopts hr OPT
 do
     case ${OPT} in
         h ) usage ;;
@@ -50,7 +47,7 @@ BASHLIB=${HOME}/.local/lib/localdb-tools/bash-completion/completions
 MODLIB=${HOME}/.local/lib/localdb-tools/modules
 ENABLE=${HOME}/.local/lib/localdb-tools/enable
 
-if [ ${reset} ]; then
+if "${reset}"; then
     echo -e "[LDB] Clean Local DB settings? [y/n]"
     echo -e "      -> remove Local DB Tools in ${BIN}"
     for i in `ls -1 ${shell_dir}/../bin/`; do
@@ -70,13 +67,13 @@ if [ ${reset} ]; then
             bin_empty=false
         fi
     done
-    if [ ${bin_empty} ]; then
+    if "${bin_empty}"; then
         if [ -d ${HOME}/.local/lib/localdb-tools ]; then
             rm -r ${HOME}/.local/lib/localdb-tools
         fi
     fi
     # library
-    if [ ! ${bin_empty} ]; then
+    if ! "${bin_empty}"; then
         for i in `ls -1 ${shell_dir}/../lib/localdb-tools/bash-completion/completions/`; do
             if [ -f ${BASHLIB}/${i} ]; then
                 rm ${BASHLIB}/${i}
