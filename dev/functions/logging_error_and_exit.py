@@ -5,8 +5,11 @@
 ## Copyright: Copyright 2019, ldbtools
 ## Date: Jul. 2019
 ## Project: Local Database Tools
-## Description: Input system environments
+## Description: Logging error message and exit with code
 ##################################
 
-TOOLNAME = ""
-FUNCNAME = ""
+from configs.development import * # Omajinai
+
+def loggingErrorAndExit(error_message, exit_code):
+    logging.error(TOOLNAME + FUNCNAME + " " + error_message)
+    exit(exit_code)
