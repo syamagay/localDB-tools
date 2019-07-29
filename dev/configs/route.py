@@ -12,7 +12,8 @@
 from functions.get_args import getArgs #
 from functions.print_progress_bar import printProgressBar #
 from functions.query_yes_no import queryYesNo #
-from functions.logging_error_and_exit import loggingErrorAndExit #
+#from functions.logging import loggingErrorAndExit #
+from functions.logging import * #
 from functions.get_input import getInput #
 
 # Tools
