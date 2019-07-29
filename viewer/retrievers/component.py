@@ -10,7 +10,7 @@ def retrieve_component():
     run_oid = None
     if request.args.get('dummy',False)==True:
         query = { 'dummy': True }
-        run_entry = localdb.testRun.find(query).sort([( '$natural', -1 )]).limit(1)
+        run_entry = localdb.testRun.find(query).sort([('startTime', DESCENDING)]).limit(1)
         if not run_entry.count()==0:
             run_oid = str(run_entry[0]['_id'])
             serialnumber = run_entry[0]['serialNumber']
@@ -32,7 +32,7 @@ def retrieve_component():
             if not run_entry.count()==0:
                 run_oid = run_entry[0]['testRun']
     else:
-        run_entry = localdb.testRun.find({}).sort([( '$natural', -1 )]).limit(1)
+        run_entry = localdb.testRun.find({}).sort([('startTime', DESCENDING)]).limit(1)
         if not run_entry.count()==0:
             run_oid = str(run_entry[0]['_id'])
             serialnumber = run_entry[0]['serialNumber']

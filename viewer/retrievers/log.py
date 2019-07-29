@@ -57,7 +57,7 @@ def retrieve_log():
             return jsonify(return_json)
         log_query.update({ 'address': str(this_site['_id']) })
 
-    run_entries = localdb.testRun.find( log_query ).sort([( '$natural', -1 )])
+    run_entries = localdb.testRun.find( log_query ).sort([('startTime', DESCENDING)])
 
     return_json = { 'log': [] }
     for run_entry in run_entries:
@@ -65,6 +65,13 @@ def retrieve_log():
         this_user = localdb.user.find_one( query )
         query = { '_id': ObjectId(run_entry['address']) }
         this_site = localdb.institution.find_one( query )
+        this_dcs = []
+        if not run_entry.get('environment','...')=='...': 
+            query = { '_id': ObjectId(run_entry['environment']) }
+            this_env = localdb.environment.find_one( query)
+            for key in this_env:
+                if not key=='_id' and not key=='dbVersion' and not key=='sys':
+                    this_dcs.append(key)
         test_data = {
             'user': this_user['userName'],
             'site': this_site['institution'],
@@ -72,7 +79,8 @@ def retrieve_log():
             'runNumber': run_entry['runNumber'],
             'testType': run_entry['testType'],
             'runId': str(run_entry['_id']),
-            'serialNumber': run_entry['serialNumber']
+            'serialNumber': run_entry['serialNumber'],
+            'environment': this_dcs
         }
         return_json['log'].append(test_data)
 

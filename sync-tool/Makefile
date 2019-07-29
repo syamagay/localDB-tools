@@ -7,12 +7,12 @@
 #################################
 
 TOOLNAME="LocalDB Tool - Synchronization"
-TARGETDIR?=/
+TARGETDIR?=/usr/local/
 SRC=src/
 CONFIGURE=etc/localdbtools/default.yml
 CRONTAB=etc/cron.d/localdbtool-sync
-BINFILE=usr/bin/localdbtool-sync.py
-BASHCOMPLETION=usr/share/bash-completion/completions/localdbtool-sync
+BINFILE=bin/localdbtool-sync.py
+BASHCOMPLETION=share/bash-completion/completions/localdbtool-sync
 
 ## DO NOT TOUCH THESE
 CONFIGUREDIR = $(patsubst %/,%,$(dir ${CONFIGURE}))
@@ -53,7 +53,7 @@ uninstall:
 	@rm -rf ${TARGETDIR}${CONFIGURE} ${TARGETDIR}${CRONTAB} ${TARGETDIR}${BINFILE} ${TARGETDIR}${BASHCOMPLETION}
 
 check:
-	@/usr/bin/env python3 ../scripts/check_python_modules.py
+	@/usr/bin/env python3 ../setting/check_python_modules.py
 
 clean:
 	@echo "USE 'make uninstall'!"

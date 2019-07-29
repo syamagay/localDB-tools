@@ -22,7 +22,7 @@ from flask            import (
 from flask_pymongo    import PyMongo
 
 # Pymongo, oh why not use flask-pymongo?
-from pymongo          import MongoClient
+from pymongo          import MongoClient, DESCENDING
 
 # Bson
 from bson.objectid    import ObjectId 

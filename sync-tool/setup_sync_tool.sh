@@ -14,10 +14,10 @@ echo -e "$ITSNAME Welcome!"
 
 # Check python modules
 echo -e "$ITSNAME Check python modules..."
-/usr/bin/env python3 ../scripts/check_python_modules.py || return
+/usr/bin/env python3 ../setting/check_python_modules.py || return
 
 # Copy bin
-cp -r src/usr/bin .
+cp -r src/bin .
 chmod +x bin/*
 
 # Copy yml configure
@@ -27,7 +27,7 @@ fi
 $EDITOR my_configure.yml
 
 # Enable bash completion
-source src/usr/share/bash-completion/completions/localdbtool-sync
+source src/share/bash-completion/completions/localdbtool-sync
 complete -F _localdbtool_sync ./bin/localdbtool-sync.py
 
 echo -e "$ITSNAME Finish!"

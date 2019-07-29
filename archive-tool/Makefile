@@ -7,12 +7,12 @@
 #################################
 
 TOOLNAME="LocalDB Tool - Archive"
-TARGETDIR?=/
+TARGETDIR?=/usr/local/
 SRC=src/
 CONFIGURE=etc/localdbtools/archive.yml
 CRONTAB=etc/cron.d/localdbtool-archive
-BINFILE=usr/bin/localdbtool-archive.sh
-BASHCOMPLETION=usr/share/bash-completion/completions/localdbtool-archive
+BINFILE=bin/localdbtool-archive.sh
+BASHCOMPLETION=share/bash-completion/completions/localdbtool-archive
 
 ## DO NOT TOUCH THESE
 CONFIGUREDIR = $(patsubst %/,%,$(dir ${CONFIGURE}))
@@ -53,7 +53,7 @@ uninstall:
 	@rm -rf ${TARGETDIR}${CONFIGURE} ${TARGETDIR}${CRONTAB} ${TARGETDIR}${BINFILE} ${TARGETDIR}${BASHCOMPLETION}
 
 check:
-	@/usr/bin/env python3 ../scripts/check_python_modules.py
+	@/usr/bin/env python3 ../setting/check_python_modules.py
 
 clean:
 	@echo "USE 'make uninstall'!"

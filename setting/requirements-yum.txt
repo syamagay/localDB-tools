@@ -1,7 +1,6 @@
 epel-release.noarch
 centos-release-scl.noarch
 bc.x86_64
-wget.x86_64
 mongodb-org.x86_64
 devtoolset-7.x86_64
 gnuplot.x86_64
