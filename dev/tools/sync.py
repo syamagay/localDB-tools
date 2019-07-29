@@ -12,141 +12,23 @@ from configs.imports import * # Omajinai
 from configs.route import * # Omajinai
 
 def sync():
-    TOOLNAME = "[SYNCTOOL] "
+    TOOLNAME = "[SYNCTOOL]"
+    current_datetime = datetime.datetime.utcnow()
 
     #================================================================================
     #
     #                               Private methods
     #
     #================================================================================
-    # status
-    def __status():
-        FUNCNAME = "STATUS\t"
+    def __query(revision=0, created_time_stamp=current_datetime):
+        current_datetime = datetime.datetime.utcnow()
+        return {"sys": {"rev": revision, "cts": created_time_stamp, "mts": current_datetime}}
 
-        commit_cnt = __pull(True)
-        logging.info(TOOLNAME + FUNCNAME + "You have " + str(commit_cnt) + " commits to pull!")
-
-        doc_cnt = __commit(True)
-        logging.info(TOOLNAME + FUNCNAME + "You have " + str(doc_cnt) + " documents to commit!")
-
-    # construct query
-    def __query():
-        return {"sys": {"rev": 0, "cts": current_datetime, "mts": current_datetime}}
-
-    #================================
-    # commit
-    #================================
-    def __commit(is_status = False):
-        # Get last commit
-        query = {"local_server_name": my_doc["server"]["name"]}
-        commit_doc = dbs_sync["local"]["commits"].find_one(query, sort=[("sys.cts", -1)])
-
-        # Get last commit datetime
-        last_sync_datetime = last_sync_datetime_default
-        if commit_doc: last_sync_datetime = commit_doc["sys"]["cts"]
-        logging.info(TOOLNAME + "Last sync time is: " + str(last_sync_datetime))
-
-        # Construct query for commit
-        query = __query()
-        query["local_server_name"] = my_doc["server"]["name"]
-        if commit_doc: query["parent"] = commit_doc["_id"]
-        else: query["parent"] = "bottausshiwasshi"
-        query["description"] = "commit"
-
-        # Add _id each collection
-        is_empty = True
-        doc_cnt = 0
-        for collection_name in collection_names:
-            if "fs.chunks" == collection_name: continue # Treat fs.chunks with fs.files
-
-            query_key = ""
-            if not "fs" in collection_name:
-                query_key = "sys.mts"
-            elif "fs.files" in collection_name:
-                query_key = "uploadDate"
-            documents = dbs["local"][collection_name].find({query_key: {"$gt": last_sync_datetime} })
-            ids = []
-            for document in documents: ids.append(document["_id"])
-
-            temp_collection_name = collection_name.replace(".", "_") # key cannot contain '.'. i.e. 'fs.files' --> 'fs_files'
-            query[temp_collection_name] = ids
-            if len(ids) is not 0:
-                is_empty = False
-                doc_cnt += len(ids)
-
-        # For status
-        if is_status:
-            return doc_cnt
-
-        # Insert object
-        if is_empty:
-            logging.info(TOOLNAME + "Nothing to commit!")
-        else:
-            #pprint.PrettyPrinter(indent=4).pprint(query) ## debug
-            oid = dbs_sync["local"]["commits"].insert(query)
-            logging.info(TOOLNAME + "Finished commit! The oid is " + str(oid))
-
-    # fetch
-    def __fetch():
-        # Download commits
-        commit_docs = dbs_sync["master"]["commits"].find()
-        commit_cnt = 0
-        for doc in commit_docs:
-            doc_dup = dbs_sync["local"]["commits"].find_one({"_id": doc["_id"]})
-            if not doc_dup:
-                dbs_sync["local"]["commits"].insert(doc)
-                commit_cnt += 1
-        logging.info(TOOLNAME + "Downloaded " + str(commit_cnt) + " commits from master server")
-
-        # Download refs
-        ref_docs = dbs_sync["master"]["refs"].find()
-        ref_cnt = 0
-        for doc in ref_docs:
-            doc_dup = dbs_sync["local"]["refs"].find_one({"_id": doc["_id"]})
-            if not doc_dup:
-                dbs_sync["local"]["refs"].insert(doc)
-                ref_cnt += 1
-            else:
-                if doc_dup != doc:
-                    dbs_sync["local"]["refs"].update({"_id": doc["_id"]}, doc)
-                    ref_cnt += 1
-        logging.info(TOOLNAME + "Downloaded " + str(ref_cnt) + " refs from master server")
-
-    # pull
-    def __push_one_way():
-        print("to be continued...")
-
-    def __pull_of_push_from_commit(pull_or_push, commit_doc, log_doc):
-        copy_from = ""
-        copy_to = ""
-        if pull_or_push == "pull":
-            copy_from = "master"
-            copy_to = "local"
-        elif pull_or_push == "push":
-            copy_from = "local"
-            copy_to = "master"
-
-        for collection_name in collection_names:
-            if "fs.chunks" == collection_name: continue # Treat fs.chunks with fs.files
-
-            temp_collection_name = collection_name.replace(".", "_") # key cannot contain '.'. i.e. 'fs.files' --> 'fs_files'
-            missing_docs = []
-            for oid in commit_doc[temp_collection_name]:
-                query = {"_id": oid}
-                doc = dbs[copy_from][collection_name].find_one(query)
-                if doc:
-                    dup_doc = dbs[copy_to][collection_name].find_one(query)
-                    if dup_doc:
-                        dbs[copy_to][collection_name].update(query, doc)
-                    else:
-                        dbs[copy_to][collection_name].insert(doc)
-                        if "fs.files" in collection_name:
-                            chunk_doc = dbs[copy_from]["fs.chunks"].find_one({"files_id": oid})
-                            dbs[copy_to]["fs.chunks"].insert(chunk_doc)
-                else:
-                    missing_docs.append(oid)
-            log_doc[temp_collection_name] = missing_docs
-            if len(missing_docs) > 0: logging.warning(TOOLNAME + "There are missing files! Please look at log.")
+    def __updateRef(database_type, ref_type, ref_doc, last_commit_id):
+        ref_doc["sys"]["rev"] += 1
+        ref_doc["sys"]["mts"] = datetime.datetime.utcnow()
+        ref_doc["last_commit_id"] = last_commit_id
+        update_result = localdbtool_dbs[database_type]["refs"].replace_one({"ref_type": ref_type}, ref_doc, upsert=True)
 
     def __construct_log_doc(local_server_name, parent_id, oid, method):
         log_doc = __query()
@@ -157,91 +39,276 @@ def sync():
         return log_doc
 
 
-    def __pull():
-        # Get all local servers
-        ref_docs = dbs_sync["local"]["refs"].find()
+    #================================
+    # status
+    #================================
+    def __status():
+        commit_cnt = __pull(True)
+        logging.info(TOOLNAME + "You have " + str(commit_cnt) + " commits to pull!")
 
-        if ref_docs.count() == 0:
-            logging.error(TOOLNAME + "ERROR! No refs found! '--sync-opt fetch' first!")
-            exit(1)
+        doc_cnt = __commit(True)
+        logging.info(TOOLNAME + "You have " + str(doc_cnt) + " documents to commit!")
 
-        for ref_doc in ref_docs:
-            if ref_doc["local_server_name"] == my_doc["server"]["name"]: continue
+    #================================
+    # commit
+    #================================
+    def __commit(is_status = False):
+        loggingInfo(toolname=TOOLNAME, message="Run commit process")
 
-            commit_cnt = 0
+        # Get last commit
+        ref_doc = localdbtool_dbs["local"]["refs"].find_one({"ref_type": "local"})
+        if not ref_doc:
+            loggingInfo(toolname=TOOLNAME, message="No reference for local found. Create new one")
+            ref_doc = __query()
+            ref_doc["last_commit_id"] = "temporaly_last_commit_id"
+            ref_doc["ref_type"] = "local"
+        commit_doc = localdbtool_dbs["local"]["commits"].find_one({"_id": ref_doc["last_commit_id"]})
 
-            # Get last sync log
-            query = {"local_server_name": ref_doc["local_server_name"], "method": "pull"}
-            log_doc = dbs_sync["local"]["logs"].find_one(query, sort=[("sys.cts", -1)])
-            if log_doc: temp_id = log_doc["id"]
-            else: temp_id = "bottausshiwasshi"
+        # Get last commit datetime
+        if commit_doc: last_sync_datetime = commit_doc["sys"]["cts"]
+        else: last_sync_datetime = last_sync_datetime_default
+        loggingInfo(toolname=TOOLNAME, message="Last sync time is: " + str(last_sync_datetime))
 
-            while 1:
-                # Get commit
-                query = {"local_server_name": ref_doc["local_server_name"], "parent": temp_id}
-                commit_doc = dbs_sync["local"]["commits"].find_one(query)
+        # Construct query for new commit
+        query = __query()
+        query["master_user"] = localInfo["master_user"]
+        if commit_doc: query["parent"] = commit_doc["_id"]
+        else: query["parent"] = "no_parent_commit_id"
+        query["commit_type"] = "commit"
 
-                if not commit_doc: break
-                log_doc = __construct_log_doc(ref_doc["local_server_name"], temp_id, commit_doc["_id"], "pull")
-                temp_id = commit_doc["_id"]
+        # Add _id each collection
+        is_empty = True
+        doc_cnt = 0
+        for collection_name in collection_names:
+            # Treat fs.chunks with fs.files
+            if "fs.chunks" == collection_name: continue
 
-                __pull_of_push_from_commit("pull", commit_doc, log_doc)
+            query_key = ""
+            if not "fs" in collection_name:
+                query_key = "sys.mts"
+            elif "fs.files" in collection_name:
+                query_key = "uploadDate"
+            documents = localdb_dbs["local"][collection_name].find({query_key: {"$gt": last_sync_datetime} })
+            ids = []
+            for document in documents: ids.append(document["_id"])
 
-                # Insert log
-                dbs_sync["local"]["logs"].insert(log_doc)
-                commit_cnt += 1
+            # key cannot contain '.'. i.e. 'fs.files' --> 'fs_files'
+            temp_collection_name = collection_name.replace(".", "_")
+            query[temp_collection_name] = ids
+            if len(ids) is not 0:
+                is_empty = False
+                doc_cnt += len(ids)
 
-            logging.info(TOOLNAME + "Finished pull for local server name: " + ref_doc["local_server_name"] + " with " + str(commit_cnt) + " commits.")
+        # For status
+        if is_status:
+            return doc_cnt
 
-    def __push():
-        # Get last log from master
-        query = {"local_server_name": my_doc["server"]["name"], "method": "push"}
-        log_doc = dbs_sync["master"]["logs"].find_one(query, sort=[("sys.cts", -1)])
-        if not log_doc: log_doc = dbs_sync["local"]["logs"].find_one(query, sort=[("sys.cts", 1)]) # Get first log from local
-
-        temp_id = ""
-        if log_doc: temp_id = log_doc["id"]
+        if is_empty:
+            loggingInfo(toolname=TOOLNAME, message="Nothing to commit!")
         else:
-            commit_doc = dbs_sync["local"]["commits"].find_one({"local_server_name": my_doc["server"]["name"]}) # Find oldest commit of local server
-            if not commit_doc:
-                logging.error(TOOLNAME + "ERROR! No commit found on local server! Exit!")
-                exit(1)
-            temp_id = "bottausshiwasshi"
+            #pprint.PrettyPrinter(indent=4).pprint(query) ## debug
+            # Insert commit and update ref for local
+            insert_one_result = localdbtool_dbs["local"]["commits"].insert_one(query)
+            __updateRef("local", "local", ref_doc, insert_one_result.inserted_id)
+            loggingInfo(toolname=TOOLNAME, message="Finished commit! The last commit is " + str(insert_one_result.inserted_id))
+
+
+    #================================
+    # fetch
+    #================================
+    def __fetch():
+        # Get reference for master
+        master_ref_doc = localdbtool_dbs["master"]["refs"].find_one({"ref_type": "master"})
+        if not master_ref_doc:
+            loggingWarning(toolname=TOOLNAME, message="No reference for master on master found! Push first!")
+            return
+
+        local_ref_doc = localdbtool_dbs["local"]["refs"].find_one({"ref_type": "master"})
+        if not local_ref_doc:
+            loggingInfo(toolname=TOOLNAME, message="No reference for master on local found! Create new one.")
+            local_ref_doc = __query()
+            local_ref_doc["ref_type"] = "master"
+
+        # Download commits
+        commit_docs = localdbtool_dbs["master"]["commits"].find()
         commit_cnt = 0
+        for doc in commit_docs:
+            update_result = localdbtool_dbs["local"]["commit"].replace_one({"_id": doc["_id"]}, doc, upsert=True)
+            commit_cnt += update_result.modified_count
+        loggingInfo(toolname=TOOLNAME, message="Downloaded %d commits from master server" % commit_doc)
 
-        while 1:
-            # Get commit
-            query = {"local_server_name": my_doc["server"]["name"], "parent": temp_id}
-            commit_doc = dbs_sync["local"]["commits"].find_one(query)
+        # Update ref for master
+        __updateRef("local", "master", local_ref_doc, master_ref_doc["last_commit_id"])
 
-            if not commit_doc: break
-            log_doc = __construct_log_doc(my_doc["server"]["name"], temp_id, commit_doc["_id"], "push")
-            temp_id = commit_doc["_id"]
+    #================================
+    # merge
+    #================================
+    def __merge():
+        # Create a merge commit and insert
+        ref_local_doc = localdbtool_dbs["local"]["refs"].find_one({"ref_type": "local"})
+        ref_master_doc = localdbtool_dbs["local"]["refs"].find_one({"ref_type": "master"})
+        master_ref_doc = localdbtool_dbs["master"]["refs"].find_one({"ref_type": "master"})
+        if not ref_local_doc: return
+        if master_ref_doc:
+            if not ref_master_doc: return
+            if ref_master_doc["last_commit_id"] != master_ref_doc["last_commit_id"]: return
+        else:
+            ref_master_doc = __query()
+            ref_master_doc["ref_type"] = "master"
+            ref_master_doc["last_commit_id"] = ""
+            master_ref_doc = __query()
+            master_ref_doc["ref_type"] = "master"
+        commit_doc = __query()
+        commit_doc["parent"] = ref_local_doc["last_commit_id"]
+        commit_doc["parent_master"] = ref_master_doc["last_commit_id"]
+        commit_doc["commit_type"] = "merge"
+        commit_doc["master_user"] = localInfo["master_user"]
+        insert_one_result = localdbtool_dbs["local"]["commits"].insert_one(commit_doc)
+        commit_doc["_id"] = insert_one_result.inserted_id
+        localdbtool_dbs["master"]["commits"].insert_one(commit_doc)
+        # Update refs
+        __updateRef("local", "local", ref_local_doc, commit_doc["_id"])
+        __updateRef("local", "master", ref_master_doc, commit_doc["_id"])
+        __updateRef("master", "master", master_ref_doc, commit_doc["_id"])
 
-            __pull_of_push_from_commit("push", commit_doc, log_doc)
+    #================================
+    # pull or push from a commit
+    #================================
+    def __pull_or_push_from_commit(pull_or_push, commit_doc):
+        if pull_or_push == "pull":
+            copy_from = "master"
+            copy_to = "local"
+        elif pull_or_push == "push":
+            copy_from = "local"
+            copy_to = "master"
 
-            # Insert new log to local and master
-            dbs_sync["master"]["logs"].insert(log_doc)
-            dbs_sync["local"]["logs"].insert(log_doc)
+        for collection_name in collection_names:
+            # Treat fs.chunks with fs.files
+            if "fs.chunks" == collection_name: continue
+            # key cannot contain '.'. i.e. 'fs.files' --> 'fs_files'
+            temp_collection_name = collection_name.replace(".", "_")
 
-            # Insert commit to master
-            dbs_sync["master"]["commits"].insert(commit_doc)
+            replaced_count = 0
+            replaced_chunk_count = 0
+            for oid in commit_doc[temp_collection_name]:
+                doc = localdb_dbs[copy_from][collection_name].find_one({"_id": oid})
+                if doc:
+                    update_result = localdb_dbs[copy_to][collection_name].replace_one({"_id": oid}, doc, upsert=True)
+                    replaced_count += update_result.modified_count
+                    if "fs.files" in collection_name:
+                        chunk_doc = localdb_dbs[copy_from]["fs.chunks"].find_one({"files_id": oid})
+                        if chunk_doc:
+                            update_chunk_result = localdb_dbs[copy_to]["fs.chunks"].replace_one({"files_id": oid}, chunk_doc, upsert=True)
+                            replaced_chunk_count += update_chunk_result.modified_count
+                        else:
+                            loggingWarning(message="A fs.chunks doc not fount! files_id: %s" % oid)
+                else:
+                    loggingWarning(message="A %s doc not fount! files_id: %s" % (collection_name, oid) )
 
-            # Update refs in master
-            ref_doc = dbs_sync["master"]["refs"].find_one({"local_server_name": my_doc["server"]["name"]})
-            if ref_doc:
-                query = {"local_server_name": my_doc["server"]["name"]}
-                newvalues = {"$set": { "sys.mts": current_datetime, "sys.rev": ref_doc["sys"]["rev"]+1, "id": commit_doc["_id"]}}
-                dbs_sync["master"]["refs"].update_one(query, newvalues)
-            else:
-                ref_doc = __query()
-                ref_doc["local_server_name"] = my_doc["server"]["name"]
-                ref_doc["id"] = commit_doc["_id"]
-                dbs_sync["master"]["refs"].insert(ref_doc)
+    #================================
+    # pull or push
+    #================================
+    def __pull_or_push(pull_or_push):
+        if pull_or_push == "pull":
+            ref_type = "master"
+        elif pull_or_push == "push":
+            ref_type = "local"
 
+        # Get reference for master
+        ref_doc = localdbtool_dbs["local"]["refs"].find_one({"ref_type": ref_type})
+        if not ref_doc:
+            if pull_or_push == "pull": loggingWarning(message="No reference for %s found! '--sync-opt fetch' first!" % ref_type)
+            elif pull_or_push == "push": loggingWarning(message="No reference for %s found! '--sync-opt commit' first!" % ref_type)
+            return
+
+        # Get reference for pull
+        ref_pull_or_push_doc = localdbtool_dbs["local"]["refs"].find_one({"ref_type": pull_or_push})
+        if not ref_pull_or_push_doc:
+            loggingInfo(toolname=TOOLNAME, message="No reference for %s on local found! Create new one." % pull_or_push)
+            ref_pull_or_push_doc = __query()
+            ref_pull_or_push_doc["ref_type"] = pull_or_push
+            ref_pull_or_push_doc["last_commit_id"] = "temporaly_last_commit_id"
+
+        if ref_doc["last_commit_id"] == ref_pull_or_push_doc["last_commit_id"]:
+            loggingInfo(message="Already updated %s! Not thing to do!" % pull_or_push)
+            return
+
+        # Get last commit
+        last_commit_doc = localdbtool_dbs["local"]["commits"].find_one({"_id": ref_doc["last_commit_id"]})
+        if not last_commit_doc:
+            loggingWarning(toolname=TOOLNAME, message="No last commit doc found!")
+            return
+        commit_doc = last_commit_doc
+        commit_cnt = 0
+        while True:
+            if commit_doc["commit_type"] == "merge": continue
+
+            __pull_or_push_from_commit(pull_or_push, commit_doc)
             commit_cnt += 1
+            # Insert the commit to master
+            if pull_or_push == "push": update_result = localdbtool_dbs["master"]["commits"].replace_one({"_id": commit_doc["_id"]}, commit_doc, upsert=True)
 
-        logging.info(TOOLNAME + "Finished push! Uploaded " + str(commit_cnt) + " commits.")
+            # Get parent commit
+            commit_doc = localdbtool_dbs["local"]["commits"].find_one({"_id": commit_doc["parent"]})
+            if not commit_doc: break
+            if commit_doc["last_commit_id"] == ref_pull_or_push_doc["last_commit_id"]: break
+
+        # Update reference for pull or push
+        __updateRef("local", pull_or_push, ref_pull_or_push_doc, ref_doc["last_commit_id"])
+
+        # Merge
+        if pull_or_push == "push": __merge()
+        loggingInfo(toolname=TOOLNAME, message="Finished %s with %d commits." % (pull_or_push, commit_cnt) )
+
+    def __connectMongoDB(server_name, host, port, username, keypath):
+        # Development environment
+        if args.development_flg:
+            url = "mongodb://%s:%d" % (host, port)
+            logging.info("%s server url is: %s" % (server_name, url) )
+            return MongoClient(url)["localdb"], MongoClient(url)["localdbtools"]
+
+        # Production environment
+        if username and keypath:
+            if os.path.exists(keypath):
+                key_file = open(keypath, "r")
+                key = key_file.read()
+            else:
+                loggingErrorAndExit("%s API Key not exist!" % server_name, 1)
+        else:
+            loggingErrorAndExit("%s user name or API Key not given!" % server_name, 1)
+
+        url = "mongodb://%s:%s@%s:%d" % (username, key, host, port)
+        logging.info("%s server url is: %s" % (server_name, url) )
+        return MongoClient(url)["localdb"], MongoClient(url)["localdbtools"]
+
+    def __getLocalInfo():
+        # Get machine host name, user name and mac address
+        myInfo = {}
+        myInfo["local_machine_hostname"] = os.environ["HOSTNAME"]
+        myInfo["local_machine_user"] = os.environ["USER"]
+        mac = get_mac()
+        myInfo["local_machine_mac"] = "".join(c + ":" if i % 2 else c for i, c in enumerate(hex(mac)[2:].zfill(12)))[:-1]
+
+        # Attach user name on master server
+        myInfo["master_user"] = args.musername
+
+        # Get network info
+        ipinfo_url = "https://ipinfo.io"
+        ipinfo_request = requests.get(ipinfo_url)
+        ipinfo_json = json.loads(ipinfo_request.text)
+        myInfo["local_network_ip"] = ipinfo_json["ip"]
+        myInfo["local_network_loc"] = ipinfo_json["loc"]
+        myInfo["local_network_hostname"] = ipinfo_json["hostname"]
+        return myInfo
+
+    def __log(level, message):
+        query = {
+                "datetime": datetime.datetime.utcnow(),
+                "level": level,
+                "message": message
+            }
+        localdbtool_dbs["local"]["log"].insert_one(query)
+        localdbtool_dbs["master"]["log"].insert_one(query)
 
 
     #================================================================================
@@ -249,168 +316,47 @@ def sync():
     #                               Main function
     #
     #================================================================================
-    # Get username and hostname
-    user = os.environ["USER"] # TODO, use from master db username?
-    hostname = os.environ["HOSTNAME"] # and also password?
-    mac = get_mac() # this may deleted
-#    mac_add = "".join(c + ":" if i % 2 else c for i, c in enumerate(hex(mac)[2:].zfill(12)))[:-1]
 
+    # Get arguments
     args = getArgs()
 
-    # URLs
-    if not args.host or not args.port or not args.mhost or not args.mport:
-        logging.error(TOOLNAME+"ERROR! Local/Master host/port are not set!")
-        exit(1)
-    local_url = "mongodb://%s:%d" % (args.host, args.port)
-    master_url = "mongodb://%s:%d" % (args.mhost, args.mport)
-    logging.info(TOOLNAME + "LocalDB server is: " + local_url)
-    logging.info(TOOLNAME + "Master server is: " + master_url)
-
-    # Local or Master
+    # Connect mongoDB
     server_names = ["local", "master"]
+    temp_local_db_localdb, temp_local_db_localdbtools = __connectMongoDB("local", args.host, args.port, args.username, args.keypath)
+    temp_master_db_localdb, temp_master_db_localdbtools = __connectMongoDB("master", args.mhost, args.mport, args.musername, args.mkeypath)
 
     # DBs
-    dbs = {"local": MongoClient(local_url)["localdb"], "master": MongoClient(master_url)["localdb"]}
-    dbs_sync = {"local": MongoClient(local_url)["ldbtool"], "master": MongoClient(master_url)["ldbtool"]}
+    localdb_dbs = {server_names[0]: temp_local_db_localdb, server_names[1]: temp_master_db_localdb}
+    localdbtool_dbs = {server_names[0]: temp_local_db_localdbtools, server_names[1]: temp_master_db_localdbtools}
 
     # Set default time
     last_sync_datetime_default = dateutil.parser.parse("2000-7-20T1:00:00.000Z")
 
     # Get collection names from server
-    collection_names = dbs["master"].collection_names()
+    collection_names = localdb_dbs["master"].collection_names()
 
     # Get current date time
     #current_datetime = datetime.datetime.now()
     current_datetime = datetime.datetime.utcnow()
 
-    # Get my info
-    my_doc = dbs_sync["local"]["my"].find_one()
-    if not my_doc:
-        my_doc = __query()
-        my_doc["server"] = {}
-        logging.info(TOOLNAME + "Hello! It seems that it is your first time to use sync_tool!")
-        name = input(TOOLNAME + "Enter a server name: ")
-        answer = ""
-        while answer not in ("yes", "no"):
-            answer = input(TOOLNAME + "The server name is " + name + ". Is it correct? ['yes' or 'no']: ")
-            if answer == "yes":
-                break
-            elif answer == "no":
-                name = input(TOOLNAME + "Enter a server name: ")
-            else:
-                print("Please enter 'yes' or 'no'.")
-
-        my_doc["server"]["name"] = name
-        dbs_sync["local"]["my"].insert(my_doc)
+    # Get localDB server config
+    localInfo = __getLocalInfo()
 
 
     # process sync option
     if args.sync_opt == "status": __status()
     elif args.sync_opt == "commit": __commit()
     elif args.sync_opt == "fetch": __fetch()
-    elif args.sync_opt == "pull": __pull()
-    elif args.sync_opt == "push": __push()
+    elif args.sync_opt == "pull": __pull_or_push("pull")
+    elif args.sync_opt == "push": __pull_or_push("push")
     elif args.sync_opt == "auto":
         __commit()
         __fetch()
-        __pull()
-        __push()
+        __pull_or_push("pull")
+        __pull_or_push("push")
     else:
         logging.error(TOOLNAME + "--sync-opt not given or not matched! exit!")
         exit(1)
 
-
-#            print(TOOLNAME + "Collection: " + collection_name)
-#
-#            documents = []
-#            totals = []
-#            for i in range(2):
-#                documents.append(dbs[i][collection_name].find({query_key: {"$gt": last_time} }))
-#                totals.append(documents[i].count())
-#                sync_cnt[sync_action[i]][collection_name] = totals[i]
-#                print("\t" + server_names[i] + " has " + str(totals[i]) + " documents ahead")
-#
-#
-#            if not args.y: continue
-#
-#            # Start to synchronize
-#            x = [0, 1]
-#            y = [1, 0]
-#            for i in range(2): # Copy from local first, then copy from Master
-#                if totals[x[i]] == 0: continue
-#
-#                dup_count = 0
-#                count = 0
-#                # Copy docs to
-#                for document in documents[x[i]]:
-#                    doc_dup = dbs[y[i]][collection_name].find_one({"_id": document["_id"]})
-#                    if doc_dup:
-#                        if not doc_dup == document:
-#                            if i == 1: # Copy from Master
-##                                dbs[y[i]][collection_name].update({"_id": document["_id"]}, document) # Overwrite
-#                                dup_count += 1
-#                    else:
-##                        dbs[y[i]][collection_name].insert(document)
-#                        if "fs.files" in collection_name:
-#                            chunks_doc = dbs[x[i]]["fs.chunks"].find_one({"files_id": document["_id"]}) # Find linked doc in fs.chunks
-##                            if chunks_doc: dbs[y[i]]["fs.chunks"].insert(chunks_doc)
-#                    count += 1
-#                    printProgressBar(count, totals[x[i]], prefix = '        Progress copy from ' + server_names[x[i]], suffix = 'Complete')
-#
-#                sync_dup_cnt[sync_action[i]][collection_name] = dup_count
-#                if dup_count != 0:
-#                    print("\t\tFound " + str(dup_count) + " dup docs")
-#
-#
-#
-#    # Sync
-#    datetimes = {}
-#    sync_mts = {}
-#    sync_cnt = {}
-#    sync_dup_cnt = {}
-#    sync_action = ["push", "pull"]
-#    for i in range(2):
-#        sync_mts[sync_action[i]] = {}
-#        sync_cnt[sync_action[i]] = {}
-#        sync_dup_cnt[sync_action[i]] = {}
-#
-#
-#    # pull and push
-#    if args.sync_opt is null:
-#        print(TOOLNAME + "ERROR! Need synchronization option! e.g.) --sync-opt pull/push")
-#        exit(1)
-#
-#    if args.sync_opt == "pull":
-#        server_from = "master"
-#        server_to = "local"
-#    elif args.sync_doc == "push":
-#        server_from = "local"
-#        server_to = "master"
-#    else:
-#        print(TOOLNAME + "ERROR! Need synchronization option! e.g.) --sync-opt pull/push")
-#        exit(1)
-#
-#
-#    # Last
-#    if not args.y:
-#        print("")
-#        print("Set'-y' option with your command to execute synchronization!")
-#        return
-#
-#    # Finish
-#    query = {"user": user, "hostname": hostname, "mac": mac, "datetime": datetime.datetime.now()}
-#    index = 0
-#    for i in range(2):
-#        query[sync_action[i]] = {}
-#    for collection_name in collection_names:
-#        if "fs.chunks" == collection_name: continue # Treat fs.chunks with fs.files
-#        query[collection_name] = datetimes[collection_name]
-#        for i in range(2):
-#            if collection_name in sync_mts[sync_action[i]]:
-#                query[sync_action[i]][collection_name] = {"mts": sync_mts[sync_action[i]][collection_name],
-#                        "cnt": sync_cnt[sync_action[i]][collection_name], "dup_cnt": sync_dup_cnt[sync_action[i]][collection_name]}
-#    pprint.PrettyPrinter(indent=4).pprint(query)
-##    for i in range(2):
-##        dbs_sync[x[i]]["sync"].insert_one(query)
 
 if __name__ == '__main__': sync()
