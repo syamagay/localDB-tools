@@ -10,15 +10,15 @@
 
 from configs.development import * # Omajinai
 
-def loggingInfo(toolname, funcname, message):
+def loggingInfo(toolname=TOOLNAME, funcname=FUNCNAME, message=""):
     logging.info(toolname + funcname + " " + message)
 
-def loggingWarning(toolname, funcname, message):
+def loggingWarning(toolname=TOOLNAME, funcname=FUNCNAME, message=""):
     logging.warning(toolname + funcname + " " + message)
 
-def loggingDebug(toolname, funcname, message):
+def loggingDebug(toolname=TOOLNAME, funcname=FUNCNAME, message=""):
     logging.debug(toolname + funcname + " " + message)
 
-def loggingErrorAndExit(toolname, funcname, error_message, exit_code):
-    logging.error(toolname + funcname + " " + error_message)
+def loggingErrorAndExit(toolname=TOOLNAME, funcname=FUNCNAME, message="", exit_code=100):
+    logging.error(toolname + funcname + " " + message)
     exit(exit_code)
