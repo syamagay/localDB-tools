@@ -472,6 +472,7 @@ def show_dummy():
     result_index = {}
     results      = setResults()
     roots        = setRoots()    
+    dcs          = setDCS()
 
     component = { 
         '_id'         : session['this'],
@@ -488,6 +489,7 @@ def show_dummy():
         'resultIndex' : result_index,
         'results'     : results,
         'roots'       : roots,
+        'dcs'         : dcs,
         'summary'     : {},
         'dummy'       : True
     }
