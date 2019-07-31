@@ -328,6 +328,7 @@ def show_component():
     result_index  = setResultIndex() 
     results      = setResults()     
     roots        = setRoots()    
+    dcs          = setDCS()
 
     component = { 
         '_id'         : session['this'],
@@ -343,6 +344,7 @@ def show_component():
         'resultIndex' : result_index,
         'results'     : results,
         'roots'       : roots,
+        'dcs'         : dcs,
         'summary'     : summary,
         'dummy'       : False
     }
@@ -470,6 +472,7 @@ def show_dummy():
     result_index = {}
     results      = setResults()
     roots        = setRoots()    
+    dcs          = setDCS()
 
     component = { 
         '_id'         : session['this'],
@@ -486,6 +489,7 @@ def show_dummy():
         'resultIndex' : result_index,
         'results'     : results,
         'roots'       : roots,
+        'dcs'         : dcs,
         'summary'     : {},
         'dummy'       : True
     }
@@ -507,6 +511,71 @@ def makehisto():
     runoid       = request.args.get( 'runId' )
 
     return redirect( url_for('show_component', id=componentId, runId=runoid) )
+
+## make Graph from DCS_data                                                                                                
+@app.route('/make_dcsGraph', methods=['GET','POST'])
+def make_dcsGraph() :
+    # get from form                                                                                                        
+    session['dcsplotType']  = request.form.get( 'dcsplotType' )
+    if not session.get('dcsStat') :
+        session['dcsStat']={}
+
+
+    if session['dcsplotType']=='make' or session['dcsplotType']=='make' :
+        if request.form.get('dataType') == 'iv' :
+            target=[ request.form.get('key_v'), request.form.get('key_i') ]
+            session['dcsStat'].update({ target[0] : { 'min' : request.form.get( 'v_min' ),
+                                                      'max' : request.form.get( 'v_max' ),
+                                                      'step': request.form.get( 'v_step')}
+                                    })
+            session['dcsStat'].update({ target[1] : { 'min' : request.form.get( 'i_min' ),
+                                                      'max' : request.form.get( 'i_max' ),
+                                                      'step': request.form.get( 'i_step')}
+                                    })
+        elif request.form.get('dataType') == 'other' :
+            target=request.form.get('dcsType')
+            session['dcsStat'].update({ target : { "min" : request.form.get( 'min' ),
+                                                   "max" : request.form.get( 'max' ),
+                                                   'step': request.form.get( 'step')}
+                                    })
+    if session['dcsplotType']=='make_TimeRange' :
+        start_timezone = request.form.get('start_timezone')
+        start_year = request.form.get('start_year')
+        start_month= request.form.get('start_month')
+        start_day  = request.form.get('start_day')
+        start_hour = request.form.get('start_hour')
+        start_min  = request.form.get('start_minute')
+        start_sec  = request.form.get('start_second')
+
+        end_timezone = request.form.get('end_timezone')
+        end_year = request.form.get('end_year')
+        end_month= request.form.get('end_month')
+        end_day  = request.form.get('end_day')
+        end_hour = request.form.get('end_hour')
+        end_min  = request.form.get('end_minute')
+        end_sec  = request.form.get('end_second')
+
+        start=datetime.strptime('{0}-{1}-{2}T{3}:{4}:{5} {6}'.format(start_year,start_month,start_day,start_hour,start_min,start_sec,start_timezone),'%Y-%m-%dT%H:%M:%S %z').astimezone(pytz.timezone('UTC'))
+#        start=datetime.strptime(setTime(start),'%Y/%m/%d %H:%M:%S')
+        end=datetime.strptime('{0}-{1}-{2}T{3}:{4}:{5} {6}'.format(end_year,end_month,end_day,end_hour,end_min,end_sec,end_timezone),'%Y-%m-%dT%H:%M:%S %z').astimezone(pytz.timezone('UTC'))
+#        end=datetime.strptime(setTime(end),'%Y/%m/%d %H:%M:%S')
+
+        session['dcsStat'].update({ 'timeRange' : [time.mktime(start.timetuple()),
+                                                   time.mktime(end.timetuple())
+                                               ]
+                                }
+        )
+    elif session['dcsplotType']=='set_defaultTimeRange' :
+        session['dcsStat'].pop('timeRange',None)
+     # get from args                                                                                                      \
+                                                                                                                           
+    componentId = request.args.get( 'id' )
+    runId       = request.args.get( 'runId' )
+
+    print("runId = "+str(runId))
+
+    return redirect( url_for("show_component", id=componentId, runId=runId) )
+
 
 # select page
 @app.route('/select_summary', methods=['GET','POST'])
