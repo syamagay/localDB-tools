@@ -51,18 +51,15 @@ while [ ! -z $1 ]; do
     shift
 done
 
-# Check python modules
-#echo -e "$ITSNAME Check python modules..."
-#/usr/bin/env python3 ../setting/check_python_modules.py
-
 
 # Create bin
 echo -e "$ITSNAME Create $BIN_DIR/$TARGET ..."
 mkdir -p $BIN_DIR
-grep -vh -e "imports" imports/imports.py > $BIN_DIR/$TARGET
-grep -vh -e "^\s*#" -e "import" -e "__main__" imports/*.py >> $BIN_DIR/$TARGET
-grep -vh -e "^\s*#" -e "import" $TOOL_PATH >> $BIN_DIR/$TARGET
-#cat tools/main.py >> $TARGET_BIN
+rm -f $BIN_DIR/$TARGET
+#grep -vh -e "^\s*#" -e "__main__" configs/*.py >> $BIN_DIR/$TARGET
+grep -vh -e "__main__" configs/*.py >> $BIN_DIR/$TARGET
+grep -vh -e "import" -e "__main__" functions/*.py >> $BIN_DIR/$TARGET
+grep -vh -e "import" $TOOL_PATH >> $BIN_DIR/$TARGET
 chmod +x $BIN_DIR/$TARGET
 
 ## Copy default configure files
