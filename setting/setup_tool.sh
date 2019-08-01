@@ -25,17 +25,19 @@ EOF
 
 # Start
 if [ `echo ${0} | grep bash` ]; then
-    echo "DO NOT 'source'"
+    echo "[LDB] DO NOT 'source'"
     usage
     return
 fi
 
 shell_dir=$(cd $(dirname ${BASH_SOURCE}); pwd)
+tools=false
 reset=false
-while getopts hr OPT
+while getopts htr OPT
 do
     case ${OPT} in
         h ) usage ;;
+        t ) tools=true ;;
         r ) reset=true ;;
         * ) usage
             exit ;;
@@ -48,13 +50,26 @@ MODLIB=${HOME}/.local/lib/localdb-tools/modules
 ENABLE=${HOME}/.local/lib/localdb-tools/enable
 
 if "${reset}"; then
-    echo -e "[LDB] Clean Local DB settings? [y/n]"
-    echo -e "      -> remove Local DB Tools in ${BIN}"
+    echo -e "[LDB] Clean Local DB settings:"
+    echo -e "[LDB]      -> remove Local DB Tools in ${BIN}"
     for i in `ls -1 ${shell_dir}/../bin/`; do
         if [ -f ${BIN}/${i} ]; then
-            echo -e "         ${i}"
+            echo -e "[LDB]         - ${i}"
         fi
     done
+    echo -e "[LDB]      -> remove retrieve repository in ${HOME}/.localdb_retrieve"
+    echo -e "[LDB] Continue? [y/n]"
+    read -p "[LDB] > " answer
+    while [ -z ${answer} ]; 
+    do
+        read -p "[LDB] > " answer
+    done
+    echo -e "[LDB]"
+    if [[ ${answer} != "y" ]]; then
+        echo "[LDB] Exit ..."
+        echo "[LDB]"
+        exit
+    fi
     # binary
     for i in `ls -1 ${shell_dir}/../bin/`; do
         if [ -f ${BIN}/${i} ]; then
@@ -101,22 +116,27 @@ if "${reset}"; then
             fi
         fi
     fi
+    if [ -d ${HOME}/.localdb_retrieve ]; then
+        rm -r ${HOME}/.localdb_retrieve
+    fi
     echo -e "[LDB] Finish Clean Up!"
     exit
 fi
 
 # Check python module
 echo -e "[LDB] Check python modules..."
-pip3 install --user -r ${shell_dir}/requirements-pip.txt 2&> /dev/null && :
 /usr/bin/env python3 ${shell_dir}/check_python_modules.py
 if [ $? = 1 ]; then
-    echo -e "[LDB] Failed, exit..."
+    echo -e "[LDB] Failed!!!"
+    echo -e "[LDB] Install the missing modules by:"
+    echo -e "[LDB] pip3 install --user -r ${shell_dir}/requirements-pip.txt"
+    echo -e "[LDB] exit..."
     exit
 fi
 echo -e "[LDB] Done."
 echo -e ""
 
-readme=${shell_dir}/README.md
+readme=${shell_dir}/README
 
 if [ -f ${readme} ]; then
     rm ${readme}
@@ -125,17 +145,27 @@ fi
 echo -e "# scanConsole with Local DB" | tee -a ${readme}
 echo -e "" | tee -a ${readme}
 
-# Setting function
-mkdir -p ${BIN}
-mkdir -p ${BASHLIB}
-mkdir -p ${MODLIB}
+if "${tools}"; then
+    # Setting function
+    mkdir -p ${BIN}
+    mkdir -p ${BASHLIB}
+    mkdir -p ${MODLIB}
+    
+    cp ${shell_dir}/../bin/* ${BIN}/
+    chmod +x ${BIN}/*
+    
+    cp -r ${shell_dir}/../lib/localdb-tools/bash-completion/completions/* ${BASHLIB}/
+    cp -r ${shell_dir}/../lib/localdb-tools/modules/* ${MODLIB}/
+    cp ${shell_dir}/../lib/localdb-tools/enable ${ENABLE}
 
-cp ${shell_dir}/../bin/* ${BIN}/
-chmod +x ${BIN}/*
 
-cp -r ${shell_dir}/../lib/localdb-tools/bash-completion/completions/* ${BASHLIB}/
-cp -r ${shell_dir}/../lib/localdb-tools/modules/* ${MODLIB}/
-cp ${shell_dir}/../lib/localdb-tools/enable ${ENABLE}
+    if ! cat $HOME/.bashrc | grep 'export PATH="$HOME/.local/bin:$PATH"' 2>&1 > /dev/null; then
+        # Add PATH on ~/.local/bin in bashrc
+        echo -e "[LDB] Add PATH on ~/.local/bin"
+        echo 'export PATH="$HOME/.local/bin:$PATH"' >> $HOME/.bashrc
+        echo -e "[LDB]"
+    fi
+fi
 
 # settings
 echo -e "## Settings" | tee -a ${readme}
@@ -178,4 +208,4 @@ echo -e "$ localdbtool-retrieve init" | tee -a ${readme}
 echo -e "$ localdbtool-retrieve remote add origin" | tee -a ${readme}
 echo -e "$ localdbtool-retrieve log origin" | tee -a ${readme}
 echo -e "" | tee -a ${readme}
-echo -e "This description is saved as ${readme}"
+echo -e "[LDB] This description is saved as ${readme}"

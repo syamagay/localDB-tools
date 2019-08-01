@@ -30,24 +30,33 @@ shell_dir=$(cd $(dirname ${BASH_SOURCE}); pwd)
 ip=`hostname -i`
 today=`date +%y%m%d`
 # packages list to be required
+echo -e "[LDB] Looking for missing things for Local DB and its Tools..."
 yumpackages=$(cat ${shell_dir}/requirements-yum.txt)
+for pac in ${yumpackages[@]}; do
+    if ! yum list installed 2>&1 | grep ${pac} > /dev/null; then
+        yumarray+=(${pac})
+    fi
+done
+yumpackages=${yumarray[@]}
 pippackages=$(cat ${shell_dir}/requirements-pip.txt)
+for pac in ${pippackages[@]}; do
+    if ! pip3 list 2>&1 | grep ${pac} 2>&1 > /dev/null; then
+        piparray+=(${pac})
+    fi
+done
+pippackages=${piparray[@]}
 LOGDIR="${shell_dir}/instlog"
 if [ ! -d ${LOGDIR} ]; then
     mkdir ${LOGDIR}
 fi
-port=true
-initialize=true
-services=(
-    "mongod"
-    "httpd"
-)
+port=false
+initialize=false
 while getopts hpi OPT
 do
     case ${OPT} in
         h ) usage ;;
-        p ) port=false ;;
-        i ) initialize=false ;; 
+        p ) port=true ;;
+        i ) initialize=true ;; 
         * ) usage
             exit ;;
     esac
@@ -56,18 +65,22 @@ done
 # Confirmation
 echo -e "[LDB] This script performs ..."
 echo -e ""
-echo -e "[LDB]  - Install yum packages: '${shell_dir}/requirements-yum.txt'"
-echo -e "[LDB]         $ sudo yum install \$(cat ${shell_dir}/requirements-yum.txt)"
-echo -e "[LDB]  - Install pip modules: '${shell_dir}/requirements-pip.txt'"
-echo -e "[LDB]         $ sudo pip3 install \$(cat ${shell_dir}/requirements-pip.txt)"
-echo -e "[LDB]  - Start Apache Service:"
-echo -e "[LDB]         $ sudo /usr/sbin/setsebool -P httpd_can_network_connect 1"
+echo -e "[LDB]  - Install missing yum packages in '${shell_dir}/requirements-yum.txt'"
+for pac in ${yumpackages[@]}; do
+    echo -e "[LDB]         $ sudo yum install ${pac}"
+done
+echo -e "[LDB]  - Install missing pip modules in '${shell_dir}/requirements-pip.txt'"
+for pac in ${pippackages[@]}; do
+    echo -e "[LDB]         $ sudo pip3 install ${pac}"
+done
 if "${port}"; then
+    echo -e "[LDB]  - Start Apache Service:"
+    echo -e "[LDB]         $ sudo /usr/sbin/setsebool -P httpd_can_network_connect 1"
     echo -e "[LDB]         $ sudo firewall-cmd --add-service=http --permanent"
     echo -e "[LDB]         $ sudo firewall-cmd --reload"
+    echo -e "[LDB]         $ sudo systemctl start httpd"
 fi
-echo -e "[LDB]         $ sudo systemctl start httpd"
-echo -e "[LDB]  - Initialize Local DB Server:"
+echo -e "[LDB]  - Set Local DB Server:"
 echo -e "[LDB]         IP address: ${ip}"
 echo -e "[LDB]         port      : 27017"
 if "${initialize}"; then
@@ -90,9 +103,9 @@ done
 echo -e ""
 if [ ${answer} != "y" ]; then
     echo -e "[LDB] Exit..."
-    echo -e "[LDB] You can install packages without opening port by:"
+    echo -e "[LDB] You can install packages with opening port by:"
     echo -e "[LDB]     $ ./db_server_install.sh -p"
-    echo -e "[LDB] You can install packages without initialize Local DB Server by:"
+    echo -e "[LDB] You can install packages with initialize Local DB Server by:"
     echo -e "[LDB]     $ ./db_server_install.sh -i"
     echo -e ""
     echo -e "[LDB] If you want to setup them manually, the page 'https://github.com/jlab-hep/Yarr/wiki/Installation' should be helpful!"
@@ -113,34 +126,35 @@ if [ ! -e "/etc/yum.repos.d/mongodb-org-3.6.repo" ]; then
     echo -e "[LDB] Add: mongodb-org-3.6 repository in /etc/yum.repos.d/mongodb-org-3.6.repo."
 fi
 for pac in ${yumpackages[@]}; do
-    if ! yum list installed 2>&1 | grep ${pac} > /dev/null; then
-	echo -e "[LDB] yum install: ${pac}"
-    fi
+    echo -e "[LDB] yum install: ${pac}"
 done
 for pac in ${pippackages[@]}; do
-    if ! pip3 list 2>&1 | grep ${pac} 2>&1 > /dev/null; then
-       echo -e "[LDB] pip3 install: ${pac}"
-    fi
+    echo -e "[LDB] pip3 install: ${pac}"
 done
-if ! getsebool httpd_can_network_connect | grep off > /dev/null; then
-    echo -e "[LDB] SELinux: turning on httpd_can_network_connect"
-fi
 if "${port}"; then
+    if ! getsebool httpd_can_network_connect | grep off > /dev/null; then
+        echo -e "[LDB] SELinux: turning on httpd_can_network_connect"
+    fi
     if ! sudo firewall-cmd --list-all | grep http > /dev/null; then
         echo -e "[LDB] Firewall: opening port=80/tcp for appache."
     fi
     if ! sudo firewall-cmd --list-ports --zone=public --permanent | grep 27017/tcp > /dev/null; then
         echo -e "[LDB] Firewall: opening port=27017/tcp for viewer application."
     fi
+    if ! systemctl status httpd 2>&1 | grep running > /dev/null; then
+        echo -e "[LDB] Start: httpd"
+    fi
+    if ! systemctl list-unit-files -t service|grep enabled 2>&1 | grep httpd > /dev/null; then
+        echo -e "[LDB] Enable: httpd"
+    fi
 fi
-for svc in ${services[@]}; do
-    if ! systemctl status ${svc} 2>&1 | grep running > /dev/null; then
-        echo -e "[LDB] Start: ${svc}"
-    fi
-    if ! systemctl list-unit-files -t service|grep enabled 2>&1 | grep ${svc} > /dev/null; then
-        echo -e "[LDB] Enable: ${svc}"
-    fi
-done
+if ! systemctl status mongod 2>&1 | grep running > /dev/null; then
+    echo -e "[LDB] Start: mongod"
+fi
+if ! systemctl list-unit-files -t service|grep enabled 2>&1 | grep mongod > /dev/null; then
+    echo -e "[LDB] Enable: mongod"
+fi
+
 echo -e "[LDB] ----------------------------------------------------"
 
 # Install necessary packages if not yet installed
@@ -159,12 +173,8 @@ gpgkey=https://www.mongodb.org/static/pgp/server-3.6.asc\" > /etc/yum.repos.d/mo
 fi
 # Install yum packages
 for pac in ${yumpackages[@]}; do
-    if yum list installed 2>&1 | grep ${pac} > /dev/null; then
-        echo -e "[LDB] ${pac} already installed. Nothing to do."
-    else
-        echo -e "[LDB] ${pac} not found. Starting to install..."
-        sudo yum install -y ${pac}
-    fi
+    echo -e "[LDB] ${pac} not found. Starting to install..."
+    sudo yum install -y ${pac}
 done
 
 # Enable RedHad SCL packages
@@ -172,25 +182,13 @@ source /opt/rh/devtoolset-7/enable
 
 # Install python packages by pip for the DB viewer
 for pac in ${pippackages[@]}; do
-    if pip3 list 2>&1 | grep ${pac} 2>&1 > /dev/null; then
-        echo "${pac} already installed. Nothing to do."
-    else
-        echo "${pac} not found. Starting to install..."
-        sudo pip3 install ${pac}
-    fi
+    echo "${pac} not found. Starting to install..."
+    sudo pip3 install ${pac}
 done
 /usr/bin/env python3 ${shell_dir}/check_python_modules.py
 if [ $? = 1 ]; then
     echo -e "[LDB] Failed, exit..."
     exit
-fi
-
-# Setup apache to use DB
-if getsebool httpd_can_network_connect | grep off > /dev/null; then
-    echo -e "[LDB] Boolian:httpd_can_network_connect is turning on."
-    sudo /usr/sbin/setsebool -P httpd_can_network_connect 1
-else
-    echo -e "[LDB] httpd_can_network_connect is already on. Nothing to do."
 fi
 
 # Setup Viewer Application
@@ -201,6 +199,13 @@ sudo cp ${shell_dir}/../scripts/apache/config.conf /etc/httpd/conf.d/localDB-too
 
 # Open port
 if "${port}"; then
+    # Setup apache to use DB
+    if getsebool httpd_can_network_connect | grep off > /dev/null; then
+        echo -e "[LDB] Boolian:httpd_can_network_connect is turning on."
+        sudo /usr/sbin/setsebool -P httpd_can_network_connect 1
+    else
+        echo -e "[LDB] httpd_can_network_connect is already on. Nothing to do."
+    fi
     echo -e ""
     echo -e "[LDB] Opening port for httpd..."
     if sudo firewall-cmd --list-all | grep http > /dev/null; then
@@ -247,32 +252,45 @@ if "${port}"; then
 fi
 
 # Start and enable DB and http servers
-services=(
-    "mongod"
-    "httpd"
-)
-for svc in ${services[@]}; do
+if "${port}"; then
     echo -e ""
-    echo -e "[LDB] Setting up ${svc}..."
-    if systemctl status ${svc} | grep running > /dev/null; then
-        echo -e "[LDB] ${svc} is already running. Nothing to do."
+    echo -e "[LDB] Setting up httpd..."
+    if systemctl status httpd | grep running > /dev/null; then
+        echo -e "[LDB] httpd is already running. Nothing to do."
     else
-        echo -e "[LDB] Starting ${svc} on your local machine."
-        sudo systemctl start ${svc}
+        echo -e "[LDB] Starting httpd on your local machine."
+        sudo systemctl start httpd
     fi
-    if systemctl list-unit-files -t service|grep enabled | grep ${svc} > /dev/null; then
-        echo -e "[LDB] ${svc} is already enabled. Nothing to do."
+    if systemctl list-unit-files -t service|grep enabled | grep httpd > /dev/null; then
+        echo -e "[LDB] httpd is already enabled. Nothing to do."
     else
-        echo -e "[LDB] Enabling ${svc} on your local machine."
-        sudo systemctl enable ${svc}
+        echo -e "[LDB] Enabling httpd on your local machine."
+        sudo systemctl enable httpd
     fi
-done
+fi
+
+echo -e ""
+echo -e "[LDB] Setting up mongod..."
+if systemctl status mongod | grep running > /dev/null; then
+    echo -e "[LDB] mongod is already running. Nothing to do."
+else
+    echo -e "[LDB] Starting mongod on your local machine."
+    sudo systemctl start mongod 
+fi
+if systemctl list-unit-files -t service|grep enabled | grep mongod > /dev/null; then
+    echo -e "[LDB] mongod is already enabled. Nothing to do."
+else
+    echo -e "[LDB] Enabling mongod on your local machine."
+    sudo systemctl enable mongod
+fi
 
 mongo --host ${ip} --port 27017 <<EOF
 
 use localdb
 db.createCollection('childParentRelation');
 db.createCollection('component');
+db.createCollection('chip');
+db.createCollection('summary');
 db.createCollection('componentTestRun');
 db.createCollection('config');
 db.createCollection('fs.chunks');
