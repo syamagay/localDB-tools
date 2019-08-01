@@ -273,9 +273,9 @@ def sync():
                 key_file = open(keypath, "r")
                 key = key_file.read()
             else:
-                loggingErrorAndExit("%s API Key not exist!" % server_name, 1)
+                loggingErrorAndExit(message="%s API Key not exist!" % server_name, exit_code=1)
         else:
-            loggingErrorAndExit("%s user name or API Key not given!" % server_name, 1)
+            loggingErrorAndExit(message="%s user name or API Key not given!" % server_name, exit_code=1)
 
         url = "mongodb://%s:%s@%s:%d" % (username, key, host, port)
         logging.info("%s server url is: %s" % (server_name, url) )
@@ -319,6 +319,9 @@ def sync():
 
     # Get arguments
     args = getArgs()
+
+    # Setup logging
+    setupLogging(args.logfile)
 
     # Connect mongoDB
     server_names = ["local", "master"]

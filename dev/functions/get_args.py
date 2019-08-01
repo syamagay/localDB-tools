@@ -22,7 +22,7 @@ def getArgs():
     for menu in menus:  menus_str += menu + ", "
 
     parser = argparse.ArgumentParser(formatter_class=argparse.ArgumentDefaultsHelpFormatter)
-    parser.add_argument("menu", nargs="+", help="Choose: "+menus_str, type=str)
+#    parser.add_argument("menu", nargs="+", help="Choose: "+menus_str, type=str)
     parser.add_argument("--config", "-f", help="Config file path", type=str)
 
     # Local
@@ -48,12 +48,9 @@ def getArgs():
 
     # Others
     parser.add_argument("--dbVersion", "-d", help="DB Version", type=float, default="1.")
+    parser.add_argument("--logfile", help="Log file path", type=str, default="logs/production.log")
 
     args = parser.parse_args()
-
-    #if args.menu[0] not in menus: # Check menu
-    #    print("[LDB] ERROR! No '" + args.menu[0] + "' menu in the tool.")
-    #    exit(1)
 
     # Overwrite arguments from config file
     if args.config is not None:
@@ -70,5 +67,6 @@ def getArgs():
             if "password" in conf["master"]:    args.mpassword = conf["master"]["password"]
         if "development_flg" in conf:           args.development_flg = conf["development_flg"]
         if "dbVersion" in conf:                 args.dbVersion = conf["dbVersion"]
+        if "logfile" in conf:                   args.dbVersion = conf["logfile"]
 
     return args
