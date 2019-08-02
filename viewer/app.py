@@ -10,7 +10,12 @@
 import os
 import sys
 sys.path.append( os.path.dirname(os.path.dirname(os.path.abspath(__file__)) ) )
-from configs.imports import *
+
+# Magical word
+from configs.development import *
+
+# Setup logging
+setupLogging("logs/development.log")
 
 # module
 import hashlib
@@ -33,8 +38,6 @@ from PIL              import Image
 
 # Config python logging
 # https://stackoverflow.com/questions/17743019/flask-logging-cannot-get-it-to-write-to-a-file
-import logging, logging.config
-logging.config.dictConfig(yaml.load(open('./configs/logging.yml')))
 
 # Blue Prints
 from controllers.callback   import callback_api

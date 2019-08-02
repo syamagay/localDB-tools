@@ -102,3 +102,9 @@ PyROOT is available
    $ python summary.py -- ../../conf.yml
   ```
 
+
+# Run flask on debug mode
+```
+export FLASK_DEBUG=1
+nohup python3 app.py &
+```
