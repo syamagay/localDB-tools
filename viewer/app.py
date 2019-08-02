@@ -180,6 +180,72 @@ def show_modules_and_chips():
 
     return render_template( 'module.html', modules=modules, timezones=setTimezone() )
 
+@app.route('/chip', methods=['GET'])
+def show_chips():
+
+    query = { 'dbVersion': dbv }
+    chip_entries = mongo.db.chip.find( query )
+    chip_ids = []
+    for chip in chip_entries:
+        chip_ids.append(str(chip['_id']))
+
+    chips = {}
+    for chip_id in chip_ids:
+        query = { '_id': ObjectId(chip_id) }
+        this_chip = mongo.db.chip.find_one( query )
+        chip_type = this_chip['chipType']
+        if not chip_type in chips:
+            chips.update({ chip_type: { 'chips': [], 'num': '' } })
+
+        ### user
+        query = { '_id': ObjectId(this_chip['user_id']) }
+        this_user = localdb.user.find_one(query)
+        ### site
+        query = { '_id': ObjectId(this_chip['address']) }
+        this_site = localdb.institution.find_one(query)
+        ### component
+        proDB = False
+        module = []
+        if not this_chip['component']=='...':
+            query = { '_id': ObjectId(this_chip['component']) }
+            this_cmp = localdb.component.find_one(query)
+            query = { 'child': this_chip['component'] }
+            cpr_entries = localdb.childParentRelation.find(query)
+            for cpr in cpr_entries:
+                query = { '_id': ObjectId(cpr['parent']) }
+                this_module = localdb.component.find_one(query)
+                module.append({
+                    '_id': cpr['parent'],
+                    'name': this_module['name']
+                })
+            proDB = this_cmp['proDB']
+        ### stage
+        query = { 'chip': chip_id }
+        run_entries = mongo.db.testRun.find(query).sort([( '$natural', -1 )]).limit(1)
+        stage = '...'
+        for this_run in run_entries:
+            stage = this_run['stage']
+
+        chips[chip_type]['chips'].append({ 
+            '_id'          : chip_id,
+            'name'         : this_chip['name'],
+            'chipId'       : this_chip.get('chipId',-1),
+            'component'    : this_chip['component'],
+            'user'         : this_user['userName'],
+            'site'         : this_site['institution'],
+            'module'       : module,
+            'proDB'        : proDB,
+            'datetime'     : setTime(this_chip['sys']['cts']),
+            'stage'        : stage,
+        }) 
+
+    for chip_type in chips:
+        chips[chip_type].update({ 'num': len(chips[chip_type]['chips']) })
+        chip = sorted( chips[chip_type]['chips'], key=lambda x:x['name'], reverse=True)
+        chips[chip_type]['chips'] = chip
+
+    return render_template( 'chip.html', chips=chips, timezones=setTimezone() )
+
 @app.route('/development', methods=['GET'])
 def show_modules_and_chips_develop():
 
