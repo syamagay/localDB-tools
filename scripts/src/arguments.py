@@ -7,7 +7,7 @@ import yaml     # Read YAML config file
 
 def readConfig(conf_path):
     f = open(conf_path, "r")
-    conf = yaml.load(f)
+    conf = yaml.safe_load(f)
     return conf
 
 def getArgs():
