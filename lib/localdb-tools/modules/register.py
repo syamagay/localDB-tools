@@ -221,7 +221,7 @@ def __test_run(i_json, stage, i_tr_oid):
     doc_value.update({
         'testType' : i_json.get('testType', '...'),
         'runNumber': i_json.get('runNumber', -1),
-        'stage'    : stage,
+        'stage'    : stage.lower().replace(' ','_'),
         'chipType' : __global.chip_type,
         'address'  : __global.site_oid,
         'user_id'  : __global.user_oid,
@@ -235,7 +235,7 @@ def __test_run(i_json, stage, i_tr_oid):
             'environment': '...',
             'plots'      : [],
             'passed'     : False,
-            'problems'   : True,
+            'qcTest'     : False,
             'qaTest'     : False,
             'summary'    : False,
             'startTime'  : datetime.utcfromtimestamp(i_json['startTime']),
@@ -264,7 +264,7 @@ def __component_test_run(i_chip_json, i_tr_oid):
     doc_value.update({
         'sys'        : {},
         'component'  : i_chip_json['component'],
-        'chip_id'    : i_chip_json['id'],
+        'chip_id'    : i_chip_json['chip_id'],
         'testRun'    : i_tr_oid,
         'attachments': [],
         'beforeCfg'  : '...',
@@ -315,7 +315,7 @@ def __component(i_serial_number, i_component_type, i_chip_id, i_chips, i_proDB=F
     doc_value = {
         'sys'          : {},
         'serialNumber' : i_serial_number,
-        'componentType': i_component_type,
+        'componentType': i_component_type.lower().replace(' ','_'),
         'chipType'     : __global.chip_type,
         'name'         : i_serial_number,
         'chipId'       : i_chip_id,
@@ -367,17 +367,18 @@ def __config(i_file_json, i_filename, i_title, i_col, i_oid):
     data_id = __check_gridfs(hash_code)
     if not data_id: data_id = __grid_fs_file(i_file_json, '', i_filename+'.json', hash_code) 
     doc_value = {
-        'sys'      : {},
         'filename' : i_filename,
         'chipType' : __global.chip_type,
         'title'    : i_title,
         'format'   : 'fs.files',
-        'data_id'  : data_id,
+        'data_id'  : data_id
         'dbVersion': __global.db_version
     }
-    oid = str(localdb.config.insert_one(doc_value).inserted_id)
-    updateSys(oid, 'config')
-
+    oid = localdb.config.find_one(doc_value)
+    if not oid:
+        doc_value.update({ 'sys' : {} })
+        oid = str(localdb.config.insert_one(doc_value).inserted_id)
+        updateSys(oid, 'config')
     addValue(i_oid, i_col, i_title, oid)
     updateSys(i_oid, i_col)
 
@@ -496,8 +497,9 @@ def __dcs(i_tr_oid, i_env_json):
     }
     for env_j in i_env_json:
         if env_j['status']!='enabled': continue
-        if not env_j['key'] in doc_value:
-            doc_value.update({ env_j['key']: [] })
+        env_key = env_j['key'].lower().replace(' ','_')
+        if not env_key in doc_value:
+            doc_value.update({ env_key: [] })
         array = []
         env_mode = 'null'
         env_setting = 'null'
@@ -513,7 +515,7 @@ def __dcs(i_tr_oid, i_env_json):
             env_key_line = env_file.readline().splitlines()[0]
             env_num_line = env_file.readline().splitlines()[0]
             for j, tmp_key in enumerate(env_key_line.split(separator)):
-                if str(env_j['key'])==str(tmp_key) and int(env_j['num'])==int(env_num_line.split(separator)[j]):
+                if str(env_key)==str(tmp_key).lower().replace(' ','_') and int(env_j['num'])==int(env_num_line.split(separator)[j]):
                     key = j
                     break
             # mode
@@ -546,7 +548,7 @@ def __dcs(i_tr_oid, i_env_json):
                 'date': this_run['startTime'],
                 'value': env_j['value']
             })
-        doc_value[env_j['key']].append({
+        doc_value[env_key].append({
             'data': array,
             'description': env_j['description'],
             'mode': env_mode,
@@ -650,7 +652,7 @@ def __check_site(i_json):
 # return the document ID
 def __check_component_test_run(i_json, i_tr_oid):
     logger.debug('\tCheck Component-TestRun')
-    logger.debug('\t- chip: {}'.format(i_json['id']))
+    logger.debug('\t- chip: {}'.format(i_json['chip_id']))
     logger.debug('\t- testrun: {}'.format(i_tr_oid))
     logger.debug('\t- tx: {}'.format(i_json.get('tx',-1)))
     logger.debug('\t- rx: {}'.format(i_json.get('rx',-1)))
@@ -658,7 +660,7 @@ def __check_component_test_run(i_json, i_tr_oid):
     oid = None
 
     query = {
-        'chip_id': i_json['id'],
+        'chip_id': i_json['chip_id'],
         'testRun': i_tr_oid,
         'tx'     : i_json.get('tx',-1),
         'rx'     : i_json.get('rx',-1)
@@ -696,7 +698,7 @@ def __check_test_run(i_scanlog_json, i_conn_json):
         chip_ids = []
         for chip_json in i_conn_json['chips']:
             if chip_json.get('enable', 1)==0: continue
-            chip_ids.append({ 'chip_id': chip_json['id'] })
+            chip_ids.append({ 'chip_id': chip_json['chip_id'] })
         query = {
             'testRun': str(this_run['_id']),
             '$or'    : chip_ids
@@ -882,7 +884,7 @@ def __check_conn_cfg(i_conn_path):
         alert(message)
     mo_serial_number = conn_json["module"]["serialNumber"]
     mo_component_type = conn_json["module"]["componentType"]
-    __check_list(mo_component_type, __global.cmp_list, 'component')
+    __check_list(mo_component_type, 'component')
     # chip
     chips = []
     chipids = []
@@ -899,7 +901,7 @@ def __check_conn_cfg(i_conn_path):
         ch_serial_number = chip_conn_json['serialNumber']
         ch_component_type = chip_conn_json['componentType']
         ch_id = chip_conn_json['chipId']
-        __check_list(ch_component_type, __global.cmp_list, 'component')
+        __check_list(ch_component_type, 'component')
         if ch_id in chipids:
             message = 'Conflict chip ID {0} in the same module {1}'.format(ch_id)
             alert(message)
@@ -920,11 +922,11 @@ def __check_conn_cfg(i_conn_path):
 
 ##############################
 # Check if the value is listed
-def __check_list(i_value, i_list, i_name):
+def __check_list(i_value, i_name):
     logger.debug('\tCheck List:')
     logger.debug('\t- value: {}'.format(i_value)) 
     logger.debug('\t- list: {}'.format(i_name))
-    if not i_value in i_list:
+    if not i_value.lower().replace(' ','_') in __global.db_list[i_name]:
         message = 'Not registered {0} in the {1} list in database config file'.format(i_value, i_name)
         alert(massage)
     return 
@@ -996,10 +998,12 @@ def __set_conn_cfg(i_conn_json, i_cache_dir):
 
         chip_json['component'] = __check_component(chip_json['serialNumber'], True) #TODO for registered component
 
-        chip_json['geomId'] = chip_json.get('geomId', i)
         chip_oid = __check_chip(chip_json)
         if not chip_oid: chip_oid = __chip(chip_json)
-        chip_json['id'] = chip_oid
+        chip_json['geomId'] = chip_json.get('geomId', i)
+        chip_json['chip_id'] = chip_oid
+        del chip_json['serialNumber']
+        del chip_json['chipId']
         conn_json['chips'].append(chip_json)
         
     return conn_json
@@ -1021,8 +1025,8 @@ def __set_user(i_json):
     if not i_json=={}:
         user_json.update(i_json)
 
-    user_json['userName'] = user_json['userName'].lower().replace(' ','').replace('_','')
-    user_json['institution'] = user_json['institution'].lower().replace(' ','').replace('_','')
+    user_json['userName'] = user_json['userName'].lower().replace(' ','_')
+    user_json['institution'] = user_json['institution'].lower().replace(' ','_')
 
     user_oid = __check_user(user_json)
     if not user_oid: user_oid = __user(user_json) 
@@ -1045,7 +1049,7 @@ def __set_site(i_json):
     if not i_json=={}:
         site_json.update(i_json)
 
-    site_json['institution'] = site_json['institution'].lower().replace(' ','').replace('_','')
+    site_json['institution'] = site_json['institution'].lower().replace(' ','_')
 
     site_oid = __check_site(site_json)
     if not site_oid: site_oid = __site(site_json)
@@ -1115,7 +1119,7 @@ def __set_config(i_config_json, i_filename, i_title, i_col, i_chip_json, i_conn_
 
     if i_config_json=={}: return
 
-    oid = __check_config(i_title, i_col, i_conn_json['testRun'], i_chip_json.get('id','...'))
+    oid = __check_config(i_title, i_col, i_conn_json['testRun'], i_chip_json.get('chip_id','...'))
     if oid: __config(i_config_json, i_filename, i_title, i_col, oid)
 
     return
@@ -1129,10 +1133,16 @@ def __set_attachment(i_file_path, i_histo_name, i_chip_json, i_conn_json):
     if not os.path.isfile(i_file_path): return
     __global.histo_names.append(i_histo_name);
 
-    oid = __check_attachment(i_histo_name, i_conn_json['testRun'], i_chip_json.get('id','...'))
+    oid = __check_attachment(i_histo_name, i_conn_json['testRun'], i_chip_json.get('chip_id','...'))
     if oid: __attachment(i_file_path, i_histo_name, oid)
 
     return
+
+def __set_list(i_list, i_name):
+    if not i_name in __global.db_list:
+        __global.db_list.update({ i_name: [] })
+        for value in i_list:
+            __global.db_list[i_name].append(value.lower().replace(' ','_'))
 
 #######################
 ### Global Variable ###
@@ -1144,9 +1154,7 @@ class __global:
     tr_oids = []
     histo_names = []
     db_version = 1
-    stage_list = []
-    env_list = []
-    cmp_list = []
+    db_list = {}
     dir_path = ''
     option = ''
     updated = {}
@@ -1158,9 +1166,7 @@ class __global:
         tr_oids = []
         histo_names = []
         db_version = 1
-        stage_list = []
-        env_list = []
-        cmp_list = []
+        db_list = {}
         dir_path = ''
         option = ''
         updated = {}

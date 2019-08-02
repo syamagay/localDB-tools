@@ -17,6 +17,9 @@ function usage {
 Usage:
     ./db_server_install.sh 
 
+    - h    Show this usage 
+    - p    Open the port 27017 and 80
+    - i    Initialize Local DB 
 EOF
 }
 
@@ -120,7 +123,6 @@ exec 2> >(awk '{print strftime("[%Y-%m-%d %H:%M:%S] "),$0 } { fflush() } ' | tee
 trap 'echo -e ""; echo -e "[LDB] Installation stopped by SIGINT!!"; echo -e "[LDB] You may be in unknown state."; echo -e "[LDB] Check ${LOGFILE} for debugging in case of a problem of re-executing this script."; exit 1' 2
 
 # Check what is missing for Local DB
-echo -e "[LDB] Looking for missing things for Local DB and its Tools..."
 echo -e "[LDB] -------------------------------------------------------------"
 if [ ! -e "/etc/yum.repos.d/mongodb-org-3.6.repo" ]; then
     echo -e "[LDB] Add: mongodb-org-3.6 repository in /etc/yum.repos.d/mongodb-org-3.6.repo."

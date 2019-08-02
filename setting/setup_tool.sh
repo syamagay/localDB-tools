@@ -18,6 +18,7 @@ Set some tools for Local DB by:
     ./setup_tool.sh
 
     - h               Show this usage
+    - t               Set LocalDB tools into ${HOME}/.local/bin
     - r               Clean the settings (reset)
 
 EOF
