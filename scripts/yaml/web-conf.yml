@@ -16,3 +16,6 @@ flask:
 
 # python version
 python: 3
+
+# For development
+#is_development: True

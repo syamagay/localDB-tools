@@ -23,6 +23,8 @@ def getArgs():
     parser.add_argument("--fhost",          help="Flask Host",       type=str, default="localhost")
     parser.add_argument("--fport",          help="Flask Port",       type=int, default=5000)
     parser.add_argument("--fpython",        help="Python Version",   type=int, default=2)
+    parser.add_argument("--is_development", help="Is development env?", action="store_true")
+
     args = parser.parse_args()
 
     # Overwrite arguments from config file
@@ -38,5 +40,6 @@ def getArgs():
         if "host"      in conf["flask"]:   args.fhost      = conf["flask"]["host"]
         if "port"      in conf["flask"]:   args.fport      = conf["flask"]["port"]
         if "python"    in conf:            args.fpython    = conf["python"]
+        if "is_development"    in conf:     args.is_development = conf["is_development"]
 
     return args
