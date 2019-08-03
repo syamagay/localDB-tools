@@ -1,0 +1,14 @@
+{% extends "layout.html" %}    <!-- これで元になるHTML(laytout.html)を指定 -->
+
+{% block body %}
+  <div id='chart'></div>
+
+  <!-- Plotly.js -->
+  <script src="https://cdn.plot.ly/plotly-latest.min.js"></script>
+
+  <script type="text/javascript">
+    var graph = {{ graph_json | safe }};
+    var layout = {{ layout_json | safe }};
+    Plotly.plot('chart', graph.data, layout, image_filename='hoge', image="jpeg");
+  </script>
+{% endblock %}

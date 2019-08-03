@@ -1,8 +1,12 @@
-
 #==============================
 # functions
 #==============================
 from functions.logging import *
+
+#==============================
+# Pages and blue prints
+#==============================
+from pages.sync_statistics import sync_statistics_api
 
 #==============================
 # Scripts, Will be replaced by ?

@@ -14,7 +14,9 @@ sys.path.append( os.path.dirname(os.path.dirname(os.path.abspath(__file__)) ) )
 # Magical word
 from configs.development import *
 
+#==============================
 # Setup logging
+#==============================
 setupLogging("logs/development.log")
 
 # module
@@ -34,14 +36,6 @@ from pymongo          import MongoClient
 from bson.objectid    import ObjectId 
 from werkzeug         import secure_filename # for upload system
 from PIL              import Image
-
-
-# Config python logging
-# https://stackoverflow.com/questions/17743019/flask-logging-cannot-get-it-to-write-to-a-file
-
-# Blue Prints
-from controllers.callback   import callback_api
-from controllers.component_dev   import component_dev_api
 
 # For retriever
 from retrievers.component import retrieve_component_api
@@ -66,6 +60,7 @@ app = Flask( __name__ )
 # Regist Blue Prints
 app.register_blueprint(callback_api)
 app.register_blueprint(component_dev_api)
+app.register_blueprint(sync_statistics_api)
 app.register_blueprint(retrieve_component_api)
 app.register_blueprint(retrieve_testrun_api)
 app.register_blueprint(retrieve_config_api)
