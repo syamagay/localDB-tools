@@ -124,7 +124,7 @@ table.toppage td.border_inner {
                 <td>{{ run_data["site"] }}</td>
                 <td>{{ run_data["datetime"] }}</td>
                 <td>
-                  <a href="{{ url_for('show_component', runId=run_data["_id"]) }}">result page</a>
+                  <a href="{{ url_for('show_component', runId=run_data["_id"], collection='chip') }}">result page</a>
                 </td>
               </tr>
             {% endfor %}

@@ -592,11 +592,6 @@ def setResults():
 
     if not session.get('runId'): return results
 
-    query = { 
-        session['collection']: session['this'], 
-        'testRun'            : session['runId'] 
-    }
-    this_ctr = localdb.componentTestRun.find_one(query)
     query = { '_id': ObjectId(session['runId']) }
     this_run = localdb.testRun.find_one(query)
 
@@ -624,38 +619,39 @@ def setResults():
                 }
             })
 
-    chip_oids = []
-    query = { 'parent': session['this'] }
-    child_entries = localdb.childParentRelation.find( query )
-    chip_ids = []
-    for child in child_entries:
-        chip_oids.append(child['child'])
-    else:
-        chip_oids.append(session['this'])
-    for i, chip_oid in enumerate(chip_oids):
-        query = { session['collection']: chip_oid, 'testRun': session['runId'] }
-        this_chip_ctr = localdb.componentTestRun.find_one(query)
-
+    ctr_query = { 'testRun': session['runId'] }
+    if session.get('unit',None)=='module':
+        query = { 'parent': session['this'] }
+        child_entries = localdb.childParentRelation.find( query )
+        chip_ids = []
+        for child in child_entries:
+            if not '$or' in ctr_query: ctr_query.update({ '$or': [] })
+            ctr_query['$or'].append({ session['collection']: child['child'] })
+    elif session.get('this',None):
+        if not '$or' in ctr_query: ctr_query.update({ '$or': [] })
+        ctr_query['$or'].append({ session['collection']: session['this'] })
+    ctr_entries = localdb.componentTestRun.find(ctr_query)
+    for this_ctr in ctr_entries:
         ### Config data
-        for key in this_chip_ctr:
-            if 'Cfg' in key and not this_chip_ctr.get(key, '...')=='...':
+        for key in this_ctr:
+            if 'Cfg' in key and not this_ctr.get(key, '...')=='...':
                 if not key in config_files: config_files.update({ key: { 'data': [] }})
-                query = { '_id': ObjectId(this_chip_ctr[key]) }
+                query = { '_id': ObjectId(this_ctr[key]) }
                 this_config = localdb.config.find_one(query)
                 config_files[key]['data'].append({
-                    'filename'  : '{}.json'.format(this_chip_ctr['config']),
+                    'filename'  : '{}.json'.format(this_ctr['config']),
                     'code'      : this_config['data_id'],
-                    '_id'       : this_chip_ctr[key],
-                    'chip_name' : this_chip_ctr['name'],
+                    '_id'       : this_ctr[key],
+                    'chip_name' : this_ctr['name'],
                 })
         ### dat data
-        for data in this_chip_ctr['attachments']:
+        for data in this_ctr['attachments']:
             if not data['title'] in dat_files:
                 dat_files.update({ data['title']: { 'data': [] }})
             dat_files[data['title']]['data'].append({
-                'filename'  : '{0}_{1}'.format(this_chip_ctr['name'],data['filename']),
+                'filename'  : '{0}_{1}'.format(this_ctr['name'],data['filename']),
                 'code'      : data['code'],
-                'chip_name' : this_chip_ctr['name'],
+                'chip_name' : this_ctr['name'],
             })
     for key in config_files:
         config_files[key].update({ 'num': len(config_files[key]['data']) })
@@ -675,6 +671,7 @@ def setResults():
         'runNumber'   : None, 
         'testType'    : None, 
         'stage'       : None, 
+        'component'   : [],
         'startTime'   : None,
         'finishTime'  : None,
         'user'        : None,
@@ -683,6 +680,14 @@ def setResults():
         'targetCharge': None,
         'targetTot'   : None
     }) 
+    query = { 'testRun': session['runId'] }
+    ctr_entries = localdb.componentTestRun.find(query)
+    for this_ctr in ctr_entries:
+        results['info']['component'].append({
+            'name': this_ctr['name'],
+            '_id' : this_ctr[session['collection']],
+            'collection': session['collection']
+        })
     for key in this_run:
         if 'Cfg'in key or key=='_id' or key=='sys' or key=='chipType' or key=='dbVersion' or key=='timestamp': continue
         elif key=='startTime' or key=='finishTime': 
@@ -717,6 +722,7 @@ def setResults():
             results['info'].update({ key: this_run[key] })
 
     results.update({ 
+        'runId'      : session['runId'],
         'comments'   : comments,
         'config'     : config_files,
         'dat'        : dat_files,
@@ -742,7 +748,7 @@ def writeDat(num, collection, cmp_oid, run_oid):
                 session['plotList'][data['title']]['chipIds'].append( geom_id )
     return
 
-def makePlot(collection, cmp_oid, run_oid):
+def makePlot(collection, run_oid):
 
     query = { '_id': ObjectId(run_oid) }
     this_run = localdb.testRun.find_one( query )
@@ -769,8 +775,13 @@ def makePlot(collection, cmp_oid, run_oid):
             cpr_entries = localdb.childParentRelation.find(query)
             for this_cpr in cpr_entries:
                 chip_oids.append( this_cpr['child'] )
-        else:
+        elif session['this']:
             chip_oids.append( session['this'] )
+        else:
+            query = { 'testRun': run_oid }
+            ctr_entries = localdb.componentTestRun.find(query)
+            for this_ctr in ctr_entries:
+                chip_oids.append(this_ctr['chip'])
 
         for i, chip_oid in enumerate(chip_oids):
             writeDat( i, collection, chip_oid, run_oid )
@@ -800,7 +811,7 @@ def setRoots():
 
     if not session.get('runId'): return roots
 
-    makePlot( session['collection'], session['this'], session['runId'] )
+    makePlot( session['collection'], session['runId'] )
     query = { '_id': ObjectId(session['runId']) }
     this_run = localdb.testRun.find_one(query)
 

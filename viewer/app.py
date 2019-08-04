@@ -282,68 +282,82 @@ def show_component():
 
     makeDir()
 
-    session['this']  = request.args.get( 'id' )
-    session['collection'] = request.args.get( 'collection' )
+    session['this']  = request.args.get( 'id', None )
+    session['collection'] = request.args.get( 'collection', 'chip' )
     session['code']  = request.args.get( 'code', '' )
-    session['runId'] = request.args.get( 'runId' )
+    session['runId'] = request.args.get( 'runId', None )
+    session['unit'] = 'front-end_chip' ### TODO just temporary coding
 
-    ### this component
-    query = { '_id': ObjectId(session['this']) }
-    this_cmp = mongo.db[session['collection']].find_one( query )
+    comment_query = []
+    if session.get('runId',None):
+        comment_query.append({ 'runId': session['runId'] })
 
-    cmp_type = str(this_cmp['componentType']).lower().replace(' ','_')
-    ### check the parent
-    if cmp_type == 'module':
-        parent_id = session['this']
-    else:
-        query = { 'child': session['this'] }
-        this_cpr = mongo.db.childParentRelation.find_one( query )
-        if this_cpr: parent_id = this_cpr['parent']
-        else: parent_id = None
+    # component info
+    cmp_info = {}
+    if session.get('this',None):
+        ### this component
+        query = { '_id': ObjectId(session['this']) }
+        this_cmp = mongo.db[session['collection']].find_one( query )
 
-    module = {}
-    component_chips = []
-    comment_query = [
-        { 'componentId': session['this'] }, 
-        { 'runId'      :session['runId'] }
-    ]
-    if parent_id:
-        ### this module
-        query = { '_id': ObjectId(parent_id) }
-        this_module = mongo.db.component.find_one( query )
-        comment_query.append({ 'componentId': parent_id })
-        
-        ### chips of module
-        query = { 'parent': parent_id }
-        child_entries = mongo.db.childParentRelation.find( query )
-        chip_ids = []
-        for child in child_entries:
-            chip_ids.append(child['child'])
-            comment_query.append({ 'componentId': child['child'] })
+        # component type
+        cmp_type = str(this_cmp['componentType']).lower().replace(' ','_')
+        session['unit'] = cmp_type.lower().replace(' ','_')
+
+        ### check the parent
+        if cmp_type == 'module':
+            parent_id = session['this']
+        else:
+            query = { 'child': session['this'] }
+            this_cpr = mongo.db.childParentRelation.find_one( query )
+            if this_cpr: parent_id = this_cpr['parent']
+            else: parent_id = None
+
+        module = {}
+        component_chips = []
+        comment_query.append({ 'componentId': session['this'] })
+        if parent_id:
+            ### this module
+            query = { '_id': ObjectId(parent_id) }
+            this_module = mongo.db.component.find_one( query )
+            comment_query.append({ 'componentId': parent_id })
+            
+            ### chips of module
+            query = { 'parent': parent_id }
+            child_entries = mongo.db.childParentRelation.find( query )
+            chip_ids = []
+            for child in child_entries:
+                chip_ids.append(child['child'])
+                comment_query.append({ 'componentId': child['child'] })
   
-        ### set chip and module information
-        for chip_id in chip_ids:
-            query = { '_id': ObjectId(chip_id) }
-            this_chip = mongo.db.component.find_one( query )
-            component_chips.append({ 
-                '_id'         : chip_id,
-                'collection'  : 'component',
-                'chipId'      : this_chip.get('chipId',-1),
-                'name'        : this_chip['name'] 
+            ### set chip and module information
+            for chip_id in chip_ids:
+                query = { '_id': ObjectId(chip_id) }
+                this_chip = mongo.db.component.find_one( query )
+                component_chips.append({ 
+                    '_id'         : chip_id,
+                    'collection'  : 'component',
+                    'chipId'      : this_chip.get('chipId',-1),
+                    'name'        : this_chip['name'] 
+                })
+            module.update({ 
+                '_id'       : parent_id,
+                'collection': 'component',
+                'name'      : this_module['name'] 
             })
-        module.update({ 
-            '_id'       : parent_id,
-            'collection': 'component',
-            'name'      : this_module['name'] 
+
+        cmp_info.update({
+            'name'       : this_cmp['name'],
+            'module'     : module,
+            'chips'      : component_chips,
+            'unit'       : session['unit'].replace('_', ' '), 
+            'chipType'   : this_cmp['chipType']
         })
 
+    # comment
     comments=[]
     comment_entries = mongo.db.comments.find({ '$or':comment_query })
     for comment in comment_entries:
         comments.append(comment)
-
-    # component type
-    session['unit'] = cmp_type.lower().replace(' ','_')
     
     # set summary 
 #    summary = setSummary()
@@ -356,13 +370,9 @@ def show_component():
     dcs = setDCS()
 
     component = { 
-        '_id'        : session['this'],
+        '_id'        : session.get('this',None),
         'collection' : session['collection'],
-        'name'       : this_cmp['name'],
-        'module'     : module,
-        'chips'      : component_chips,
-        'unit'       : session['unit'].replace('_', ' '), 
-        'chipType'   : this_cmp['chipType'],
+        'info'       : cmp_info,
         'comments'   : comments, 
         'resultIndex': result_index,
         'results'    : results,

@@ -9,7 +9,7 @@
 {% endif %}-->
 
 <div class="row align-items-top">
-{% if component['chipType'] == 'FE-I4B' %}
+{% if component['info']['chipType'] == 'FE-I4B' %}
     {% set index = [] %}
     {% set _=index.append("digitalscan") %}
     {% set _=index.append("analogscan") %}
@@ -18,7 +18,7 @@
     {% set _=index.append("noisescan") %}
     {% set _=index.append("selftrigger") %}
 {% endif %}
-{% if component['chipType'] == 'RD53A' %}
+{% if component['info']['chipType'] == 'RD53A' %}
     {% set index = [] %}
     {% set _=index.append("std_digitalscan") %}
     {% set _=index.append("std_analogscan") %}

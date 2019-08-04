@@ -1,3 +1,9 @@
+<style>
+a.data:link { color: #3cb371; }
+a.data:visited { color: #3cb371; }
+a.data:hover { color: #ff8c00; }
+a.data:active { color: #dc143c; }
+</style>
 {% extends "layout.html" %}    <!-- これで元になるHTML(laytout.html)を指定 -->
 {% block body %}    <!-- layout.htmlのbodyというブロックを以下で置き換える -->
 
@@ -5,61 +11,135 @@
         <div class="row align-items-top justify-content-center">
             <div class="col">
 
-               
-                <h1>{{ component['unit'] }} : {{ component['name'] }}</h1>
-      
-                <table class="table table-sm table-bordered" style="font-size: 8pt;">
-                  <h4 style="font-size: 13pt;"><i class="fa fa-cog"></i> Component Data</h4>
-                  <thead class="table-dark" style="background: #222222; border-style: none;">
-                    <tr>
-                      <th scope="col" class="text-center" width="100">Item</th>
-                      <th scope="col"></th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    <tr>
-                      <th scope="raw" class="text-center" width="100">
-                        Serial Number 
-                      </th>
-                      <td>
-                        {{ component['name'] }} 
-                      </td>
-                    </tr>
-                    <tr>
-                      <th scope="raw" class="text-center" width="100">
-                        FE type
-                      </th>
-                      <td>
-                        {{ component['chipType'] }}
-                      </td>
-                    </tr>
-                    {% if component['module'] %}
-                    <tr>
-                      <th scope="raw" class="text-center" width="100">
-                        Module
-                      </th>
-                      <td>
-                        <a href="{{ url_for('show_component', id=component['module']['_id'], collection=component['module']['collection']) }}">{{component['module']['name']}}</a>&ensp;
-                      </td>
-                    </tr>
-                    {% endif %}
-                    {% if component['chips'] %}
-                    <tr>
-                      <th scope="raw" class="text-center" width="100">
-                        Chips
-                      </th>
-                      <td>
-                        {% for chip in component['chips'] %}
-                          <a href="{{ url_for('show_component', id=chip['_id'], collection=chip['collection']) }}">{{chip['name']}}</a>&ensp;
-                        {% else %}
-                          No match.
+                {% if component['info'] %}
+                    <h3>Componet: {{ component['info']['name'] }}</h3>
+                {% endif %}
+                {% if component['results'] %}
+                    <h3>Result: {{ component['results']['info']['runNumber'] }}</h3>
+                {% endif %}
+            </div>
+        </div>
+        <br>
+        <div class="row align-items-top justify-content-center">
+            <div class="col">
+                <h4 style='font-size: 13pt;'><i class='fa fa-cog'></i> Information</h4>
+            </div>
+        </div>
+        <div class="row align-items-top justify-content-center">
+            <div class="col-md-6">
+                <h4 style='font-size: 10pt;'>
+                {% if component['info'] %}
+                <a class='data' data-toggle='collapse' href='#component' style='color: black;'>
+                  <i class="fa fa-file"></i> Component 
+                  <i class='fa fa-plus'></i>
+                </a>
+                {% else %}
+                  <i class="fa fa-file"></i> Component 
+                {% endif %}
+                </h4>
+                {% if component['info'] %}
+                    <table class="table table-sm table-bordered collapse" id='component' style="font-size: 8pt;">
+                      <thead class="table-dark" style="background: #222222; border-style: none;">
+                        <tr>
+                          <th scope="col" class="text-center" width="100">Item</th>
+                          <th scope="col"></th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        <tr>
+                          <th scope="raw" class="text-center" width="100">
+                            Serial Number 
+                          </th>
+                          <td>
+                            {{ component['info']['name'] }} 
+                          </td>
+                        </tr>
+                        <tr>
+                          <th scope="raw" class="text-center" width="100">
+                            Component Type
+                          </th>
+                          <td>
+                            {{ component['info']['unit'] }}
+                          </td>
+                        </tr>
+                        <tr>
+                          <th scope="raw" class="text-center" width="100">
+                            FE type
+                          </th>
+                          <td>
+                            {{ component['info']['chipType'] }}
+                          </td>
+                        </tr>
+                        {% if component['info']['module'] %}
+                        <tr>
+                          <th scope="raw" class="text-center" width="100">
+                            Module
+                          </th>
+                          <td>
+                            <a href="{{ url_for('show_component', id=component['info']['module']['_id'], collection=component['info']['module']['collection']) }}">{{component['info']['module']['name']}}</a>&ensp;
+                          </td>
+                        </tr>
+                        {% endif %}
+                        {% if component['info']['chips'] %}
+                        <tr>
+                          <th scope="raw" class="text-center" width="100">
+                            Chips
+                          </th>
+                          <td>
+                            {% for chip in component['info']['chips'] %}
+                              <a href="{{ url_for('show_component', id=chip['_id'], collection=chip['collection']) }}">{{chip['name']}}</a>&ensp;
+                            {% else %}
+                              No match.
+                            {% endfor %}
+                          </td>
+                        </tr>
+                        {% endif %}
+                      </tbody>
+                    </table>
+                {% endif %}
+            </div>
+            <div class="col-md-6">
+                <h4 style="font-size: 10pt;">
+                {% if component['results'] %}
+                <a class='data' data-toggle='collapse' href='#scan' style='color: black;'>
+                  <i class="fa fa-file"></i> Scan 
+                  <i class='fa fa-plus'></i>
+                </a>
+                {% else %}
+                  <i class="fa fa-file"></i> Scan 
+                {% endif %}
+                </h4>
+                {% if component['results'] %}
+                    <table class="table table-sm table-bordered collapse" id='scan' style="font-size: 8pt;">
+                      <thead class='table-dark' style='background: #222222;'>
+                        <tr>
+                          <th scope='col' class='text-center'>Key</th>
+                          <th scope='col' class='text-center'>Data</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {% for key in component['results']['info'] %}
+                          {% if key=='component' %}
+                          <tr>
+                            <th scope="raw" class='text-center'>{{ key }}</td>
+                            <td class='text-center'>
+                            {% for cmp in component['results']['info'][key] %}
+                              <a href='{{ url_for('show_component', id=cmp['_id'], collection=cmp['collection'], runId=component['results']['runId']) }}'>{{cmp['name']}}</a><br>
+                            {% endfor %}
+                            </td>
+                          </tr>
+                          {% else %} 
+                          <tr>
+                            <th scope="raw" class='text-center'>{{ key }}</td>
+                            <td class='text-center'>{{ component['results']['info'][key] | safe }}</td>
+                          </tr>
+                          {% endif %} 
                         {% endfor %}
-                      </td>
-                    </tr>
-                    {% endif %}
-                  </tbody>
-                </table>
-
+                      </tbody>
+                    </table>
+                {% endif %}
+            </div>
+            <div class="col">
                 {% if component['comments'] %}
                 <table class="table table-sm table-bordered" style="font-size: 8pt;">
                   <h4 style="font-size: 13pt;"><i class="fa fa-cog"></i> Comments</h4>

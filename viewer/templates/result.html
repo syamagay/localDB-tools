@@ -1,97 +1,71 @@
-<div class="row align-items-top justify-content-center">
-  <div class="col">
-    <h4 style="font-size: 13pt;"><i class="fa fa-cog"></i> Result</h4>
-    <!--table class="table table-sm table-bordered" style="font-size: 8pt;">
-      <thead class="table-dark" style="background: #222222;">
+<div class='row align-items-top justify-content-center'>
+  <div class='col'>
+    <h4 style='font-size: 13pt;'><i class='fa fa-cog'></i> Result</h4>
+    <!--table class='table table-sm table-bordered' style='font-size: 8pt;'>
+      <thead class='table-dark' style='background: #222222;'>
         <tr>
-          <th scope="col" class="text-center">Date</th>
-          <th scope="col" class="text-center">Run Number</th>
-          <th scope="col" class="text-center">Test Type</th>
-          <th scope="col" class="text-center">Stage</th>
-          <th scope="col" class="text-center" width="200">Site</th>
-          <th scope="col" class="text-center" width="200">User Name</th>
+          <th scope='col' class='text-center'>Date</th>
+          <th scope='col' class='text-center'>Run Number</th>
+          <th scope='col' class='text-center'>Test Type</th>
+          <th scope='col' class='text-center'>Stage</th>
+          <th scope='col' class='text-center' width='200'>Site</th>
+          <th scope='col' class='text-center' width='200'>User Name</th>
         </tr>
       </thead>
       <tbody>
         <tr>
-          <td scope="col" align="center" >{{ component['results']['datetime'] }}</td>
-          <td scope="col" align="center" >{{ component['results']['runNumber'] }}</td>
-          <td scope="col" align="center" >{{ component['results']['testType'] }}</td>
-          <td scope="col" align="center" >{{ component['results']['stage'] }}</td>
-          <td scope="col" align="center" >{{ component['results']['site'] }}</td>
-          <td scope="col" align="center" >{{ component['results']['user'] }}({{ component['results']['institution'] }})</td>
+          <td scope='col' align='center' >{{ component['results']['datetime'] }}</td>
+          <td scope='col' align='center' >{{ component['results']['runNumber'] }}</td>
+          <td scope='col' align='center' >{{ component['results']['testType'] }}</td>
+          <td scope='col' align='center' >{{ component['results']['stage'] }}</td>
+          <td scope='col' align='center' >{{ component['results']['site'] }}</td>
+          <td scope='col' align='center' >{{ component['results']['user'] }}({{ component['results']['institution'] }})</td>
         </tr>
       </tbody>
     </table--!>
   </div>
 </div>
 
-<div class="row align-items-top">
-  <div class="col-md-4">
-  <h4 style="font-size: 10pt;">
-  <a data-toggle="collapse" href='#scan' style="color: black;">
-    <i class="fa fa-file"></i> Scan Info 
-    <i class="fa fa-plus"></i>
-  </a>
-  </h4>
-  <table class="table table-sm table-hover table-bordered collapse" id='scan' style="font-size: 8pt;">
-  <thead class="table-dark" style="background: #222222;">
-    <thead class="table-dark" style="background: #222222;">
-      <tr>
-        <th scope='col' class="text-center">Key</th>
-        <th scope='col' class="text-center">Data</th>
-      </tr>
-    </thead>
-    <tbody>
-      {% for key in component['results']['info'] %}
-      <tr>
-        <td class="text-center">{{ key }}</td>
-        <td class="text-center">{{ component['results']['info'][key] | safe }}</td>
-      </tr>
-      {% endfor %}
-    </tbody>
-  </table>
-  </div>
-
-  <div class="col-md-4">
-  <h4 style="font-size: 10pt;">
+<div class='row align-items-top'>
+  <div class='col-md-6'>
+  <h4 style='font-size: 10pt;'>
   {% if component['results']['config'] %}
-  <a class='data' data-toggle="collapse" href='#config' style="color: black;">
-    <i class="fa fa-file"></i> Config Data 
-    <i class="fa fa-plus"></i>
+  <a class='data' data-toggle='collapse' href='#config' style='color: black;'>
+    <i class='fa fa-file'></i> Config Data 
+    <i class='fa fa-plus'></i>
   </a>
   {% else %}
-    <i class="fa fa-file"></i> Config Data 
+    <i class='fa fa-file'></i> Config Data 
     <font color=#ff0000> ### NO DATA ###</font>
   {% endif %}
   </h4>
   {% if component['results']['config'] %}
-    <table class="table table-sm table-hover table-bordered collapse" id='config' style="font-size: 8pt;">
-    <thead class="table-dark" style="background: #222222;">
+    <table class='table table-sm table-hover table-bordered collapse' id='config' style='font-size: 8pt;'>
+    <thead class='table-dark' style='background: #222222;'>
       <tr>
-        <th scope="col" class="text-center" colspan=2>Config Data</th>
-        <th scope="col" class="text-center" rowspan=2>Display</th>
-        <th scope="col" class="text-center" rowspan=2>Download</th>
+        <th scope='col' class='text-center' colspan=2>Config Data</th>
+        <th scope='col' class='text-center' rowspan=2>Display</th>
+        <th scope='col' class='text-center' rowspan=2>Download</th>
       </tr>
       <tr>
-        <th scope="col" class="text-center">Type</th>
-        <th scope="col" class="text-center">Chip</th>
+        <th scope='col' class='text-center'>Type</th>
+        <th scope='col' class='text-center'>Chip</th>
       </tr>
     </thead>
     <tbody>
     {% for key in component['results']['config'] %}
       {% for config in component['results']['config'][key]['data'] %}
       <tr>
-        {% if loop.index==1 %} <td scope="col" class="text-center" rowspan={{ component['results']['config'][key]['num'] }}>{{ key }}</td> {% endif %}
-        <td class="text-center">{{ config['chip_name'] }}</td> 
-        <td class="text-center">
-          <a class="data" href="{{ url_for('display_data', code=config['code'], type='json') }}" target="_brank" rel="noopener noreferrer" title="Display json data" style="font-size: 10pt;">
-            <i class="fa fa-external-link-square"></i> 
+        {% if loop.index==1 %} <td scope='col' class='text-center' rowspan={{ component['results']['config'][key]['num'] }}>{{ key }}</td> {% endif %}
+        <td class='text-center'>{{ config['chip_name'] }}</td> 
+        <td class='text-center'>
+          <a class='data' href='{{ url_for('display_data', code=config['code'], type='json') }}' target='_brank' rel='noopener noreferrer' title='Display json data' style='font-size: 10pt;'>
+            <i class='fa fa-external-link-square'></i> 
           </a> 
         </td>
-        <td class="text-center">
-      	  <a class="data" href="{{ url_for('config_downloader', ModuleName=component['module']['name'], configType=key) }}" title="Download" style="font-size: 10pt;">
-            <i class="fa fa-download"></i> 
+        <td class='text-center'>
+      	  <a class='data' href='{{ url_for('config_downloader', ModuleName=config['chip_name'], configType=key) }}' title='Download' style='font-size: 10pt;'>
+            <i class='fa fa-download'></i> 
           </a>
         </td>
       </tr>
@@ -102,45 +76,45 @@
   {% endif %}
   </div>
 
-  <div class="col-md-4">
-  <h4 style="font-size: 10pt;">
+  <div class='col-md-6'>
+  <h4 style='font-size: 10pt;'>
   {% if component['results']['dat'] %}
-  <a class="data" data-toggle="collapse" href='#dat' style="color: black;">
-    <i class="fa fa-file"></i> Dat Data 
-    <i class="fa fa-plus"></i>
+  <a class='data' data-toggle='collapse' href='#dat' style='color: black;'>
+    <i class='fa fa-file'></i> Dat Data 
+    <i class='fa fa-plus'></i>
   </a>
   {% else %}
-    <i class="fa fa-file"></i> Dat Data 
+    <i class='fa fa-file'></i> Dat Data 
     <font color=#ff0000> ### NO DATA ###</font>
   {% endif %}
   </h4>
   {% if component['results']['dat'] %}
-    <table class="table table-sm table-hover table-bordered collapse" id='dat' style="font-size: 8pt;">
-    <thead class="table-dark" style="background: #222222;">
+    <table class='table table-sm table-hover table-bordered collapse' id='dat' style='font-size: 8pt;'>
+    <thead class='table-dark' style='background: #222222;'>
       <tr>
-        <th scope="col" class="text-center" colspan=2>Dat Data</th>
-        <th scope="col" class="text-center" rowspan=2>Display</th>
-        <th scope="col" class="text-center" rowspan=2>Download</th>
+        <th scope='col' class='text-center' colspan=2>Dat Data</th>
+        <th scope='col' class='text-center' rowspan=2>Display</th>
+        <th scope='col' class='text-center' rowspan=2>Download</th>
       </tr>
       <tr>
-        <th scope="col" class="text-center">Type</th>
-        <th scope="col" class="text-center">Chip</th>
+        <th scope='col' class='text-center'>Type</th>
+        <th scope='col' class='text-center'>Chip</th>
       </tr>
     </thead>
     <tbody>
     {% for key in component['results']['dat'] %}
       {% for dat in component['results']['dat'][key]['data'] %}
       <tr>
-        {% if loop.index==1 %} <td scope="col" class="text-center" rowspan={{ component['results']['dat'][key]['num'] }}>{{ key }}</td> {% endif %}
-        <td class="text-center">{{ dat['chip_name'] }}</td> 
-        <td class="text-center">
-          <a class="data" href="{{ url_for('display_data', code=dat['code'], type='dat') }}" target="_brank" rel="noopener noreferrer" title="Display json data" style="font-size: 10pt;">
-            <i class="fa fa-external-link-square"></i> 
+        {% if loop.index==1 %} <td scope='col' class='text-center' rowspan={{ component['results']['dat'][key]['num'] }}>{{ key }}</td> {% endif %}
+        <td class='text-center'>{{ dat['chip_name'] }}</td> 
+        <td class='text-center'>
+          <a class='data' href='{{ url_for('display_data', code=dat['code'], type='dat') }}' target='_brank' rel='noopener noreferrer' title='Display json data' style='font-size: 10pt;'>
+            <i class='fa fa-external-link-square'></i> 
           </a> 
         </td>
-        <td class="text-center">
-      	  <a class="data" href="{{ url_for('data_downloader', ModuleName=component['module']['name'], mapType=key) }}" title="Download" style="font-size: 10pt;">
-            <i class="fa fa-download"></i> 
+        <td class='text-center'>
+      	  <a class='data' href='{{ url_for('data_downloader', ModuleName=dat['chip_name'], mapType=key) }}' title='Download' style='font-size: 10pt;'>
+            <i class='fa fa-download'></i> 
           </a>
         </td>
       </tr>
