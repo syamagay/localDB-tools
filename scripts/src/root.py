@@ -127,20 +127,20 @@ def fillHisto(testType, mapType, chipId, plotList):
                 zaxisTitle = ' '.join(histo_par2d['zaxis'])
             # row
             if   chipNum==1 : row = 0 
-            elif chipId==1: row = int(histo_par2d['yrange'][0])-1 
-            elif chipId==2: row = int(histo_par2d['yrange'][0])-1
+            elif chipId==0: row = int(histo_par2d['yrange'][0])-1 
+            elif chipId==1: row = int(histo_par2d['yrange'][0])-1
+            elif chipId==2: row = int(histo_par2d['yrange'][0])
             elif chipId==3: row = int(histo_par2d['yrange'][0])
-            elif chipId==4: row = int(histo_par2d['yrange'][0])
 
         if not line<len(_par2d):
             data = readline.split()
 
             # col
             if   chipNum==1 : col = 0
-            elif chipId==1: col = int(histo_par2d['xrange'][0])-1
-            elif chipId==2: col = int(histo_par2d['xrange'][0])*2-1
-            elif chipId==3: col = 0
-            elif chipId==4: col = int(histo_par2d['xrange'][0])
+            elif chipId==0: col = int(histo_par2d['xrange'][0])-1
+            elif chipId==1: col = int(histo_par2d['xrange'][0])*2-1
+            elif chipId==2: col = 0
+            elif chipId==3: col = int(histo_par2d['xrange'][0])
 
             for value in data:
                 values.append(value)
@@ -149,17 +149,17 @@ def fillHisto(testType, mapType, chipId, plotList):
 
                 # col
                 if   chipNum==1 : col = col+1
-                elif chipId==1: col = col - 1 
-                elif chipId==2: col = col - 1
-                elif chipId==3: col = col + 1 
-                elif chipId==4: col = col + 1
+                elif chipId==0: col = col - 1 
+                elif chipId==1: col = col - 1
+                elif chipId==2: col = col + 1 
+                elif chipId==3: col = col + 1
 
             # row
             if   chipNum==1 : row = row + 1
-            elif chipId==1: row = row - 1 
-            elif chipId==2: row = row - 1
-            elif chipId==3: row = row + 1 
-            elif chipId==4: row = row + 1
+            elif chipId==0: row = row - 1 
+            elif chipId==1: row = row - 1
+            elif chipId==2: row = row + 1 
+            elif chipId==3: row = row + 1
 
     if not filled:
         parameter = jPar.get(mapType.split('-')[0], [])
@@ -294,20 +294,20 @@ def drawScan(testType, plotList):
 
                         # row
                         if   len(chips) ==1: row = 0 
-                        elif chipId=='1': row = int(histo_par2d['yrange'][0])-1 
-                        elif chipId=='2': row = int(histo_par2d['yrange'][0])-1
+                        elif chipId=='0': row = int(histo_par2d['yrange'][0])-1 
+                        elif chipId=='1': row = int(histo_par2d['yrange'][0])-1
+                        elif chipId=='2': row = int(histo_par2d['yrange'][0])
                         elif chipId=='3': row = int(histo_par2d['yrange'][0])
-                        elif chipId=='4': row = int(histo_par2d['yrange'][0])
 
                     if not line<len(_par2d):
                         data = readline.split()
 
                         # col
                         if   len(chips) ==1: col = 0
-                        elif chipId=='1': col = int(histo_par2d['xrange'][0])-1
-                        elif chipId=='2': col = int(histo_par2d['xrange'][0])*2-1
-                        elif chipId=='3': col = 0
-                        elif chipId=='4': col = int(histo_par2d['xrange'][0])
+                        elif chipId=='0': col = int(histo_par2d['xrange'][0])-1
+                        elif chipId=='1': col = int(histo_par2d['xrange'][0])*2-1
+                        elif chipId=='2': col = 0
+                        elif chipId=='3': col = int(histo_par2d['xrange'][0])
 
                         for value in data:
                             values.append(value)
@@ -316,17 +316,17 @@ def drawScan(testType, plotList):
 
                             # col
                             if   len(chips) ==1: col = col + 1
-                            elif chipId=='1': col = col - 1 
-                            elif chipId=='2': col = col - 1
-                            elif chipId=='3': col = col + 1 
-                            elif chipId=='4': col = col + 1
+                            elif chipId=='0': col = col - 1 
+                            elif chipId=='1': col = col - 1
+                            elif chipId=='2': col = col + 1 
+                            elif chipId=='3': col = col + 1
        
                         # row
                         if   len(chips) ==1: row = row + 1
-                        elif chipId=='1': row = row - 1 
-                        elif chipId=='2': row = row - 1
-                        elif chipId=='3': row = row + 1 
-                        elif chipId=='4': row = row + 1
+                        elif chipId=='0': row = row - 1 
+                        elif chipId=='1': row = row - 1
+                        elif chipId=='2': row = row + 1 
+                        elif chipId=='3': row = row + 1
 
 
         if 'h2' in locals():

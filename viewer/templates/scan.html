@@ -61,7 +61,7 @@ table.toppage td.border_inner {
             <ul class="page-list">
               {% if scans['now_cnt']!=0 %}
               <li style="display: inline;">
-                <a href="{{ url_for('show_test', p=0) }}">&#8810;</a>
+                <a href="{{ url_for('show_scans', p=0) }}">&#8810;</a>
               </li>
               {% endif %}
               {% for i in scans['cnt'] %}
@@ -70,24 +70,28 @@ table.toppage td.border_inner {
                 {% else %}
                 <li style="display: inline;">
                 {% endif %}
-  	              <a href="{{ url_for('show_test', p=i) }}">{{i+1}}</a>
+  	              <a href="{{ url_for('show_scans', p=i) }}">{{i+1}}</a>
                 </li>
               {% endfor %}
               {% if scans['now_cnt']!=scans['max_cnt'] %}
               <li style="display: inline;">
-                <a href="{{ url_for('show_test', p=scans['max_cnt']) }}">&#8811;</a>
+                <a href="{{ url_for('show_scans', p=scans['max_cnt']) }}">&#8811;</a>
               </li>
               {% endif %}
             </ul>
           </div>
           <thead class="table-dark" style="background: #222222;">
             <tr>
-              <th scope="col" style="width: calc(100%*3/11)";>Date</th>
-              <th scope="col" style="width: calc(100%*2/11)";>Serial Number</th>
-              <th scope="col" style="width: calc(100%*2/11)";>Test Type</th>
-              <th scope="col" style="width: calc(100%*1/11)";>User</th>
-              <th scope="col" style="width: calc(100%*2/11)";>Site</th>
-              <th scope="col" style="width: calc(100%*1/11)";></th>
+              <th scope="col" rowspan=2>Module Name</th>
+              <th scope="col" rowspan=2>Chip Name</th>
+              <th scope="col" colspan=5>Test Data</th>
+            </tr>
+            <tr>
+              <th scope="col">Test Type</th>
+              <th scope="col">User</th>
+              <th scope="col">Site</th>
+              <th scope="col">Date</th>
+              <th scope="col">Link</th>
             </tr>
           </thead>
           <tbody>
@@ -97,17 +101,30 @@ table.toppage td.border_inner {
               {% else %}
               <tr style="background: #AABBCC;">
               {% endif %}
-                <td>{{ run_data["datetime"] }}</td>
-                <td>{{ run_data["serialNumber"] }}</td>
+                <td>
+                {% for component in run_data['components'] %}
+                  {% if component['chip_id']=='module' %}
+                    <font>{{component['name']}}</font><br>
+                  {% endif %}
+                {% endfor %}
+                </td>
+                <td>
+                {% for component in run_data['components'] %}
+                  {% if not component['chip_id']=='module' %}
+                    {% if component['enabled'] %}
+                    <a href="{{ url_for('show_component', id=component['_id'], collection=component['collection']) }}"><font>{{component['name']}}</font></a><br>
+                    {% else %}
+                    <font color="BBBBBB">{{component['name']}}</font><br>
+                    {% endif %}
+                  {% endif %}
+                {% endfor %}
+                </td>
                 <td>{{ run_data["testType"] }}</td>
                 <td>{{ run_data["user"] }}</td>
                 <td>{{ run_data["site"] }}</td>
+                <td>{{ run_data["datetime"] }}</td>
                 <td>
-                {% if run_data['dummy'] %}
-                  <a href="{{ url_for('show_dummy', id=run_data["component"], runId=run_data["_id"]) }}">result</a>
-                {% else %}
-                  <a href="{{ url_for('show_component', id=run_data["component"], runId=run_data["_id"]) }}">result</a>
-                {% endif %}
+                  <a href="{{ url_for('show_component', runId=run_data["_id"]) }}">result page</a>
                 </td>
               </tr>
             {% endfor %}

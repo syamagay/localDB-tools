@@ -141,13 +141,6 @@ def updateData(collection, query):
         multi=True
     )
 
-def countPhotoNum():
-    if localdb.counter.find({'type': 'photoNumber'}).count() == 0:
-        localdb.counter.insert({'type': 'photoNumber', 'num': 1})
-    else:
-        localdb.counter.update({'type': 'photoNumber'}, {'$set': {'num': int(localdb.counter.find_one({'type': 'photoNumber'})['num']+1)}})
-    return int(localdb.counter.find_one({'type': 'photoNumber'})['num'])
-
 def setTime(date):
     zone = session.get('timezone','UTC')
     converted_time = date.replace(tzinfo=timezone.utc).astimezone(pytz.timezone(zone))
@@ -178,56 +171,6 @@ def setEnv(thisTestRun):
 
 ######################################################################
 # component function
-def setPhotoDisplay(this_cmp):
-    photo_display = []
-    if 'attachments' in this_cmp: 
-        data_entries = this_cmp['attachments']
-        for data in data_entries:
-            if (data.get('imageType') == 'image') and (data.get('display') == True):
-                file_path = '{0}/{1}_{2}'.format(STATIC_DIR, data['photoNumber'], data['filename'])
-                f = open(file_path, 'wb')
-                f.write(fs.get(ObjectId(data['code'])).read())
-                f.close()
-                url = url_for('upload.static', filename='{0}_{1}'.format(data['photoNumber'], data['filename']))
-                photo_display.append({'url':         url,
-                                      'code':        data['code'],
-                                      'photoNumber': data['photoNumber'],
-                                      'stage':       data['stage'],
-                                      'filename':    data['filename']})
-    return photo_display
-
-def setPhotoIndex(this_cmp):
-    photo_index = []
-    if 'attachments' in this_cmp: 
-        data_entries = this_cmp['attachments']
-        for data in data_entries:
-            if data.get('imageType') == 'image':
-                photo_index.append({'code':        data['code'],
-                                    'photoNumber': data['photoNumber'],
-                                    'datetime':    setTime(data['dateTime']),
-                                    'stage':       data['stage']})
-    return photo_index
-
-def setPhotos(this_cmp, code):
-    photos = {}
-    if not code == '':
-        data_entries = this_cmp['attachments']
-        for data in data_entries:
-            if code == data.get('code'):
-                file_path = '{0}/{1}'.format(STATIC_DIR, data['filename'])
-                f = open(file_path, 'wb')
-                f.write(fs.get(ObjectId(code)).read())
-                f.close()
-
-                url = url_for('upload.static', filename='{}'.format( data['filename']))
-                photos = {'url':         url,
-                          'code':        data['code'],
-                          'photoNumber': data['photoNumber'],
-                          'stage':       data['stage'],
-                          'display':     data.get('display', 'False'),
-                          'filename':    data['filename']}
-    return photos
-
 # summary plot for each stage in component page
 def setSummary():
 
@@ -563,39 +506,38 @@ def setResultIndex():
 
     result_index = {}
 
-    chips = []
-    query = { 'parent': session['this'] }
-    child_entries = localdb.childParentRelation.find( query )
-    for child in child_entries:
-        chips.append({ 'component': child['child'] })
-
-    query = { 'component': session['this'] }
-    run_entries = localdb.componentTestRun.find( query )
-    runoids = []
+    query = { session['collection']: session['this'] }
+    run_entries = localdb.componentTestRun.find(query)
+    run_oids = []
     for run in run_entries:
-        runoids.append(run['testRun'])
+        run_oids.append(run['testRun'])
 
-    for runoid in runoids:
-        query = { '_id': ObjectId(runoid) }
+    run_entries = {}
+    for run_oid in run_oids:
+        query = { '_id': ObjectId(run_oid) }
         this_run = localdb.testRun.find_one(query)
         query = { 
-            'component': session['this'],
-            'testRun': runoid 
+            session['collection']: session['this'],
+            'testRun'            : run_oid 
         }
         this_ctr = localdb.componentTestRun.find_one( query )
 
-        if chips == []:
-            result = 'attachments' in this_ctr
-        else:
-            query = { '$or': chips }
-            chip_run_entries = localdb.componentTestRun.find( query )
-            result = True in [ 'attachments' in chip_run for chip_run in chip_run_entries ]
-
-        stage = this_run.get('stage','null')
+        ### result data
+        if session['unit']=='module': result = not this_run['plots']==[]
+        else: result = not this_ctr['attachments']==[]
+        ### stage
+        stage = this_run.get('stage','...').replace('_',' ')
+        ### test type
         test_type = this_run.get('testType')
+        ### user
+        query = { '_id': ObjectId(this_run['user_id']) }
+        this_user = localdb.user.find_one(query)
+        ### site
+        query = { '_id': ObjectId(this_run['address']) }
+        this_site = localdb.institution.find_one(query)
 
-        if not test_type in result_index: 
-            result_index.update({ test_type: { 'run': [] } })
+        if not test_type in run_entries: 
+            run_entries.update({ test_type: [] })
 
         count = {}
         #TODO
@@ -614,25 +556,27 @@ def setResultIndex():
         #    localdb.localdb.insert( document )
         #TODO
 
-        result_index[test_type]['run'].append({ 
+        run_entries[test_type].append({ 
             '_id'      : str(this_run['_id']),
             'runNumber': this_run['runNumber'],
             'datetime' : setTime(this_run['startTime']),
             'result'   : result,
-            'chips'    : len(chips),
             'stage'    : stage,
+            'user'     : this_user['userName'].replace('_',' '),
+            'site'     : this_site['institution'].replace('_',' '),
             'rate'     : count.get('module',{}).get('rate','-'),
             'score'    : count.get('module',{}).get('score',None),
             'values'   : count.get('module',{}).get('parameters',{}),
             'summary'  : this_run.get('summary') 
         })
     test_index = []
-    for scan in result_index:
-        run_index = sorted(result_index[scan]['run'], key=lambda x:x['datetime'], reverse=True)
+    for scan in run_entries:
+        run_index = sorted(run_entries[scan], key=lambda x:x['datetime'], reverse=True)
         result_index.update({ 
             scan: { 
-                'num': len(run_index),
-                'run': run_index 
+                'num'     : len(run_index),
+                'run'     : run_index, 
+                'testType': test_type.replace('_',' ') 
             }
         })
         test_index.append( scan )
@@ -649,144 +593,160 @@ def setResults():
     if not session.get('runId'): return results
 
     query = { 
-        'component': session['this'], 
-        'testRun'  : session['runId'] 
+        session['collection']: session['this'], 
+        'testRun'            : session['runId'] 
     }
     this_ctr = localdb.componentTestRun.find_one(query)
     query = { '_id': ObjectId(session['runId']) }
     this_run = localdb.testRun.find_one(query)
 
-    # get comments for this run
+    ### get comments for this run
     query = { 'runId': session['runId'] }
     comments_entries = localdb.comments.find(query)
     comments = []
     for comment in comments_entries:
         comments.append(comment)
 
-    # Change scheme
-    ctrlconfig = {}
-    if not this_run.get('ctrlCfg','...')=='...':
-        query = { '_id': ObjectId(this_run['ctrlCfg']) }
-        config_data = localdb.config.find_one( query )
-        ctrlconfig.update({ 
-            "filename" : config_data['filename'],
-            "code"     : [config_data['data_id']],
-            "configid" : [this_run['ctrlCfg']]
-        })
-    scanconfig = {}
-    if not this_run.get('scanCfg','...')=='...':
-        query = { '_id': ObjectId(this_run['scanCfg']) }
-        config_data = localdb.config.find_one( query )
-        scanconfig.update({ 
-            "filename" : config_data['filename'],
-            "code"     : [config_data['data_id']],
-            "configid" : [this_run['scanCfg']] 
-        })
+    ### Config data
+    dat_files = {}
+    config_files = {}
+    for key in this_run:
+        if 'Cfg' in key and not this_run.get(key, '...')=='...':
+            query = { '_id': ObjectId(this_run[key]) }
+            this_config = localdb.config.find_one(query)
+            config_files.update({
+                key: {
+                    'data': [{
+                        'filename'  : '{}.json'.format(this_config['filename']),
+                        'code'      : this_config['data_id'],
+                        '_id'       : this_run[key]
+                    }]
+                }
+            })
 
-    is_module = False
-    if this_run['dummy']:
-        if session['this'] == this_run['serialNumber']:
-            is_module = True
+    chip_oids = []
+    query = { 'parent': session['this'] }
+    child_entries = localdb.childParentRelation.find( query )
+    chip_ids = []
+    for child in child_entries:
+        chip_oids.append(child['child'])
     else:
-        query = { '_id': ObjectId(session['this']) }
-        this_cmp = localdb.component.find_one( query )
-        if this_cmp['serialNumber'] == this_run['serialNumber']:
-            is_module = True
-
-    chipoids = []
-    if is_module:
-        query = { 'testRun': session['runId'] }
-        ctr_entries = localdb.componentTestRun.find( query )
-        for ctr in ctr_entries:
-            if ctr['component'] != session['this']:
-                chipoids.append( ctr['component'] )
-    else:
-        chipoids.append( session['this'] )
-
-    chipid = []
-    after_code = []
-    after_configid = []
-    before_code = []
-    before_configid = []
-
-    for i, chipoid in enumerate(chipoids):
-        query = { 'component': chipoid, 'testRun': session['runId'] }
+        chip_oids.append(session['this'])
+    for i, chip_oid in enumerate(chip_oids):
+        query = { session['collection']: chip_oid, 'testRun': session['runId'] }
         this_chip_ctr = localdb.componentTestRun.find_one(query)
-        chipid.append(i+1)
 
-        afterconfig = {}
-        if not this_chip_ctr.get('afterCfg','...')=='...':
-            after_configid.append(this_chip_ctr['afterCfg'])   
-            query = { '_id': ObjectId(this_chip_ctr['afterCfg']) }
-            config_data = localdb.config.find_one(query)
-            after_code.append(config_data['data_id'])
-
-            query = { '_id': ObjectId(this_chip_ctr['afterCfg']) }
-            afterconfig.update({ 
-                "filename" : config_data['filename'],
-                "code"     : after_code,
-                "chipId"   : chipid, 
-                "configid" : after_configid 
+        ### Config data
+        for key in this_chip_ctr:
+            if 'Cfg' in key and not this_chip_ctr.get(key, '...')=='...':
+                if not key in config_files: config_files.update({ key: { 'data': [] }})
+                query = { '_id': ObjectId(this_chip_ctr[key]) }
+                this_config = localdb.config.find_one(query)
+                config_files[key]['data'].append({
+                    'filename'  : '{}.json'.format(this_chip_ctr['config']),
+                    'code'      : this_config['data_id'],
+                    '_id'       : this_chip_ctr[key],
+                    'chip_name' : this_chip_ctr['name'],
+                })
+        ### dat data
+        for data in this_chip_ctr['attachments']:
+            if not data['title'] in dat_files:
+                dat_files.update({ data['title']: { 'data': [] }})
+            dat_files[data['title']]['data'].append({
+                'filename'  : '{0}_{1}'.format(this_chip_ctr['name'],data['filename']),
+                'code'      : data['code'],
+                'chip_name' : this_chip_ctr['name'],
             })
+    for key in config_files:
+        config_files[key].update({ 'num': len(config_files[key]['data']) })
+    for key in dat_files:
+        dat_files[key].update({ 'num': len(dat_files[key]['data']) })
 
-        beforeconfig = {}
-        if not this_chip_ctr.get('beforeCfg','...')=='...':
-            before_configid.append(this_chip_ctr['beforeCfg'])   
-            query = { '_id': ObjectId(this_chip_ctr['beforeCfg']) }
-            config_data = localdb.config.find_one(query)
-            before_code.append(config_data['data_id'])
-            beforeconfig.update({ 
-                "filename" : config_data['filename'],
-                "code"     : before_code,
-                "chipId"   : chipid,
-                "configid" : before_configid 
-            })
-
+    ### user
     query = { '_id': ObjectId(this_run['user_id']) }
-    user = localdb.user.find_one( query )
+    this_user = localdb.user.find_one( query )
+    ### site
     query = { '_id': ObjectId(this_run['address']) }
-    site = localdb.institution.find_one( query )
+    this_site = localdb.institution.find_one( query )
+
+    results.update({ 'info': {} })
+    ### basic info
+    results['info'].update({
+        'runNumber'   : None, 
+        'testType'    : None, 
+        'stage'       : None, 
+        'startTime'   : None,
+        'finishTime'  : None,
+        'user'        : None,
+        'institution' : None,
+        'site'        : None,
+        'targetCharge': None,
+        'targetTot'   : None
+    }) 
+    for key in this_run:
+        if 'Cfg'in key or key=='_id' or key=='sys' or key=='chipType' or key=='dbVersion' or key=='timestamp': continue
+        elif key=='startTime' or key=='finishTime': 
+            results['info'].update({ key: setTime(this_run[key]) })
+        elif key=='user_id' and not this_run[key]=='...':
+            results['info'].update({ 
+                'user'       : this_user['userName'].replace('_', ' '),
+                'institution': this_user['institution'].replace('_', ' ')
+            })
+        elif key=='address' and not this_run[key]=='...':
+            results['info'].update({ 'site': this_site['institution'].replace('_', ' ') })
+        elif key=='environment':
+            value = ''
+            if not this_run[key]=='...':
+                query = { '_id': ObjectId(this_run[key]) }
+                this_dcs = localdb.environment.find_one(query)
+                for dcs_key in this_dcs:
+                    if dcs_key=='_id' or dcs_key=='sys' or dcs_key=='dbVersion': continue
+                    value+='{}<br>'.format(dcs_key)
+            results['info'].update({ key: value })
+        elif type(this_run[key])==type([]):
+            value = ''
+            for i in this_run[key]:
+                value+='{}<br>'.format(i)
+            results['info'].update({ key: value })
+        elif type(this_run[key])==type({}):
+            value = ''
+            for i in this_run[key]:
+                value+='{0}: {1}<br>'.format(i, this_run[key][i])
+            results['info'].update({ key: value })
+        else:
+            results['info'].update({ key: this_run[key] })
+
     results.update({ 
-        'datetime'    : setTime(this_run['startTime']),
-        'testType'    : this_run['testType'],
-        'runNumber'   : this_run['runNumber'],
-        'comments'    : comments,
-        'stage'       : this_run.get('stage'),
-        'site'        : site['institution'].replace('_', ' '),
-        'institution' : user['institution'].replace('_', ' '),
-        'userIdentity': user['userName'].replace('_', ' '),
-        'config'      : { 
-            'ctrlCfg':   ctrlconfig, 
-            'scanCfg':   scanconfig, 
-            'beforeCfg': beforeconfig, 
-            'afterCfg':  afterconfig 
-        }
+        'comments'   : comments,
+        'config'     : config_files,
+        'dat'        : dat_files,
     }) 
 
     return results
 
+def writeDat(num, collection, cmp_oid, run_oid):
 
-def writeDat(cmpoid, runoid):
-
-    query = { 'testRun': runoid, 'component': cmpoid }
+    query = { 'testRun': run_oid, collection: cmp_oid }
     this_ctr = localdb.componentTestRun.find_one( query )
     if not this_ctr: return
 
-    chipid = this_ctr.get('geomId',1)
+    geom_id = this_ctr.get('geomId',num)
     for data in this_ctr.get('attachments', []):
         if data['contentType'] == 'dat':
             query = { '_id': ObjectId(data['code']) }
-            file_path = '{0}/{1}/dat/{2}-{3}.dat'.format(TMP_DIR, session.get('uuid','localuser'), chipid, data['title'])
+            file_path = '{0}/{1}/dat/{2}-{3}.dat'.format(TMP_DIR, session.get('uuid','localuser'), geom_id, data['title'])
             f = open(file_path, 'wb')
             f.write(fs.get(ObjectId(data['code'])).read())
             f.close()
             if data['title'] in session['plotList']:
-                session['plotList'][data['title']]['chipIds'].append( chipid )
+                session['plotList'][data['title']]['chipIds'].append( geom_id )
     return
 
-def makePlot(cmpoid, runoid):
-    query = { '_id': ObjectId(runoid) }
+def makePlot(collection, cmp_oid, run_oid):
+
+    query = { '_id': ObjectId(run_oid) }
     this_run = localdb.testRun.find_one( query )
+
     if session.get('rootType'):
         root.uuid = str(session.get('uuid','localuser'))
         maptype = session['mapType']
@@ -802,27 +762,18 @@ def makePlot(cmpoid, runoid):
         session['plotList'] = {}
         for maptype in this_run.get('plots',[]):
             session['plotList'].update({maptype: {'draw': True, 'chipIds': []}})
-        is_module = False
-        if this_run['dummy']:
-            if session['this'] == this_run['serialNumber']:
-                is_module = True
-        else:
-            query = { '_id': ObjectId(session['this']) }
-            this_cmp = localdb.component.find_one( query )
-            if this_cmp['serialNumber'] == this_run['serialNumber']:
-                is_module = True
 
-        chipoids = []
-        if is_module:
-            query = { 'testRun': session['runId'] }
-            ctr_entries = localdb.componentTestRun.find( query )
-            for ctr in ctr_entries:
-                if ctr['component'] != session['this']:
-                    chipoids.append( ctr['component'] )
+        chip_oids = []
+        if session['unit']=='module':
+            query = { 'parent': session['this'] }
+            cpr_entries = localdb.childParentRelation.find(query)
+            for this_cpr in cpr_entries:
+                chip_oids.append( this_cpr['child'] )
         else:
-            chipoids.append( session['this'] )
-        for chipoid in chipoids:
-            writeDat( chipoid, runoid )
+            chip_oids.append( session['this'] )
+
+        for i, chip_oid in enumerate(chip_oids):
+            writeDat( i, collection, chip_oid, run_oid )
 
     if DOROOT:
         root.uuid = str(session.get('uuid','localuser'))
@@ -849,7 +800,7 @@ def setRoots():
 
     if not session.get('runId'): return roots
 
-    makePlot( session['this'], session['runId'] )
+    makePlot( session['collection'], session['this'], session['runId'] )
     query = { '_id': ObjectId(session['runId']) }
     this_run = localdb.testRun.find_one(query)
 
@@ -930,57 +881,36 @@ def writeConfig(mo_serial_number,config_type):
 
         elif config_type == 'afterCfg' or 'beforeCfg':        
             
-            if not this_run['dummy']:
-                query = [{ 'parent': session['this'] }, { 'child': session['this'] }]
-                child_entries = localdb.childParentRelation.find({'$or': query})
+            query = [{ 'parent': session['this'] }, { 'child': session['this'] }]
+            child_entries = localdb.childParentRelation.find({'$or': query})
           
-                 
+             
 
-                for child in child_entries:
-                    query = { 'component': child['child'], 'testRun': session['runId'] }
-                    this_chip_ctr = localdb.componentTestRun.find_one(query)
-                    if not this_chip_ctr.get(config_type,'...')=='...':
-                        chipid = child['chipId']
-                        configid = this_chip_ctr[config_type] 
-                 
-                        query = { '_id': ObjectId(configid) }
-                        config_data = localdb.config.find_one(query)
+            for child in child_entries:
+                query = { 'component': child['child'], 'testRun': session['runId'] }
+                this_chip_ctr = localdb.componentTestRun.find_one(query)
+                if not this_chip_ctr.get(config_type,'...')=='...':
+                    chipid = child['chipId']
+                    configid = this_chip_ctr[config_type] 
+             
+                    query = { '_id': ObjectId(configid) }
+                    config_data = localdb.config.find_one(query)
 
-                        file_path = '{0}/{1}/config/{2}_chip{3}_{4}.json'.format(TMP_DIR, session.get('uuid','localuser'),mo_serial_number, chipid, config_type)
-                        f = open(file_path, 'wb')
-                        f.write(fs.get(ObjectId(config_data['data_id'])).read())
-                        f.close()
-                        
-                        myzip.write('{0}/{1}/config/{2}_chip{3}_{4}.json'.format(TMP_DIR, session.get('uuid','localuser'),mo_serial_number, chipid, config_type),'{0}_chip{1}_{2}.json'.format(mo_serial_number, chipid, config_type))
+                    file_path = '{0}/{1}/config/{2}_chip{3}_{4}.json'.format(TMP_DIR, session.get('uuid','localuser'),mo_serial_number, chipid, config_type)
+                    f = open(file_path, 'wb')
+                    f.write(fs.get(ObjectId(config_data['data_id'])).read())
+                    f.close()
+                    
+                    myzip.write('{0}/{1}/config/{2}_chip{3}_{4}.json'.format(TMP_DIR, session.get('uuid','localuser'),mo_serial_number, chipid, config_type),'{0}_chip{1}_{2}.json'.format(mo_serial_number, chipid, config_type))
         
-            else:
-                query = {'testRun': session['runId'] }
-                this_chip_ctrs = localdb.componentTestRun.find(query)
-                for this_chip_ctr in this_chip_ctrs: 
-                    if not this_chip_ctr.get(config_type,'...')=='...':
-                        chipid = '1'
-                        configid = this_chip_ctr[config_type] 
-                          
-                        query = { '_id': ObjectId(configid) }
-                        config_data = localdb.config.find_one(query)
-
-                        file_path = '{0}/{1}/config/{2}_chip{3}_{4}.json'.format(TMP_DIR, session.get('uuid','localuser'),mo_serial_number, chipid, config_type)
-                        f = open(file_path, 'wb')
-                        f.write(fs.get(ObjectId(config_data['data_id'])).read())
-                        f.close()
-                        
-                        myzip.write('{0}/{1}/config/{2}_chip{3}_{4}.json'.format(TMP_DIR, session.get('uuid','localuser'),mo_serial_number, chipid, config_type),'{0}_chip{1}_{2}.json'.format(mo_serial_number, chipid, config_type))
-        
-
     myzip.close()
     
     filename = TMP_DIR + '/' + str(session.get('uuid','localuser')) + '/config/' + str(mo_serial_number) + '_' + str(config_type) + '.zip'
     return filename
 
 def make_dcsplot(runId):
+
     environmentId=localdb.testRun.find_one({"_id":ObjectId(runId)}).get('environment')
-    if environmentId=="...":
-        return 1
 
     startTime=localdb.testRun.find_one({"_id":ObjectId(runId)}).get('startTime')
     finishTime=localdb.testRun.find_one({"_id":ObjectId(runId)}).get('finishTime')
@@ -1003,6 +933,13 @@ def setDCS():
     cleanDir(DCS_DIR)
 
     if not session.get( 'runId' ) : return dcs_data    
+
+    query = { '_id': ObjectId(session['runId']) }
+    this_run = localdb.testRun.find_one( query )
+    if this_run['environment']=="...":
+        dcs_data.update({ 'dcs_data_exist' : False })
+        return dcs_data
+
     if not DODCS :
         dcs_data.update({'dcssw': False})
         return dcs_data
@@ -1018,10 +955,7 @@ def setDCS():
     results['stat']={}
 
     dcs_status=make_dcsplot(session['runId'])
-    if dcs_status==1 : 
-        dcs_data.update({ 'dcssw' : True,
-                          'dcs_data_exist' : False })
-        return dcs_data
+
     if session.get('dcsList'):
         for dcsType in session.get( 'dcsList' ):
             if session['dcsList'][dcsType].get( 'file_num' ) :

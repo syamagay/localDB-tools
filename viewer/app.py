@@ -105,7 +105,8 @@ fs = gridfs.GridFS(mongo.db)
 dbv=args.version
 
 
-# top page 
+############
+### Top Page 
 @app.route('/', methods=['GET'])
 def show_toppage():
 
@@ -123,72 +124,104 @@ def show_toppage():
 
     return render_template( 'toppage.html', timezones=setTimezone() )
 
+##########################
+### Registered Module Page 
 @app.route('/module', methods=['GET'])
 def show_modules_and_chips():
 
-    query = { 'componentType': 'Module', 'dbVersion': dbv }
+    ### query modules
+    query = { 
+        'componentType': 'module', 
+        'dbVersion'    : dbv 
+    }
     module_entries = mongo.db.component.find( query )
     module_ids = []
     for module in module_entries:
         module_ids.append(str(module['_id']))
-
     modules = {}
     for module_id in module_ids:
         query = { '_id': ObjectId(module_id) }
         this_module = mongo.db.component.find_one( query )
         chip_type = this_module['chipType']
+        if not chip_type in modules:
+            modules.update({ chip_type: { 'modules': [], 'num': '' } })
 
+        ### child chips
         query = { 'parent': module_id }
         child_entries = mongo.db.childParentRelation.find( query )
         chip_ids = []
         for child in child_entries:
             chip_ids.append(child['child'])
-
-        # grade module
-        #score = grade_module(str(this_module['_id']))
-
         chips = []
         for chip_id in chip_ids:
             query = { '_id': ObjectId(chip_id) }
             this_chip = mongo.db.component.find_one( query )
             chips.append({ 
-                '_id'          : chip_id,
-                'serialNumber' : this_chip['serialNumber'],
-                'componentType': this_chip['componentType'],
-                'chipId'       : this_chip.get('chipId',-1),
-                'datetime'     : setTime(this_chip['sys']['cts']),
-                'stage'        : None,
-                'grade'        : {} 
+                '_id'         : chip_id,
+                'collection'  : 'component',
+                'name'        : this_chip['name'],
+                'grade'       : {} 
             }) 
 
-        if not chip_type in modules:
-            modules.update({ chip_type: { 'modules': [], 'num': '' } })
+        ### Latest Scan
+        query = { 'component': module_id  }
+        run_entries = mongo.db.componentTestRun.find(query).sort([( '$natural', -1 )]).limit(1)
+        result = { 
+            'stage'   : None, 
+            'runId'   : None,
+            'datetime': None,
+            'user'    : None,
+            'site'    : None 
+        }
+        for this_ctr in run_entries:
+            query = { '_id': ObjectId(this_ctr['testRun']) }
+            this_run = localdb.testRun.find_one(query)
+            ### user
+            query = { '_id': ObjectId(this_run['user_id']) }
+            this_user = localdb.user.find_one(query)
+            ### site
+            query = { '_id': ObjectId(this_run['address']) }
+            this_site = localdb.institution.find_one(query)
+            result.update({ 
+                'stage'   : this_run['stage'].replace('_', ' '), 
+                'runId'   : str(this_run['_id']),
+                'datetime': setTime(this_run['startTime']),
+                'user'    : this_user['userName'].replace('_', ' '),
+                'site'    : this_site['institution'].replace('_', ' ')
+            })
 
-        modules[chip_type]['modules'].append({ '_id'         : module_id,
-                                              'serialNumber' : this_module['serialNumber'],
-                                              'componentType': 'Module',
-                                              'chips'        : chips,
-                                              'children'    : len(chips),
-                                              'datetime'    : setTime(this_module['sys']['cts']),
-                                              'grade'       : {},
-                                              'stage'       : None })
+        modules[chip_type]['modules'].append({ 
+            '_id'          : module_id,
+            'collection'   : 'component',
+            'name'         : this_module['name'],
+            'chips'        : chips,
+            'grade'        : {},
+            'stage'        : result['stage'], 
+            'runId'        : result['runId'], 
+            'datetime'     : result['datetime'],
+            'user'         : result['user'],
+            'site'         : result['site'],
+            'proDB'        : this_module.get('proDB',False) 
+        })
 
     for chip_type in modules:
         modules[chip_type].update({ 'num': len(modules[chip_type]['modules']) })
-        module = sorted( modules[chip_type]['modules'], key=lambda x:x['serialNumber'], reverse=True)
+        module = sorted( modules[chip_type]['modules'], key=lambda x:x['name'], reverse=True)
         modules[chip_type]['modules'] = module
 
     return render_template( 'module.html', modules=modules, timezones=setTimezone() )
 
+####################
+### Tested Chip Page 
 @app.route('/chip', methods=['GET'])
 def show_chips():
 
+    ### query chips
     query = { 'dbVersion': dbv }
     chip_entries = mongo.db.chip.find( query )
     chip_ids = []
     for chip in chip_entries:
         chip_ids.append(str(chip['_id']))
-
     chips = {}
     for chip_id in chip_ids:
         query = { '_id': ObjectId(chip_id) }
@@ -197,46 +230,43 @@ def show_chips():
         if not chip_type in chips:
             chips.update({ chip_type: { 'chips': [], 'num': '' } })
 
-        ### user
-        query = { '_id': ObjectId(this_chip['user_id']) }
-        this_user = localdb.user.find_one(query)
-        ### site
-        query = { '_id': ObjectId(this_chip['address']) }
-        this_site = localdb.institution.find_one(query)
-        ### component
-        proDB = False
-        module = []
-        if not this_chip['component']=='...':
-            query = { '_id': ObjectId(this_chip['component']) }
-            this_cmp = localdb.component.find_one(query)
-            query = { 'child': this_chip['component'] }
-            cpr_entries = localdb.childParentRelation.find(query)
-            for cpr in cpr_entries:
-                query = { '_id': ObjectId(cpr['parent']) }
-                this_module = localdb.component.find_one(query)
-                module.append({
-                    '_id': cpr['parent'],
-                    'name': this_module['name']
-                })
-            proDB = this_cmp['proDB']
-        ### stage
+        ### Latest Result
         query = { 'chip': chip_id }
-        run_entries = mongo.db.testRun.find(query).sort([( '$natural', -1 )]).limit(1)
-        stage = '...'
-        for this_run in run_entries:
-            stage = this_run['stage']
+        run_entries = mongo.db.componentTestRun.find(query).sort([( '$natural', -1 )]).limit(1)
+        result = { 
+            'stage'   : None, 
+            'runId'   : None,
+            'datetime': None,
+            'user'    : None,
+            'site'    : None 
+        }
+        for this_ctr in run_entries:
+            query = { '_id': ObjectId(this_ctr['testRun']) }
+            this_run = localdb.testRun.find_one(query)
+            ### user
+            query = { '_id': ObjectId(this_run['user_id']) }
+            this_user = localdb.user.find_one(query)
+            ### site
+            query = { '_id': ObjectId(this_run['address']) }
+            this_site = localdb.institution.find_one(query)
+            result.update({ 
+                'stage'   : this_run['stage'].replace('_', ' '), 
+                'runId'   : str(this_run['_id']),
+                'datetime': setTime(this_run['startTime']),
+                'user'    : this_user['userName'].replace('_', ' '),
+                'site'    : this_site['institution'].replace('_', ' ')
+            })
 
         chips[chip_type]['chips'].append({ 
             '_id'          : chip_id,
+            'collection'   : 'chip',
             'name'         : this_chip['name'],
             'chipId'       : this_chip.get('chipId',-1),
-            'component'    : this_chip['component'],
-            'user'         : this_user['userName'],
-            'site'         : this_site['institution'],
-            'module'       : module,
-            'proDB'        : proDB,
-            'datetime'     : setTime(this_chip['sys']['cts']),
-            'stage'        : stage,
+            'stage'        : result['stage'], 
+            'runId'        : result['runId'], 
+            'datetime'     : result['datetime'], 
+            'user'         : result['user'], 
+            'site'         : result['site'] 
         }) 
 
     for chip_type in chips:
@@ -246,239 +276,183 @@ def show_chips():
 
     return render_template( 'chip.html', chips=chips, timezones=setTimezone() )
 
-@app.route('/development', methods=['GET'])
-def show_modules_and_chips_develop():
-
-    if session.get( 'uuid' ):
-        user_dir = TMP_DIR + '/' + str(session.get( 'uuid' ))
-        if os.path.isdir( user_dir ): shutil.rmtree( user_dir )
-    else:
-        session['uuid'] = str( uuid.uuid4() ) 
-
-    makeDir()
-    cleanDir( STATIC_DIR )
-    session.pop( 'signup', None )
-
-    query = { 'componentType': 'Module' }
-    module_entries = mongo.db.component.find( query )
-    modules = {}
-
-    for this_module in module_entries:
-        query = { 'parent': str(this_module['_id']) }
-        child_entries = mongo.db.childParentRelation.find( query )
-        chips = []
-        chip_type = this_module['chipType']
-
-        # grade module
-        score  = grade_module(str(this_module['_id'])) 
-
-        for child in child_entries:
-            query = { '_id': ObjectId(child['child']) }
-            this_chip = mongo.db.component.find_one( query )
-            if 'chipId' in this_chip['serialNumber']:
-                chipId = this_chip['serialNumber'].split('chipId')[1]
-            else:
-                chipId = '1' 
-            chips.append({ 
-                '_id'          : str(this_chip['_id']),
-                'serialNumber' : this_chip['serialNumber'],
-                'componentType': this_chip['componentType'],
-                'chipId'       : this_chip.get('chipId',-1),
-                'datetime'     : setTime(this_chip['sys']['cts']),
-                'grade'        : score.get(chipId,{}) 
-            }) 
-
-        if not chip_type in modules:
-            modules.update({ chip_type: { 'modules': [], 'num': '' } })
-
-
-        modules[chip_type]['modules'].append({ 
-            '_id'         : str(this_module['_id']),
-            'serialNumber': this_module['serialNumber'],
-            'chips'       : chips,
-            'datetime'    : setTime(this_module['sys']['cts']),
-            'grade'       : score['module'],
-            'stage'       : score['stage'] 
-        })
-
-    for chip_type in modules:
-        modules[chip_type].update({ 'num': len(modules[chip_type]['modules']) })
-        module = sorted( modules[chip_type]['modules'], key=lambda x:x['serialNumber'], reverse=True)
-        modules[chip_type]['modules'] = module
-
-    return render_template( 'module.html', modules=modules, timezones=setTimezone())
-
-
-# component page 
+### component page 
 @app.route('/component', methods=['GET', 'POST'])
 def show_component():
 
     makeDir()
 
     session['this']  = request.args.get( 'id' )
+    session['collection'] = request.args.get( 'collection' )
     session['code']  = request.args.get( 'code', '' )
     session['runId'] = request.args.get( 'runId' )
 
-    # this component
+    ### this component
     query = { '_id': ObjectId(session['this']) }
-    this_cmp = mongo.db.component.find_one( query )
-    cmp_type = this_cmp['componentType']
+    this_cmp = mongo.db[session['collection']].find_one( query )
 
-    # chips and parent
-    if cmp_type == 'Module':
+    cmp_type = str(this_cmp['componentType']).lower().replace(' ','_')
+    ### check the parent
+    if cmp_type == 'module':
         parent_id = session['this']
     else:
         query = { 'child': session['this'] }
-        parent_id = mongo.db.childParentRelation.find_one( query )['parent']
+        this_cpr = mongo.db.childParentRelation.find_one( query )
+        if this_cpr: parent_id = this_cpr['parent']
+        else: parent_id = None
 
-    # this module
-    query = { '_id': ObjectId(parent_id) }
-    this_module = mongo.db.component.find_one( query )
-    
-    
-    # chips of module
-    query = { 'parent': parent_id }
-    child_entries = mongo.db.childParentRelation.find( query )
-    chip_ids = []
-    for child in child_entries:
-        chip_ids.append(child['child'])
-
-    # get comments for this module
-    if cmp_type == 'Module':
-        parent_id = session['this']
-    else:
-        query = { 'child': session['this'] }
-        parent_id = mongo.db.childParentRelation.find_one( query )['parent']
-
-    query = { 'parent': parent_id }
-    child_entries = mongo.db.childParentRelation.find( query )
-    queryids = [{'componentId':parent_id},{'runId':session['runId']}]
-    for child in child_entries:
-        queryids.append({'componentId':child['child']})
- 
-    comments=[]
-    comment_entries = mongo.db.comments.find({'$or':queryids})
-    for comment in comment_entries:
-        comments.append(comment)
-  
-    # set chip and module information
+    module = {}
     component_chips = []
-    for chip_id in chip_ids:
-        query = { '_id': ObjectId(chip_id) }
-        this_chip = mongo.db.component.find_one( query )
-        component_chips.append({ 
-            '_id'         : chip_id,
-            'chipId'      : this_chip.get('chipId',-1),
-            'serialNumber': this_chip['serialNumber'] 
+    comment_query = [
+        { 'componentId': session['this'] }, 
+        { 'runId'      :session['runId'] }
+    ]
+    if parent_id:
+        ### this module
+        query = { '_id': ObjectId(parent_id) }
+        this_module = mongo.db.component.find_one( query )
+        comment_query.append({ 'componentId': parent_id })
+        
+        ### chips of module
+        query = { 'parent': parent_id }
+        child_entries = mongo.db.childParentRelation.find( query )
+        chip_ids = []
+        for child in child_entries:
+            chip_ids.append(child['child'])
+            comment_query.append({ 'componentId': child['child'] })
+  
+        ### set chip and module information
+        for chip_id in chip_ids:
+            query = { '_id': ObjectId(chip_id) }
+            this_chip = mongo.db.component.find_one( query )
+            component_chips.append({ 
+                '_id'         : chip_id,
+                'collection'  : 'component',
+                'chipId'      : this_chip.get('chipId',-1),
+                'name'        : this_chip['name'] 
+            })
+        module.update({ 
+            '_id'       : parent_id,
+            'collection': 'component',
+            'name'      : this_module['name'] 
         })
 
-    module = { 
-        '_id'         : parent_id,
-        'serialNumber': this_module['serialNumber'] 
-    }
+    comments=[]
+    comment_entries = mongo.db.comments.find({ '$or':comment_query })
+    for comment in comment_entries:
+        comments.append(comment)
+
+    # component type
+    session['unit'] = cmp_type.lower().replace(' ','_')
     
-    # set photos
-    photo_display = []
-    photo_index = []
-    photos = {}
-    #photo_display = setPhotoDisplay( this_cmp )            #TODO
-    #photo_index   = setPhotoIndex( this_cmp )              #TODO
-    #photos       = setPhotos( this_cmp, session['code'] ) #TODO
-
     # set summary 
-    summary = setSummary()
+#    summary = setSummary()
 
+    summary={}
     # set results
-    result_index  = setResultIndex() 
-    results      = setResults()     
-    roots        = setRoots()    
-    dcs          = setDCS()
+    result_index = setResultIndex() 
+    results = setResults()     
+    roots = setRoots()    
+    dcs = setDCS()
 
     component = { 
-        '_id'         : session['this'],
-        'serialNumber': this_cmp['serialNumber'],
-        'module'      : module,
-        'chips'       : component_chips,
-        'unit'        : this_cmp['componentType'], 
-        'chipType'    : this_cmp['chipType'],
-        'comments': comments, 
-        'photoDisplay': photo_display,
-        'photoIndex'  : photo_index,
-        'photos'      : photos,
-        'resultIndex' : result_index,
-        'results'     : results,
-        'roots'       : roots,
-        'dcs'         : dcs,
-        'summary'     : summary,
-        'dummy'       : False
+        '_id'        : session['this'],
+        'collection' : session['collection'],
+        'name'       : this_cmp['name'],
+        'module'     : module,
+        'chips'      : component_chips,
+        'unit'       : session['unit'].replace('_', ' '), 
+        'chipType'   : this_cmp['chipType'],
+        'comments'   : comments, 
+        'resultIndex': result_index,
+        'results'    : results,
+        'roots'      : roots,
+        'dcs'        : dcs,
+        'summary'    : summary,
     }
 
     return render_template( 'component.html', component=component, timezones=setTimezone() )
 
-# test run page without component
+#################
+### test run page
 @app.route('/scan', methods=['GET', 'POST'])
-def show_test():
+def show_scans():
     
     max_num = 10
     sort_cnt = int(request.args.get('p',0))
 
     query = { 'dbVersion': dbv }
     run_entries = mongo.db.testRun.find(query).sort([( '$natural', -1 )] )
+    run_counts = mongo.db.testRun.count_documents(query)
     run_ids = []
-    for i, run in enumerate(run_entries):
+    for i, this_run in enumerate(run_entries):
         if i//max_num<sort_cnt: continue
-        elif i//max_num==sort_cnt: run_ids.append(str(run['_id']))
+        elif i//max_num==sort_cnt: run_ids.append(str(this_run['_id']))
         else: break
+
     cnt = []
-    for i in range((run_entries.count()//max_num)+1):
+    for i in range((run_counts//max_num)+1):
         if sort_cnt-(max_num/2)<i:
             cnt.append(i)
         if len(cnt)==max_num:
             break
 
     scans = {
-        'run':[],
-        'total': run_entries.count(),
-        'cnt': cnt,
+        'run'    :[],
+        'total'  : run_counts,
+        'cnt'    : cnt,
         'now_cnt': sort_cnt,
-        'max_cnt': (run_entries.count()//max_num)
+        'max_cnt': (run_counts//max_num)
     }
 
     for run_id in run_ids:
         query = { '_id': ObjectId(run_id) }
         this_run = mongo.db.testRun.find_one (query)
+        ### user
         query = { '_id': ObjectId(this_run['user_id']) }
         this_user = mongo.db.user.find_one(query)
+        user_name = this_user['userName'].replace('_', ' ')
+        ### site
         query = { '_id': ObjectId(this_run['address']) }
         this_site = mongo.db.institution.find_one(query)
-        cmp_id = ''
-        if not this_run['dummy']:
-            query = { 'serialNumber': this_run['serialNumber'] }
-            this_cmp = mongo.db.component.find_one(query)
-            cmp_id = str(this_cmp['_id'])
-        else:
-            cmp_id = this_run['serialNumber']
-        if 'DUMMY' in this_run['serialNumber']:
-            serial_number = '---'
-        else:
-            serial_number = this_run['serialNumber']
+        site_name = this_site['institution'].replace('_', ' ')
+        ### component
+        query = { 'testRun': run_id }
+        ctr_entries = mongo.db.componentTestRun.find(query)
+        components = []
+        for this_ctr in ctr_entries:
+            if not this_ctr['component']=='...':
+                cmp_id = this_ctr['component']
+                collection = 'component'
+            else:
+                cmp_id = this_ctr['chip']
+                collection = 'chip'
+            components.append({ 
+                'name'      : this_ctr.get('name','NONAME'), 
+                'enabled'   : this_ctr.get('enable',1)==1, 
+                '_id'       : cmp_id, 
+                'chip_id'   : this_ctr['chip'], 
+                'collection': collection 
+            })
         run_data = {
-            '_id':          run_id,
-            'serialNumber': serial_number,
-            'datetime':     setTime(this_run['startTime']),
-            'testType':     this_run['testType'],
-            'stage':        this_run['stage'],
-            'runNumber':    this_run['runNumber'],
-            'dummy':        this_run['dummy'],
-            'plots':        (this_run['plots']!=[]),
-            'component':    cmp_id,
-            'user':         this_user['userName'].replace('_', ' '),
-            'site':         this_site['institution'].replace('_', ' ')
+            '_id'       : run_id,
+            'datetime'  : setTime(this_run['startTime']),
+            'testType'  : this_run['testType'].replace('_', ' '),
+            'runNumber' : this_run['runNumber'],
+            'stage'     : this_run['stage'],
+            'plots'     : (this_run['plots']!=[]),
+            'components': components,
+            'user'      : user_name,
+            'site'      : site_name
         }
         scans['run'].append(run_data)
 
     return render_template( 'scan.html', scans=scans, timezones=setTimezone() )
 
+#### result page
+#@app.route('/result', methods=['GET', 'POST'])
+#def show_result():
+#
 # component page 
 @app.route('/dummy', methods=['GET', 'POST'])
 def show_dummy():
@@ -492,17 +466,17 @@ def show_dummy():
     this_run = mongo.db.testRun.find_one(query)
 
     # this component
-    if session['this']==this_run['serialNumber']: cmp_type = 'Module'
+    if session['this']==this_run['name']: cmp_type = 'Module'
     else: cmp_type = 'Front-end Chip'
 
     # chips and parent
     if cmp_type == 'Module': parent_id = session['this']
-    else: parent_id = this_run['serialNumber']
+    else: parent_id = this_run['name']
 
     # this module
     module = { 
         '_id': parent_id,
-        'serialNumber': 'DummyModule' 
+        'name': 'DummyModule' 
     }
 
     # get comments for this module
@@ -517,14 +491,14 @@ def show_dummy():
     component_chips = []
     query = { 
         'testRun': session['runId'], 
-        'component':{'$ne': this_run['serialNumber']} 
+        'component':{'$ne': this_run['name']} 
     }
     ctr_entries = mongo.db.componentTestRun.find(query)
     for ctr_entry in ctr_entries:
         component_chips.append({
             '_id': ctr_entry['component'],
             'geomId': ctr_entry['geomId'],
-            'serialNumber': 'DummyChip{}'.format(ctr_entry['geomId'])
+            'name': 'DummyChip{}'.format(ctr_entry['geomId'])
         })
 
     # set photos
@@ -540,8 +514,7 @@ def show_dummy():
 
     component = { 
         '_id'         : session['this'],
-        #'serialNumber': this_run['serialNumber'],
-        'serialNumber': '---',
+        'name'        : '---',
         'module'      : module,
         'chips'       : component_chips,
         'unit'        : cmp_type,
@@ -636,8 +609,6 @@ def make_dcsGraph() :
     componentId = request.args.get( 'id' )
     runId       = request.args.get( 'runId' )
 
-    print("runId = "+str(runId))
-
     return redirect( url_for("show_component", id=componentId, runId=runId) )
 
 
@@ -655,7 +626,7 @@ def select_summary():
     # this component
     query = { '_id': ObjectId(session['this']) }
 
-    if not mongo.db.component.find_one( query )['componentType'] == 'Module':
+    if not str(mongo.db.component.find_one( query )['componentType']).lower().replace(' ','_') == 'Module'.lower().replace(' ','_'):
         query = { 'child': session['this'] }
         session['this'] = mongo.db.childParentRelation.find_one( query )['parent']
 
@@ -710,7 +681,7 @@ def select_summary():
     for chip_id in chip_ids:
         query = { '_id': ObjectId(chip_id) }
         this_chip = mongo.db.component.find_one( query )
-        component['componentType'] = this_chip['componentType']
+        #str(component['componentType']).lower().replace(' ','_') = str(this_chip['componentType']).lower().replace(' ','_')
         component_chips.append({ '_id'        : chip_id,
                                  'serialNumber': this_chip['serialNumber'] })
     module = { '_id'         : parent_id,
@@ -928,13 +899,19 @@ def show_summary_selected():
     return redirect( url )
 
 # download config file 
-@app.route('/download_config', methods=['GET'])
-def download_config() :
+@app.route('/display_data', methods=['GET'])
+def display_data() :
     
     # get code of config file
-    code = request.args.get( 'code' )
-    json_data = jsonify( json.loads( fs.get( ObjectId(code)).read().decode('ascii') ) )
-    response = make_response( json_data )
+    code = request.args.get('code')
+    data_type = request.args.get('type')
+    if data_type=='json':
+        json_data = jsonify( json.loads( fs.get( ObjectId(code)).read().decode('ascii') ) )
+        response = make_response( json_data )
+    elif data_type=='dat':
+        dat_data = fs.get( ObjectId(code)).read().decode('ascii')
+        response = make_response( dat_data )
+#return Response(f.read(), mimetype='text/plain')
 
     return response
 
@@ -1073,7 +1050,7 @@ def edit_comment():
         'componentId': request.args.get( 'id', -1 ),
         'runId': request.args.get( 'runId', -1 ),
         'comment':request.form.get('text').replace('\r\n','<br>'),
-        'componentType':request.form.get('unit'),
+        'componentType':request.form.get('unit').lower().replace(' ','_'),
         'name'  :request.form.get('text2'),
         'institution'  :request.form.get('text3'),
         'datetime':datetime.utcnow() 
@@ -1102,7 +1079,7 @@ def remove_comment():
     query = { '_id': ObjectId(request.form.get( 'id' ))}
     this_cmp = mongo.db.component.find_one( query )
 
-    if this_cmp['componentType'] == 'Module':
+    if str(this_cmp['componentType']).lower().replace(' ','_') == 'Module'.lower().replace(' ','_'):
         query = { 'parent': request.form.get('id') }
     else:
         query = { 'child': request.form.get('id') }
@@ -1201,7 +1178,7 @@ def signup():
             text = 'Please make sure your passwords match'
             stage = 'input'
             return render_template( 'signup.html', userInfo=userinfo, passtext=text, stage=stage, timezones=setTimezone() )
-        if mongo.db.user.find({ 'userName': userinfo[0] }).count() == 1 or mongo.db.request.find({ 'userName': userinfo[0] }).count() == 1:
+        if mongo.db.user.count_documents({ 'userName': userinfo[0] }) == 1 or mongo.db.request.count_documents({ 'userName': userinfo[0] }) == 1:
             text = 'The username you entered is already in use, please select an alternative.'
             stage = 'input'
             return render_template( 'signup.html', userInfo=userinfo, nametext=text, stage=stage, timezones=setTimezone() )

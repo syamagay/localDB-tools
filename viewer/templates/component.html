@@ -6,7 +6,7 @@
             <div class="col">
 
                
-                <h1>{{ component['unit'] }} : {{ component['serialNumber'] }}</h1>
+                <h1>{{ component['unit'] }} : {{ component['name'] }}</h1>
       
                 <table class="table table-sm table-bordered" style="font-size: 8pt;">
                   <h4 style="font-size: 13pt;"><i class="fa fa-cog"></i> Component Data</h4>
@@ -22,7 +22,7 @@
                         Serial Number 
                       </th>
                       <td>
-                        {{ component['serialNumber'] }} 
+                        {{ component['name'] }} 
                       </td>
                     </tr>
                     <tr>
@@ -33,37 +33,34 @@
                         {{ component['chipType'] }}
                       </td>
                     </tr>
+                    {% if component['module'] %}
                     <tr>
                       <th scope="raw" class="text-center" width="100">
                         Module
                       </th>
                       <td>
-                        {% if component['dummy'] %}
-                          <a href="{{ url_for('show_dummy', id=component['module']['_id'], runId=session['runId']) }}">{{component['module']['serialNumber']}}</a>&ensp;
-                        {% else %}
-                          <a href="{{ url_for('show_component', id=component['module']['_id']) }}">{{component['module']['serialNumber']}}</a>&ensp;
-                        {% endif %}
+                        <a href="{{ url_for('show_component', id=component['module']['_id'], collection=component['module']['collection']) }}">{{component['module']['name']}}</a>&ensp;
                       </td>
                     </tr>
+                    {% endif %}
+                    {% if component['chips'] %}
                     <tr>
                       <th scope="raw" class="text-center" width="100">
                         Chips
                       </th>
                       <td>
                         {% for chip in component['chips'] %}
-                          {% if component['dummy'] %}
-                            <a href="{{ url_for('show_dummy', id=chip['_id'], runId=session['runId']) }}">{{chip['serialNumber']}}</a>&ensp;
-                          {% else %}
-                            <a href="{{ url_for('show_component', id=chip['_id']) }}">{{chip['serialNumber']}}</a>&ensp;
-                          {% endif %}
+                          <a href="{{ url_for('show_component', id=chip['_id'], collection=chip['collection']) }}">{{chip['name']}}</a>&ensp;
                         {% else %}
                           No match.
                         {% endfor %}
                       </td>
                     </tr>
+                    {% endif %}
                   </tbody>
                 </table>
 
+                {% if component['comments'] %}
                 <table class="table table-sm table-bordered" style="font-size: 8pt;">
                   <h4 style="font-size: 13pt;"><i class="fa fa-cog"></i> Comments</h4>
                   <thead class="table-dark" style="background: #222222;">
@@ -85,11 +82,7 @@
                           {% if comment['runId'] == -1 %}
                             -
                           {% else %}
-                            {% if component['dummy'] %}
-                              <a href="{{ url_for('show_dummy', id=comment['componentId'], runId=comment['runId']) }}">testlink</a>
-                            {% else %}
-                              <a href="{{ url_for('show_component', id=comment['componentId'], runId=comment['runId']) }}">testlink</a>
-                            {% endif %}      
+                            <a href="{{ url_for('show_component', id=comment['componentId'], collection=comment['collection'], runId=comment['runId']) }}">testlink</a>
                           {% endif %}      
                           </th>
                           <th scope="col" class="text-center"><h4 style="font-size: 8pt;">{{ comment['name'] }}</h4></th>
@@ -99,7 +92,7 @@
                       {% endfor %}      
                       {% if session['logged_in'] %}  
                         <tr>
-                    	    <form action="{{ url_for('edit_comment', id=component['_id'],runId=session['runId']) }}" method="post" enctype="multipart/form-data">
+                    	    <form action="{{ url_for('edit_comment', id=component['_id'], collection=component['collection'], runId=session['runId']) }}" method="post" enctype="multipart/form-data">
                             <td scope="col" align="center" colspan="3"><textarea required="required" class="form-control input-normal" placeholder="comment" name = "text"></textarea></td>
                             <td scope="col" align="center"><input type = "txt" required="required" class="form-control input-normal" placeholder="name" name = "text2"></td>
                             <td scope="col" align="center"><input type = "txt" required="required" class="form-control input-normal" placeholder="institution" name = "text3"></td>
@@ -114,23 +107,36 @@
                           </form>
                         </tr>
                       {% endif %}      
-                   </tbody>
-                 </table>
+                  </tbody>
+                </table>
+                {% endif %}
             </div>
         </div>
 
-        {% if not component['dummy'] %}
+        {% if component['summary'] %}
+          <br>
           {% include "summary_index.html" %}
         {% endif %}
 
-        {% if not component['results'] == {} %}
+        {% if component['results'] %}
+          <br>
           {% include "result.html" %}
         {% endif %}
-        {% include "root.html" %}
-	{% include "dcs_data.html" %}
 
-        {% if not component['dummy'] %}
+        {% if component['roots'] %} 
+          <br>
+          {% include "root.html" %}
+        {% endif %}
+
+        {% if component['dcs'] %}
+          <br>
+	        {% include "dcs_data.html" %}
+        {% endif %}
+
+        {% if component['resultIndex']['index'] %}
+          <br>
           {% include "test_index.html" %}
         {% endif %}
+
     </div>
 {% endblock %}

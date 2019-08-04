@@ -36,7 +36,7 @@ table.toppage td.border_inner {
     <div class='row align-items-center justify-content-center'>
       <div class='col'>
 
-        <h3>Module Summary Page</h3>
+        <h3>Chip Summary Page</h3>
 
       </div>
     </div>
@@ -46,47 +46,38 @@ table.toppage td.border_inner {
     <div class='row align-items-center justify-content-center'>
       <div class='col'>
 
-        {% for FE in modules %}
+        {% for FE in chips %}
         <!--<a data-toggle='collapse' href='#{{ FE }}' aria-controls='testindex' style='color: black;'>--!>
-          <h4 style='font-size: 12pt;'><i class='fa fa-cog'></i> {{ FE }} ( {{ modules[FE]['num'] }} modules )</h4>
+          <h4 style='font-size: 12pt;'><i class='fa fa-cog'></i> {{ FE }} ( {{ chips[FE]['num'] }} chips )</h4>
         <!--</a>--!>
 
           <!--table class='table table-sm collapse toppage' id={{ FE }} style='font-size: 10pt;'--!>
           <table class='table table-sm toppage' style='font-size: 10pt;'>
             <thead class='table-dark' style='background: #222222;'>
               <tr>
-                <th scope='col' rowspan=2>Module Name</th>
                 <th scope='col' rowspan=2>Chip Name</th>
+                <th scope='col' rowspan=2>Chip ID</th>
                 <th scope='col' colspan=5>Latest Result</th>
               </tr>
-              <tr>
                 <th scope='col'>Stage</th>
                 <th scope='col'>User</th>
                 <th scope='col'>Site</th>
                 <th scope='col'>Date</th>
                 <th scope='col'>Link</th>
-              </tr>
+              <tr>
             </thead>
             <tbody>
-              {% for module in modules[FE]['modules'] %}
+              {% for chip in chips[FE]['chips'] %}
                 <tr>
                   <td>
-                    <a href='{{ url_for('show_component', id=module['_id'], collection=module['collection']) }}'>{{ module['name'] }}</a>
+                    <a href='{{ url_for('show_component', id=chip['_id'], collection=chip['collection']) }}'>{{ chip['name'] }}</a>
                   </td>
-                  <td>
-                  {% for chip in module['chips'] %}
-                    <a href='{{ url_for('show_component', id=chip['_id'], collection=chip['collection']) }}' >{{ chip['name'] }}</a><br>
-                  {% endfor %}
-                  </td>
-                  <td>{{ module['stage'] }}</td>
-                  <td>{{ module['user'] }}</td>
-                  <td>{{ module['site'] }}</td>
-                  <td>{{ module['datetime'] }}</td>
-                  <td>
-                    {% if module['runId'] %}
-                    <a href='{{ url_for('show_component', id=module['_id'], collection=module['collection'], runId=module['runId']) }}'>result page</a>
-                    {% endif %}
-                  </td>
+                  <td>{{ chip['chipId'] }}</td>
+                  <td>{{ chip['stage'] }}</td>
+                  <td>{{ chip['user'] }}</td>
+                  <td>{{ chip['site'] }}</td>
+                  <td>{{ chip['datetime'] }}</td>
+                  <td><a href='{{ url_for('show_component', id=chip['_id'], collection=chip['collection'], runId=chip['runId']) }}'>result page</a></td>
                 </tr>
               {% endfor %}
             </tbody>
