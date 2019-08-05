@@ -118,7 +118,7 @@ if  [ ${auth} -eq 0 ]; then
     sed -i -e "s/DBIPADDRESS/${dbip}/g" ${viewer_dir}/../viewer/conf.yml 
     sed -i -e "s/DBPORT/${dbport}/g" ${viewer_dir}/../viewer/conf.yml
     sed -i -e "s/#localdbkey/localdbkey/g" ${viewer_dir}/../viewer/conf.yml 
-    sed -i -e "s!localdbkeypass!/home/okuyama/.localdbkey!" ${viewer_dir}/../viewer/conf.yml 
+    sed -i -e "s!localdbkeypass!/home/${USER}/.localdbkey!" ${viewer_dir}/../viewer/conf.yml 
     chmod 700 ${viewer_dir}/../viewer/conf.yml 
     chown ${USER}:${USER} ${viewer_dir}/../viewer/conf.yml
 
@@ -150,7 +150,7 @@ elif [ ${auth} -eq 1 ]; then
     sed -i -e "s/DBIPADDRESS/${dbip}/g" ${viewer_dir}/../viewer/conf.yml 
     sed -i -e "s/DBPORT/${dbport}/g" ${viewer_dir}/../viewer/conf.yml 
     sed -i -e "s/#localdbkey/localdbkey/g" ${viewer_dir}/../viewer/conf.yml 
-    sed -i -e "s!localdbkeypass!/home/okuyama/.localdbkey!" ${viewer_dir}/../viewer/conf.yml 
+    sed -i -e "s!localdbkeypass!/home/${USER}/.localdbkey!" ${viewer_dir}/../viewer/conf.yml 
     chmod 700 ${viewer_dir}/../viewer/conf.yml 
     chown ${USER}:${USER} ${viewer_dir}/../viewer/conf.yml
    
