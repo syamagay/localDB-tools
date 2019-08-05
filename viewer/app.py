@@ -1307,7 +1307,10 @@ def logout():
     return redirect( pre_url )
 #    return render_template( 'toppage.html', timezones=setTimezone() )
 
-users = {password[0]:password[1]}
+if args.localdbkey:
+    users = {password[0]:password[1]}
+else:
+    users = {'username':'password'}
 
 @auth.get_password
 def get_pw(username):
@@ -1352,7 +1355,7 @@ def signup():
             if stage == 'confirm':
                 return render_template( 'signup.html', userInfo=userinfo, stage=stage, timezones=setTimezone() )
             else:
-                thistime = datetime.utcnow()
+                thistime = datetime.datetime.now()
                 mongo.db.user.insert( 
                 {    
                     'sys'          : { 'rev': 0,'cts': thistime,'mts': thistime}, 
@@ -1383,49 +1386,6 @@ def signup():
 
     return render_template( 'signup.html', userInfo=userinfo, stage=stage, timezones=setTimezone() )
 
- 
-#@app.route('/change_password',methods=['GET','POST'])
-#def change_password():
-#    if args.uusername:
-#        MONGO_URL = 'mongodb://' + args.uusername + ':' + args.upassword + '@' + args.host + ':' + str(args.port) 
-#    else:
-#        MONGO_URL = 'mongodb://' + args.host + ':' + str(args.port) 
-#    mongo     = PyMongo(app, uri=MONGO_URL+'/'+args.userdb)
-#    fs = gridfs.GridFS(mongo.db)
-#    dbv=args.version
-#
-#    stage = request.form.get('stage','input')
-#    if session.get('changepass',None):
-#        userinfo = request.form.getlist('userinfo')
-#        if mongo.db.user.find({'username': userinfo[0]}).count() == 0:
-#            text = 'This username is not exist'
-#            stage = 'input'
-#            return render_template( 'change_password.html', userInfo=userinfo, nametext=text, stage=stage, timezones=setTimezone() )
-#        else:
-#            query = { 'username' : userinfo[0] }
-#            userdata = mongo.db.user.find_one(query)
-#            if not userdata['password'] == hashlib.md5( userinfo[1].encode('utf-8') ).hexdigest() :
-#                text = 'This password is not correct'
-#                stage = 'input'
-#                return render_template( 'change_password.html', userInfo=userinfo, nametext2=text, stage=stage, timezones=setTimezone() )
-#            if not userinfo[2] == userinfo[3]:
-#                text = 'Please make sure your password match'
-#                stage = 'input'
-#                return render_template( 'change_password.html', userInfo=userinfo, passtext=text, stage=stage, timezones=setTimezone() )
-#            else:
-#                if stage == 'input':
-#                    return render_template( 'change_password.html', userInfo=userinfo, stage=stage, timezones=setTimezone() )
-#                if stage == 'confirm':
-#                    return render_template( 'change_password.html', userInfo=userinfo, stage=stage, timezones=setTimezone() )
-#                else:
-#                    mongo.db.user.update(query,{'$set':{'password':hashlib.md5( userinfo[2].encode('utf-8') ).hexdigest()}}) 
-#                    return render_template( 'change_password.html', userInfo=userinfo, stage=stage, timezones=setTimezone() )
-#        
-#    userinfo = ['','','']
-#    session['changepass'] = True
-#
-#    return render_template( 'change_password.html', userInfo=userinfo, stage=stage, timezones=setTimezone() )
- 
 @app.route('/register_password',methods=['GET','POST'])
 def register_password():
     if args.localdbkey:

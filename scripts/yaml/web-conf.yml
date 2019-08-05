@@ -7,7 +7,7 @@ mongoDB:
     version: 1
 
     # For localdb authentication
-    #localdbkey: localdbkeypass # username of account with administrator authority in mongoDB
+    localdbkey: #localdbkeypass # username of account with administrator authority in mongoDB
     
     # For userdb authentication
 userDB:

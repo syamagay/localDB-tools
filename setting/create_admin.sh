@@ -84,9 +84,9 @@ fi
 sudo systemctl start mongod.service
 sudo systemctl enable mongod.service
 
-read -p "Admin's name: " user
+read -p "Register admin's name: " user
 echo ""
-read -sp "Admin's Password: " password
+read -sp "Register admin's Password: " password
 echo ""
 #read -sp "Secret string: " string
 #echo ""
@@ -117,7 +117,7 @@ if  [ ${auth} -eq 0 ]; then
     cp ${viewer_dir}/../scripts/yaml/web-conf.yml ${viewer_dir}/../viewer/conf.yml
     sed -i -e "s/DBIPADDRESS/${dbip}/g" ${viewer_dir}/../viewer/conf.yml 
     sed -i -e "s/DBPORT/${dbport}/g" ${viewer_dir}/../viewer/conf.yml
-    sed -i -e "s/#localdbkey/localdbkey/g" ${viewer_dir}/../viewer/conf.yml 
+    sed -i -e "s/#localdbkeypass/localdbkeypass/g" ${viewer_dir}/../viewer/conf.yml 
     sed -i -e "s!localdbkeypass!/home/${USER}/.localdbkey!" ${viewer_dir}/../viewer/conf.yml 
     chmod 700 ${viewer_dir}/../viewer/conf.yml 
     chown ${USER}:${USER} ${viewer_dir}/../viewer/conf.yml
