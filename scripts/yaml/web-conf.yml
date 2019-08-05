@@ -2,19 +2,16 @@
 
 mongoDB:
     host: DBIPADDRESS # IP address running mongoDB
-    port: 27017     # port number running mongoDB
+    port: DBPORT     # port number running mongoDB
     db: localdb     # local database name
     version: 1
 
     # For localdb authentication
-    #username: localdbuser # username of account with administrator authority in mongoDB
-    #password: localdbpass # password of account with administrator authority in mongoDB
+    #localdbkey: localdbkeypass # username of account with administrator authority in mongoDB
     
     # For userdb authentication
 userDB:
     db: localdb_user
-    #username: userdbuser # username of account with administrator authority in mongoDB
-    #password: userdbpass # password of account with administrator authority in mongoDB
 
 
 ssl:

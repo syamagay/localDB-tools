@@ -23,13 +23,13 @@
     <div class="container">
           <p>  You can create a new account using this form. </p>
           <font color=#ff0000 size=2">* Required</font>
-  
+
           <form class="form-holizontal" role="form" method="post" action="signup" accept-charset="UTF-8">
                 <div class="form-group row">
            		    <label class="col-form-label col-md-2" for="name">User Name<font color=#ff0000>*</font></label>
                   <div class="col-md-10">
                     {% if stage == "input" %}
-           		        <input type="text" class="form-control" value="{{ userInfo[0] }}" placeholder="Username" name="userinfo" id="name" required="required">
+           		        <input type="text" pattern="^[0-9A-Za-z]+$" class="form-control" value="{{ userInfo[0] }}" placeholder="Username" name="userinfo" id="name" required="required">
                     {% elif stage == "confirm" %}
            		        <input type="hidden" value="{{ userInfo[0] }}" name="userinfo">
                       <p>{{ userInfo[0] }}</p>
@@ -39,20 +39,39 @@
                   <p><div class="col-md-2"></div><div class="col-md-10"><font color=#ff0000>{{ nametext }}</font></div></p>
                   {% endif %}
            		  </div>
-          
-                <div class="form-group row">
-           		    <label class="col-form-label col-md-2" for="email">institution<font color=#ff0000>*</font></label>
+
+                 <div class="form-group row">
+           		    <label class="col-form-label col-md-2" for="email">First Name<font color=#ff0000>*</font></label>
                    <div class="col-md-10">
                     {% if stage == "input" %}
-           		        <input type="text" class="form-control" value="{{ userInfo[1] }}" placeholder="Institution" name="userinfo" id="name" required="required">
-           		        <!--<select class="form-control" name="userinfo" id="institution" required="required" value="{{ userInfo[1] }}">
-                        <option value="">*** choose your institution ***</option>
-                        <option value="tokyotech">TokyoTech</option>
-                        <option value="kyushu">Kyushu</option>
-                      </select>-->
+           		        <input type="text" pattern="^[0-9A-Za-z]+$" class="form-control" value="{{ userInfo[1] }}" placeholder="First Name" name="userinfo" id="name" required="required">
                     {% elif stage == "confirm" %}
            		        <input type="hidden" value="{{ userInfo[1] }}" name="userinfo">
                       <p>{{ userInfo[1] }}</p>
+                    {% endif %}
+            		    </div>
+           		  </div>
+
+                <div class="form-group row">
+           		    <label class="col-form-label col-md-2" for="email">Family Name<font color=#ff0000>*</font></label>
+                   <div class="col-md-10">
+                    {% if stage == "input" %}
+           		        <input type="text" pattern="^[0-9A-Za-z]+$" class="form-control" value="{{ userInfo[2] }}" placeholder="Family Name" name="userinfo" id="name" required="required">
+                    {% elif stage == "confirm" %}
+           		        <input type="hidden" value="{{ userInfo[2] }}" name="userinfo">
+                      <p>{{ userInfo[2] }}</p>
+                    {% endif %}
+            		    </div>
+           		  </div>
+          
+                <div class="form-group row">
+           		    <label class="col-form-label col-md-2" for="email">Institution<font color=#ff0000>*</font></label>
+                   <div class="col-md-10">
+                    {% if stage == "input" %}
+           		        <input type="text" class="form-control" value="{{ userInfo[3] }}" placeholder="Institution" name="userinfo" id="name" required="required">
+                    {% elif stage == "confirm" %}
+           		        <input type="hidden" value="{{ userInfo[3] }}" name="userinfo">
+                      <p>{{ userInfo[3] }}</p>
                     {% endif %}
             		    </div>
            		  </div>
@@ -61,36 +80,34 @@
            		    <label class="col-form-label col-md-2">Email<font color=#ff0000>*</font></label>
                     <div class="col-md-10">
                      {% if stage == "input" %}
-           		        <input type="text" class="form-control" value="{{ userInfo[2] }}" placeholder="Email" name="userinfo" required="required">
+           		        <input type="text" class="form-control" value="{{ userInfo[4] }}" placeholder="Email" name="userinfo" required="required">
                      {% elif stage == "confirm" %}
-           		        <input type="hidden" value="{{ userInfo[2] }}" name="userinfo">
-                      <p>{{ userInfo[2] }}</p>
+           		        <input type="hidden" value="{{ userInfo[4] }}" name="userinfo">
+                      <p>{{ userInfo[4] }}</p>
                      {% endif %}
            		      </div>
            		    </div>
           
-                 {% if stage == "input" %}
            		    <div class="form-group row">
+                  {% if stage == "input" %}
            		    <label class="col-form-label col-md-2">Email(Confirm)<font color=#ff0000>*</font></label>
                     <div class="col-md-10">
-           		          <input type="text" class="form-control" value="{{ userInfo[3] }}" placeholder="Re-Enter your Email" name="userinfo" required="required">
+           		          <input type="text" class="form-control" value="{{ userInfo[5] }}" placeholder="Re-Enter your Email" name="userinfo" required="required">
+                      {% elif stage == "confirm" %}
+           		          <input type="hidden" value="{{ userInfo[5] }}" name="userinfo">
+                      {% endif %}
            		      </div>
                     {% if not passtext == _brank %}
-                    <p><div class="col-md-2"></div><div class="col-md-10"><font color=#ff0000>{{ passtext }}</font></div></p>
+                      <p><div class="col-md-2"></div><div class="col-md-10"><font color=#ff0000>{{ passtext }}</font></div></p>
                     {% endif %}
            		    </div>
-                {% elif stage == "confirm" %}
-           		        <input type="hidden" value="{{ userInfo[2] }}" name="userinfo">
-           		        <input type="hidden" value="{{ userInfo[3] }}" name="userinfo">
-                {% endif %}
 
-                
            		  <div class="form-group row align-items-center justify-content-center">
                   <div class="col-md-10">
                   {% if stage == "input" %}
             	        <button type="submit" class="btn btn-primary btn-block" name="stage" value="confirm">Confirm</button>
                   {% elif stage == "confirm" %}
-            	        <button type="submit" class="btn btn-primary btn-block" name="stage" value="request">Resist</button>
+            	        <button type="submit" class="btn btn-primary btn-block" name="stage" value="request">Register</button>
             	        <button type="submit" class="btn btn-primary btn-block" name="stage" value="input">Back page</button>
                   {% endif %}
                   </div>

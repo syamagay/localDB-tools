@@ -29,7 +29,6 @@ import gridfs                          # gridfs system
 import io
 import yaml
 import pytz
-<<<<<<< HEAD
 
 from flask              import Flask, request, redirect, url_for, render_template, session, make_response, jsonify, send_file, send_from_directory
 from flask_pymongo      import PyMongo
@@ -98,14 +97,16 @@ app.config['SECRET_KEY'] = os.urandom(24)
 auth = HTTPDigestAuth()
 
 dbv=args.version
+ 
 # MongoDB settings
-if args.username:
-    MONGO_URL = 'mongodb://' + args.username + ':' + args.password + '@' + args.host + ':' + str(args.port) 
+if args.localdbkey:
+    password_text = open(args.localdbkey,"r")
+    password = password_text.read().split()
+    password_text.close()
+    MONGO_URL = 'mongodb://' + password[0] + ':' + password[1] + '@' + args.host + ':' + str(args.port) 
 else:
     MONGO_URL = 'mongodb://' + args.host + ':' + str(args.port) 
->>>>>>> updated user registration function
-url = "mongodb://" + args.host + ":" + str(args.port)
-print("Connecto to mongoDB server: " + url + "/" + args.db)
+print("Connect to mongoDB server: " + MONGO_URL + "/" + args.db)
 global mongo
 global fs
 global USER_FUNCTION
@@ -1256,42 +1257,57 @@ def remove_attachment():
 @app.route('/login',methods=['POST'])
 def login():
 
-    if args.uusername:
-        MONGO_URL = 'mongodb://' + args.uusername + ':' + args.upassword + '@' + args.host + ':' + str(args.port) 
+    if args.localdbkey:
+        MONGO_URL = 'mongodb://' + password[0] + ':' + password[1] + '@' + args.host + ':' + str(args.port) 
     else:
         MONGO_URL = 'mongodb://' + args.host + ':' + str(args.port) 
     mongo     = PyMongo(app, uri=MONGO_URL+'/'+args.userdb)
     fs = gridfs.GridFS(mongo.db)
     dbv=args.version
 
+    pre_url = request.headers.get("Referer")
+    pre_url_lastpass = pre_url.split('/')
+
     query = { 'username':request.form['username'] }
     user = mongo.db.user.find_one(query)
     query = {}
     string = mongo.db.string.find_one(query)
     if user == None:
-        txt = 'This user is not exist'
+        txt = 'This user does not exist'
+        if not pre_url_lastpass[-1] == 'login':
+           session['pre_url'] = pre_url 
         return render_template( 'error.html', txt=txt, timezones=setTimezone() )
 
     else:
         if hashlib.md5( request.form['password'].encode('utf-8') ).hexdigest() == user['password']:
             
-            session['logged_in'] = True
-            session['username']  = user['username']
-            session['institution'] = user['institution']
-            session['userId'] = str(user['_id'])
-            return redirect( request.headers.get("Referer") )
+           session['logged_in'] = True
+           session['username']  = user['username']
+           session['institution'] = user['institution']
+           session['userId'] = str(user['_id'])
+           if pre_url_lastpass[-1] == 'register_password' or pre_url_lastpass[-1] == 'login' or pre_url_lastpass[-1] == 'signup':
+               return redirect( session['pre_url'])
+           else:
+               return redirect( pre_url )
         else:
-            txt = 'This password is not correct'
-            return render_template( 'error.html', txt=txt, timezones=setTimezone() )
+           txt = 'This password is not correct'
+           if not pre_url_lastpass[-1] == 'login':
+              session['pre_url'] = pre_url 
+           return render_template( 'error.html', txt=txt, timezones=setTimezone() )
             
 
 @app.route('/logout',methods=['GET','POST'])
 def logout():
+    pre_url = request.headers.get("Referer")
     session['logged_in'] = False
+    session['username'] = ''
+    session['institution'] = ''
+    session['userId'] = ''
 
-    return redirect( request.headers.get("Referer") )
+    return redirect( pre_url )
+#    return render_template( 'toppage.html', timezones=setTimezone() )
 
-users = {args.uusername:args.upassword}
+users = {password[0]:password[1]}
 
 @auth.get_password
 def get_pw(username):
@@ -1302,8 +1318,8 @@ def get_pw(username):
 @app.route('/signup',methods=['GET','POST'])
 @auth.login_required
 def signup():
-    if args.uusername:
-        MONGO_URL = 'mongodb://' + args.uusername + ':' + args.upassword + '@' + args.host + ':' + str(args.port) 
+    if args.localdbkey:
+        MONGO_URL = 'mongodb://' + password[0] + ':' + password[1] + '@' + args.host + ':' + str(args.port) 
     else:
         MONGO_URL = 'mongodb://' + args.host + ':' + str(args.port) 
     mongo     = PyMongo(app, uri=MONGO_URL+'/'+args.userdb)
@@ -1311,9 +1327,18 @@ def signup():
     dbv=args.version
 
     stage = request.form.get('stage','input')
+    userinfo = request.form.getlist('userinfo')
+    if userinfo==[]:
+        session.pop('signup',None)     
+   
     if session.get('signup',None):
-        userinfo = request.form.getlist('userinfo')
-        if not userinfo[2] == userinfo[3]:
+#        if not userinfo[0] == args.uusername and userinfo[1] == args.upassword:
+#            text = 'Admins username or password is not correct'
+#            stage = 'input'
+#            return render_template( 'signup.html', userInfo=userinfo, passtext=text, stage=stage, timezones=setTimezone() )
+     
+        username=userinfo[0].split()
+        if not userinfo[4] == userinfo[5]:
             text = 'Please make sure your Email match'
             stage = 'input'
             return render_template( 'signup.html', userInfo=userinfo, passtext=text, stage=stage, timezones=setTimezone() )
@@ -1328,31 +1353,32 @@ def signup():
                 return render_template( 'signup.html', userInfo=userinfo, stage=stage, timezones=setTimezone() )
             else:
                 thistime = datetime.utcnow()
-#                num = 8
-#                pool  = string.ascii_letters + string.digits
-#                password = "".join([secrets.choice(pool) for i in range(num)])
                 mongo.db.user.insert( 
                 {    
                     'sys'          : { 'rev': 0,'cts': thistime,'mts': thistime}, 
                     'username'     :userinfo[0],
+                    'name'         :userinfo[1] + ' ' + userinfo[2], 
                     'auth'         :'readWrite',
-                    'institution'  :userinfo[1],
-                    'Email'        :userinfo[2]
-#                    'password'     :hashlib.md5( password.encode('utf-8') ).hexdigest()
+                    'institution'  :userinfo[3],
+                    'Email'        :userinfo[4]
                 } 
                 )
 
-                msg = Message('Resister your Password',
+                msg = Message('Register your Password',
                               sender='admin@localdb.com',
-                              recipients=[userinfo[2]])
+                              recipients=[userinfo[4]])
                 mail_text = open("mail_text.txt","r")
                 contents = mail_text.read()
-                msg.html = contents.replace('USERNAME',userinfo[0]).replace('ADDRESS',userinfo[2]) 
+                msg.html = contents.replace('USERNAME',userinfo[0]).replace('ADDRESS',userinfo[4]) 
                 mail_text.close()
                 mail.send(msg)
+                session.pop('signup')
                 return render_template( 'signup.html', userInfo=userinfo, stage=stage, timezones=setTimezone() )
         
-    userinfo = ['','','','']
+    userinfo = ['','','','','','']
+    pre_url = request.headers.get("Referer")
+    session['pre_url'] = pre_url
+
     session['signup'] = True
 
     return render_template( 'signup.html', userInfo=userinfo, stage=stage, timezones=setTimezone() )
@@ -1402,8 +1428,8 @@ def signup():
  
 @app.route('/register_password',methods=['GET','POST'])
 def register_password():
-    if args.uusername:
-        MONGO_URL = 'mongodb://' + args.uusername + ':' + args.upassword + '@' + args.host + ':' + str(args.port) 
+    if args.localdbkey:
+        MONGO_URL = 'mongodb://' + password[0] + ':' + password[1] + '@' + args.host + ':' + str(args.port) 
     else:
         MONGO_URL = 'mongodb://' + args.host + ':' + str(args.port) 
     mongo     = PyMongo(app, uri=MONGO_URL+'/'+args.userdb)
@@ -1411,10 +1437,12 @@ def register_password():
     dbv=args.version
 
     stage = request.form.get('stage','input')
+    userinfo = request.form.getlist('userinfo')
+    if userinfo==[]:   
+        session.pop('registerpass',None)
     if session.get('registerpass',None):
-        userinfo = request.form.getlist('userinfo')
         if mongo.db.user.find({'username': userinfo[0]}).count() == 0:
-            text = 'This username is not exist'
+            text = 'This username does not exist'
             stage = 'input'
             return render_template( 'register_password.html', userInfo=userinfo, nametext=text, stage=stage, timezones=setTimezone() )
         else:
@@ -1434,7 +1462,7 @@ def register_password():
                     msg = Message('Your Pin Number',
                                   sender='admin@localdb.com',
                                   recipients=[userinfo[1]])
-                    msg.html = 'Your pin number is ' + pin_number    
+                    msg.html = 'Your pin number is ' + pin_number + '. ' + '(You cannot reply to this Email address.)'   
                     mail.send(msg)
                     mongo.db.user.update(query,{'$set':{'pinnumber':hashlib.md5( pin_number.encode('utf-8') ).hexdigest()}}) 
                     return render_template( 'register_password.html', userInfo=userinfo, stage=stage, timezones=setTimezone() )
@@ -1450,9 +1478,13 @@ def register_password():
                     else: 
                         mongo.db.user.update(query,{'$unset':{'pinnumber':''}}) 
                         mongo.db.user.update(query,{'$set':{'password':hashlib.md5( userinfo[3].encode('utf-8') ).hexdigest()}}) 
+                        session.pop('registerpass')
                         return render_template( 'register_password.html', userInfo=userinfo, stage=stage, timezones=setTimezone() )
         
     userinfo = ['','','','','']
+    pre_url = request.headers.get("Referer")
+    session['pre_url'] = pre_url
+
     session['registerpass'] = True
     return render_template( 'register_password.html', userInfo=userinfo, stage=stage, timezones=setTimezone() )
  

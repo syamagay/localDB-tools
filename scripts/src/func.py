@@ -65,6 +65,9 @@ _DIRS = [UPLOAD_DIR, STATIC_DIR, THUMBNAIL_DIR, JSON_DIR]
 
 # MongoDB setting
 args = getArgs()
+password_text = open(args.localdbkey,"r")
+password = password_text.read().split()
+password_text.close()
 _MONGO_URL = 'mongodb://' + args.host + ':' + str(args.port) 
 ### check ssl
 db_ssl = args.ssl
@@ -84,8 +87,8 @@ client = MongoClient( _MONGO_URL,
                       ssl_certfile=db_certfile
 )
 localdb = client[args.db]
-if args.username:
-    localdb.authenticate(args.username, args.password)
+if args.localdbkey:
+    localdb.authenticate(password[0],password[1])
 fs = gridfs.GridFS(localdb)
 
 #####

@@ -10,6 +10,7 @@ set -e
 
 viewer_dir=$(cd $(dirname $0); pwd)
 
+
 # Usage
 function usage {
     cat <<EOF
@@ -18,9 +19,10 @@ Usage:
     ./create_user.sh [-i ip address] [-p port]
 
 Options:
+    - h               Show this page
     - i <IP address>  Local DB server IP address, default: 127.0.0.1
     - p <port>        Local DB server port, default: 27017
-    - n               
+    - n               If you don't want to add security in mongodb, please add this option. 
 
 EOF
 }
@@ -30,16 +32,36 @@ dbip=127.0.0.1
 dbport=27017
 auth=1
 
-while getopts i:p:n OPT
+while getopts i:p:nh OPT
 do
     case ${OPT} in
         i ) dbip=${OPTARG} ;;
         p ) dbport=${OPTARG} ;;
         n ) auth=0 ;;
+        h ) usage
+            exit ;;
         * ) usage
             exit ;;
     esac
 done
+
+echo "Are you a sudo user? [y/n]"
+read -p "> " ans
+while [ -z ${ans} ]; 
+do
+    echo "Are you a sudu user? [y/n]"
+    read -p "> " ans
+done
+echo " "
+
+if [ ${ans} != "y" ]; then
+    echo "Sorry, sudo user only can run this program. Exit ..."
+    echo " "
+    exit
+fi
+
+read -p "Input your username: " USER
+sudo echo ""
 
 echo "Local DB Server IP address: ${dbip}"
 echo "Local DB Server port: ${dbport}"
@@ -48,7 +70,7 @@ echo "Are you sure that's correct? [y/n]"
 read -p "> " answer
 while [ -z ${answer} ]; 
 do
-    echo "Are you sure that's correct? [y/n]"
+echo "Are you sure that's correct? [y/n]"
     read -p "> " answer
 done
 echo " "
@@ -65,8 +87,6 @@ sudo systemctl enable mongod.service
 read -p "Admin's name: " user
 echo ""
 read -sp "Admin's Password: " password
-echo ""
-read -p "Input user : " USER
 echo ""
 #read -sp "Secret string: " string
 #echo ""
@@ -87,18 +107,22 @@ db.createUser({user: '${user}', pwd: '${password}', roles: [{role: 'readWrite', 
 EOF
 
 if  [ ${auth} -eq 0 ]; then
+
+    echo ${user} > /home/${USER}/.localdbkey
+    echo ${password} >> /home/${USER}/.localdbkey
+    chmod 700 /home/${USER}/
+    chmod 700 /home/${USER}/.localdbkey
+    chown ${USER}:${USER} /home/${USER}/.localdbkey
+
     cp ${viewer_dir}/../scripts/yaml/web-conf.yml ${viewer_dir}/../viewer/conf.yml
     sed -i -e "s/DBIPADDRESS/${dbip}/g" ${viewer_dir}/../viewer/conf.yml 
     sed -i -e "s/DBPORT/${dbport}/g" ${viewer_dir}/../viewer/conf.yml
-    sed -i -e "s/#username/username/g" ${viewer_dir}/../viewer/conf.yml 
-    sed -i -e "s/#password/password/g" ${viewer_dir}/../viewer/conf.yml 
-    sed -i -e "s/localdbuser/${user}/" ${viewer_dir}/../viewer/conf.yml 
-    sed -i -e "s/localdbpass/${password}/" ${viewer_dir}/../viewer/conf.yml 
-    sed -i -e "s/userdbuser/${user}/" ${viewer_dir}/../viewer/conf.yml 
-    sed -i -e "s/userdbpass/${password}/" ${viewer_dir}/../viewer/conf.yml 
-    chmod 400 ${viewer_dir}/../viewer/conf.yml 
+    sed -i -e "s/#localdbkey/localdbkey/g" ${viewer_dir}/../viewer/conf.yml 
+    sed -i -e "s!localdbkeypass!/home/okuyama/.localdbkey!" ${viewer_dir}/../viewer/conf.yml 
+    chmod 700 ${viewer_dir}/../viewer/conf.yml 
     chown ${USER}:${USER} ${viewer_dir}/../viewer/conf.yml
-    
+
+
     echo ""
     echo "Finished the setting of localdb with certification!!"
     echo ""
@@ -109,24 +133,27 @@ if  [ ${auth} -eq 0 ]; then
 
 elif [ ${auth} -eq 1 ]; then
     sudo systemctl stop mongod.service
-    sed -i -e "s/#security/security/" /etc/mongod.conf 
-    sed -i -e "s/#  authorization: enabled/  authorization: enabled/" /etc/mongod.conf
+    sudo sed -i -e "s/#security/security/" /etc/mongod.conf 
+    sudo sed -i -e "s/#  authorization: enabled/  authorization: enabled/" /etc/mongod.conf
     sudo systemctl restart mongod.service
     echo ""
     echo "Protect your mongodb!!"
     echo ""
+
+    echo ${user} > /home/${USER}/.localdbkey
+    echo ${password} >> /home/${USER}/.localdbkey
+    chmod 700 /home/${USER}/
+    chmod 700 /home/${USER}/.localdbkey
+    chown ${USER}:${USER} /home/${USER}/.localdbkey
+
     cp ${viewer_dir}/../scripts/yaml/web-conf.yml ${viewer_dir}/../viewer/conf.yml
     sed -i -e "s/DBIPADDRESS/${dbip}/g" ${viewer_dir}/../viewer/conf.yml 
     sed -i -e "s/DBPORT/${dbport}/g" ${viewer_dir}/../viewer/conf.yml 
-    sed -i -e "s/#username/username/g" ${viewer_dir}/../viewer/conf.yml 
-    sed -i -e "s/#password/password/g" ${viewer_dir}/../viewer/conf.yml 
-    sed -i -e "s/localdbuser/${user}/" ${viewer_dir}/../viewer/conf.yml 
-    sed -i -e "s/localdbpass/${password}/" ${viewer_dir}/../viewer/conf.yml 
-    sed -i -e "s/userdbuser/${user}/" ${viewer_dir}/../viewer/conf.yml 
-    sed -i -e "s/userdbpass/${password}/" ${viewer_dir}/../viewer/conf.yml 
-    chmod 400 ${viewer_dir}/../viewer/conf.yml 
+    sed -i -e "s/#localdbkey/localdbkey/g" ${viewer_dir}/../viewer/conf.yml 
+    sed -i -e "s!localdbkeypass!/home/okuyama/.localdbkey!" ${viewer_dir}/../viewer/conf.yml 
+    chmod 700 ${viewer_dir}/../viewer/conf.yml 
     chown ${USER}:${USER} ${viewer_dir}/../viewer/conf.yml
-    
+   
     echo ""
     echo "Finished the setting of localdb with certification!!"
     echo ""
