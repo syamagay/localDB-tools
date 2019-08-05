@@ -10,6 +10,11 @@ mongoDB:
     #username: viewer     # username of account with administrator authority in mongoDB
     #password: viewerpass # password of account with administrator authority in mongoDB
 
+ssl:
+    enabled: False
+    #CAFile: path/to/CA/file
+    #PEMKeyFile: path/to/certificate/file
+
 flask:
     host: 127.0.0.1 # IP address running app.py
     port: 5000      # port number running app.py

@@ -13,16 +13,18 @@ def readConfig(conf_path):
 def getArgs():
     parser = argparse.ArgumentParser(formatter_class=argparse.ArgumentDefaultsHelpFormatter)
     parser.add_argument("--config", "-f",   help="Config file path", type=str)
-    parser.add_argument("--host",           help="Host",             type=str, default="localhost")
-    parser.add_argument("--port",           help="Port",             type=int, default=27017)
-    parser.add_argument("--db",             help="Db",               type=str, default="localdb")
+    parser.add_argument("--host",           help="Host",             type=str)
+    parser.add_argument("--port",           help="Port",             type=int)
+    parser.add_argument("--db",             help="Db",               type=str)
     parser.add_argument("--version",        help="DB Version",       type=int)
-    parser.add_argument("--oldversion",     help="old DB Version",   type=float)
     parser.add_argument("--username", "-u", help="User name",        type=str)
     parser.add_argument("--password", "-p", help="User password",    type=str)
     parser.add_argument("--fhost",          help="Flask Host",       type=str, default="localhost")
     parser.add_argument("--fport",          help="Flask Port",       type=int, default=5000)
     parser.add_argument("--fpython",        help="Python Version",   type=int, default=2)
+    parser.add_argument("--ssl",            help="Enable ssl",       action='store_true')
+    parser.add_argument("--sslPEMKeyFile",  help="Specify client certificate", type=str)
+    parser.add_argument("--sslCAFile",      help="Specify CA certificate", type=str)
     parser.add_argument("--is_development", help="Is development env?", action="store_true")
 
     args = parser.parse_args()
@@ -30,16 +32,26 @@ def getArgs():
     # Overwrite arguments from config file
     if args.config is not None:
         conf = readConfig(args.config)    # Read from config file
-        if "host"      in conf["mongoDB"]: args.host        = conf["mongoDB"]["host"]
-        if "port"      in conf["mongoDB"]: args.port        = conf["mongoDB"]["port"]
-        if "db"        in conf["mongoDB"]: args.db          = conf["mongoDB"]["db"]
-        if "version"   in conf["mongoDB"]: args.version     = conf["mongoDB"]["version"]
-        if "oldversion"in conf["mongoDB"]: args.oldversion = conf["mongoDB"]["oldversion"]
-        if "username"  in conf["mongoDB"]: args.username   = conf["mongoDB"]["username"]
-        if "password"  in conf["mongoDB"]: args.password   = conf["mongoDB"]["password"]
-        if "host"      in conf["flask"]:   args.fhost      = conf["flask"]["host"]
-        if "port"      in conf["flask"]:   args.fport      = conf["flask"]["port"]
-        if "python"    in conf:            args.fpython    = conf["python"]
-        if "is_development"    in conf:     args.is_development = conf["is_development"]
+        if "mongoDB" in conf:
+            if "host"       in conf["mongoDB"] and not args.host          : args.host            = conf["mongoDB"]["host"]
+            if "port"       in conf["mongoDB"] and not args.port          : args.port            = conf["mongoDB"]["port"]
+            if "db"         in conf["mongoDB"] and not args.db            : args.db              = conf["mongoDB"]["db"]
+            if "version"    in conf["mongoDB"] and not args.version       : args.version         = conf["mongoDB"]["version"]
+            if "username"   in conf["mongoDB"] and not args.username      : args.username       = conf["mongoDB"]["username"]
+            if "password"   in conf["mongoDB"] and not args.password      : args.password       = conf["mongoDB"]["password"]
+        if "flask" in conf:
+            if "host"       in conf["flask"]   and not args.fhost         : args.fhost          = conf["flask"]["host"]
+            if "port"       in conf["flask"]   and not args.fport         : args.fport          = conf["flask"]["port"]
+        if "ssl" in conf:
+            if "enabled"    in conf["ssl"]     and not args.ssl           : args.ssl            = conf["ssl"]["enabled"]
+            if "PEMKeyFile" in conf["ssl"]     and not args.sslPEMKeyFile : args.sslPEMKeyFile  = conf["ssl"]["PEMKeyFile"]
+            if "CAFile"     in conf["ssl"]     and not args.sslCAFile     : args.sslCAFile      = conf["ssl"]["CAFile"]
+        if "python" in conf and not args.fpython: args.fpython = conf["python"]
+        if "is_development" in conf and not args.is_development: args.is_development = conf["is_development"]
+
+    # default
+    if not args.host: args.host="localhost"
+    if not args.port: args.port=27017
+    if not args.db: args.db="localdb"
 
     return args

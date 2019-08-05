@@ -32,10 +32,11 @@ import pytz
 
 from flask            import Flask, request, redirect, url_for, render_template, session, make_response, jsonify, send_file, send_from_directory
 from flask_pymongo    import PyMongo
-from pymongo          import MongoClient
+from pymongo          import MongoClient, errors
 from bson.objectid    import ObjectId 
 from werkzeug         import secure_filename # for upload system
 from PIL              import Image
+from getpass          import getpass
 
 # For retriever
 from retrievers.component import retrieve_component_api
@@ -90,20 +91,88 @@ app.register_blueprint(static.app)
 app.config['SECRET_KEY'] = os.urandom(24)
 #app.config['SECRET_KEY'] = 'key'
 
-# MongoDB settings
-if args.username:
-    MONGO_URL = 'mongodb://' + args.username + ':' + args.password + '@' + args.host + ':' + str(args.port) 
-    USER_FUNCTION = True
-else:
-    MONGO_URL = 'mongodb://' + args.host + ':' + str(args.port) 
-    USER_FUNCTION = False
+dbv=args.version
 url = "mongodb://" + args.host + ":" + str(args.port)
 print("Connecto to mongoDB server: " + url + "/" + args.db)
-mongo     = PyMongo(app, uri=MONGO_URL+'/'+args.db)
-LocalDB.setMongo(mongo)
-fs = gridfs.GridFS(mongo.db)
-dbv=args.version
+global mongo
+global fs
+global USER_FUNCTION
 
+# MongoDB settings
+def init():
+    global USER_FUNCTION
+    USER_FUNCTION = False
+    max_server_delay = 10
+    url = 'mongodb://{0}:{1}'.format(args.host,args.port)
+    #client = MongoClient(url, serverSelectionTimeoutMS=max_server_delay)
+    ### check ssl
+    db_ssl = args.ssl
+    if db_ssl==True:
+        db_ca_certs = args.sslCAFile
+        db_certfile = args.sslPEMKeyFile
+        url+='/?authMechanism=MONGODB-X509'
+    else:
+        db_ca_certs = None 
+        db_certfile = None 
+    client = MongoClient( url,
+                          serverSelectionTimeoutMS=max_server_delay,
+                          ssl_match_hostname=False,
+                          ssl=db_ssl,
+                          ssl_ca_certs=db_ca_certs,
+                          ssl_certfile=db_certfile
+    )
+    localdb = client[args.db]
+    username = None
+    password = None
+    auth = ''
+    try:
+        localdb.collection_names()
+    except errors.ServerSelectionTimeoutError as err:
+        ### Connection failed
+        print('The connection of Local DB {} is BAD.'.format(url))
+        print(err)
+        sys.exit(1)
+    except errors.OperationFailure as err: 
+        print('Need user authentication.')
+        USER_FUNCTION = True
+        ### Need user authentication
+        if args.username: username = args.username
+        if args.password: password = args.password
+        through = False
+        while through==False:
+            if not username or not password: 
+                answer = input('Continue? [y/n(skip)]\n> ')
+                print('')
+                if answer.lower()=='y':
+                    username = None
+                    password = None
+                else:
+                    sys.exit(1)
+                username = input('User name > ')
+                print('')
+                password = getpass('Password > ')
+                print('')
+            try:
+                localdb.authenticate(username, password)
+                through = True
+            except errors.OperationFailure as err: 
+                args.username = None
+                args.password = None
+                print('Authentication failed.')
+                answer = input('Try again? [y/n(skip)]\n> ')
+                print('')
+                if answer.lower()=='y':
+                    username = input('User name > ')
+                    print('')
+                    password = getpass('Password > ')
+                    print('')
+                else:
+                    sys.exit(1)
+    if username and password:
+        auth = '{0}:{1}@'.format(username,password)
+    MONGO_URL = 'mongodb://{0}{1}:{2}'.format(auth,args.host,args.port)
+
+    return MONGO_URL
 
 ############
 ### Top Page 
@@ -131,7 +200,7 @@ def show_modules_and_chips():
 
     ### query modules
     query = { 
-        'componentType': 'module', 
+        '$or': [{'componentType': 'module'}, {'componentType': 'Module'}], 
         'dbVersion'    : dbv 
     }
     module_entries = mongo.db.component.find( query )
@@ -156,10 +225,14 @@ def show_modules_and_chips():
         for chip_id in chip_ids:
             query = { '_id': ObjectId(chip_id) }
             this_chip = mongo.db.component.find_one( query )
+            try:
+                name = this_chip['name']
+            except:
+                name = this_chip['serialNumber']
             chips.append({ 
                 '_id'         : chip_id,
                 'collection'  : 'component',
-                'name'        : this_chip['name'],
+                'name'        : name,
                 'grade'       : {} 
             }) 
 
@@ -175,13 +248,13 @@ def show_modules_and_chips():
         }
         for this_ctr in run_entries:
             query = { '_id': ObjectId(this_ctr['testRun']) }
-            this_run = localdb.testRun.find_one(query)
+            this_run = mongo.db.testRun.find_one(query)
             ### user
             query = { '_id': ObjectId(this_run['user_id']) }
-            this_user = localdb.user.find_one(query)
+            this_user = mongo.db.user.find_one(query)
             ### site
             query = { '_id': ObjectId(this_run['address']) }
-            this_site = localdb.institution.find_one(query)
+            this_site = mongo.db.institution.find_one(query)
             result.update({ 
                 'stage'   : this_run['stage'].replace('_', ' '), 
                 'runId'   : str(this_run['_id']),
@@ -190,10 +263,14 @@ def show_modules_and_chips():
                 'site'    : this_site['institution'].replace('_', ' ')
             })
 
+        try:
+            name = this_module['name']
+        except:
+            name = this_module['serialNumber']
         modules[chip_type]['modules'].append({ 
             '_id'          : module_id,
             'collection'   : 'component',
-            'name'         : this_module['name'],
+            'name'         : name,
             'chips'        : chips,
             'grade'        : {},
             'stage'        : result['stage'], 
@@ -242,13 +319,13 @@ def show_chips():
         }
         for this_ctr in run_entries:
             query = { '_id': ObjectId(this_ctr['testRun']) }
-            this_run = localdb.testRun.find_one(query)
+            this_run = mongo.db.testRun.find_one(query)
             ### user
             query = { '_id': ObjectId(this_run['user_id']) }
-            this_user = localdb.user.find_one(query)
+            this_user = mongo.db.user.find_one(query)
             ### site
             query = { '_id': ObjectId(this_run['address']) }
-            this_site = localdb.institution.find_one(query)
+            this_site = mongo.db.institution.find_one(query)
             result.update({ 
                 'stage'   : this_run['stage'].replace('_', ' '), 
                 'runId'   : str(this_run['_id']),
@@ -456,6 +533,8 @@ def show_scans():
             'site'      : site_name
         }
         scans['run'].append(run_data)
+
+    scans['run'] = sorted(scans['run'], key=lambda x:x['datetime'], reverse=True)
 
     return render_template( 'scan.html', scans=scans, timezones=setTimezone() )
 
@@ -1249,4 +1328,11 @@ def set_time():
     return redirect( request.headers.get("Referer") )
 
 if __name__ == '__main__':
+    MONGO_URL = init()
+    print(MONGO_URL)
+    global mongo
+    global fs
+    mongo = PyMongo(app, uri=MONGO_URL+'/'+args.db)
+    LocalDB.setMongo(mongo)
+    fs = gridfs.GridFS(mongo.db)
     app.run(host=args.fhost, port=args.fport, threaded=True)

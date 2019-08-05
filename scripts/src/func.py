@@ -65,7 +65,23 @@ _DIRS = [UPLOAD_DIR, STATIC_DIR, THUMBNAIL_DIR, JSON_DIR]
 # MongoDB setting
 args = getArgs()
 _MONGO_URL = 'mongodb://' + args.host + ':' + str(args.port) 
-client = MongoClient(_MONGO_URL)
+### check ssl
+db_ssl = args.ssl
+if db_ssl==True:
+    db_ca_certs = args.sslCAFile
+    db_certfile = args.sslPEMKeyFile
+    _MONGO_URL+='/?authMechanism=MONGODB-X509'
+else:
+    db_ca_certs = None 
+    db_certfile = None 
+_max_server_delay = 10
+client = MongoClient( _MONGO_URL,
+                      serverSelectionTimeoutMS=_max_server_delay,
+                      ssl_match_hostname=False,
+                      ssl=db_ssl,
+                      ssl_ca_certs=db_ca_certs,
+                      ssl_certfile=db_certfile
+)
 localdb = client[args.db]
 if args.username:
     localdb.authenticate(args.username, args.password)
