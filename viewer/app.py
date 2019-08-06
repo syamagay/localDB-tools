@@ -104,22 +104,17 @@ def init():
     USER_FUNCTION = False
     max_server_delay = 10
     url = 'mongodb://{0}:{1}'.format(args.host,args.port)
-    #client = MongoClient(url, serverSelectionTimeoutMS=max_server_delay)
     ### check ssl
     db_ssl = args.ssl
     if db_ssl==True:
         db_ca_certs = args.sslCAFile
         db_certfile = args.sslPEMKeyFile
-        url+='/?authMechanism=MONGODB-X509'
+        url+='/?ssl=true&ssl_ca_certs={0}&ssl_certfile={1}&ssl_match_hostname=false&authMechanism=MONGODB-X509'.format(db_ca_certs,db_certfile)
     else:
         db_ca_certs = None 
         db_certfile = None 
     client = MongoClient( url,
                           serverSelectionTimeoutMS=max_server_delay,
-                          ssl_match_hostname=False,
-                          ssl=db_ssl,
-                          ssl_ca_certs=db_ca_certs,
-                          ssl_certfile=db_certfile
     )
     localdb = client[args.db]
     username = None
@@ -170,7 +165,10 @@ def init():
                     sys.exit(1)
     if username and password:
         auth = '{0}:{1}@'.format(username,password)
+
     MONGO_URL = 'mongodb://{0}{1}:{2}'.format(auth,args.host,args.port)
+    if db_ssl==True:
+        MONGO_URL+='/{0}?ssl=true&ssl_ca_certs={1}&ssl_certfile={2}&ssl_match_hostname=false&authMechanism=MONGODB-X509'.format(args.db,db_ca_certs,db_certfile)
 
     return MONGO_URL
 
@@ -1329,10 +1327,9 @@ def set_time():
 
 if __name__ == '__main__':
     MONGO_URL = init()
-    print(MONGO_URL)
     global mongo
     global fs
-    mongo = PyMongo(app, uri=MONGO_URL+'/'+args.db)
+    mongo = PyMongo(app, uri=MONGO_URL)
     LocalDB.setMongo(mongo)
     fs = gridfs.GridFS(mongo.db)
     app.run(host=args.fhost, port=args.fport, threaded=True)
