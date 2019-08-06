@@ -43,22 +43,24 @@ def sync():
     # status
     #================================
     def __status():
+        logger.setFuncName("status")
         commit_cnt = __pull(True)
-        logging.info(TOOLNAME + "You have " + str(commit_cnt) + " commits to pull!")
+        logger.info(TOOLNAME + "You have " + str(commit_cnt) + " commits to pull!")
 
         doc_cnt = __commit(True)
-        logging.info(TOOLNAME + "You have " + str(doc_cnt) + " documents to commit!")
+        logger.info(TOOLNAME + "You have " + str(doc_cnt) + " documents to commit!")
 
     #================================
     # commit
     #================================
     def __commit(is_status = False):
-        loggingInfo(toolname=TOOLNAME, message="Run commit process")
+        logger.setFuncName("commit")
+        logger.info("Run commit process")
 
         # Get last commit
         ref_doc = localdbtool_dbs["local"]["refs"].find_one({"ref_type": "local"})
         if not ref_doc:
-            loggingInfo(toolname=TOOLNAME, message="No reference for local found. Create new one")
+            logger.info("No reference for local found. Create new one")
             ref_doc = __query()
             ref_doc["last_commit_id"] = "temporaly_last_commit_id"
             ref_doc["ref_type"] = "local"
@@ -67,7 +69,7 @@ def sync():
         # Get last commit datetime
         if commit_doc: last_sync_datetime = commit_doc["sys"]["cts"]
         else: last_sync_datetime = last_sync_datetime_default
-        loggingInfo(toolname=TOOLNAME, message="Last sync time is: " + str(last_sync_datetime))
+        logger.info("Last sync time is: " + str(last_sync_datetime))
 
         # Construct query for new commit
         query = __query()
@@ -79,6 +81,7 @@ def sync():
         # Add _id each collection
         is_empty = True
         doc_cnt = 0
+        query["ids"] = []
         for collection_name in collection_names:
             # Treat fs.chunks with fs.files
             if "fs.chunks" == collection_name: continue
@@ -94,7 +97,7 @@ def sync():
 
             # key cannot contain '.'. i.e. 'fs.files' --> 'fs_files'
             temp_collection_name = collection_name.replace(".", "_")
-            query[temp_collection_name] = ids
+            query["ids"].append({temp_collection_name: ids})
             if len(ids) is not 0:
                 is_empty = False
                 doc_cnt += len(ids)
@@ -104,28 +107,29 @@ def sync():
             return doc_cnt
 
         if is_empty:
-            loggingInfo(toolname=TOOLNAME, message="Nothing to commit!")
+            logger.info("Nothing to commit!")
         else:
             #pprint.PrettyPrinter(indent=4).pprint(query) ## debug
             # Insert commit and update ref for local
             insert_one_result = localdbtool_dbs["local"]["commits"].insert_one(query)
             __updateRef("local", "local", ref_doc, insert_one_result.inserted_id)
-            loggingInfo(toolname=TOOLNAME, message="Finished commit! The last commit is " + str(insert_one_result.inserted_id))
+            logger.info("Finished commit! The last commit is " + str(insert_one_result.inserted_id))
 
 
     #================================
     # fetch
     #================================
     def __fetch():
+        logger.setFuncName("fetch")
         # Get reference for master
         master_ref_doc = localdbtool_dbs["master"]["refs"].find_one({"ref_type": "master"})
         if not master_ref_doc:
-            loggingWarning(toolname=TOOLNAME, message="No reference for master on master found! Push first!")
+            logger.warning("No reference for master on master found! Push first!")
             return
 
         local_ref_doc = localdbtool_dbs["local"]["refs"].find_one({"ref_type": "master"})
         if not local_ref_doc:
-            loggingInfo(toolname=TOOLNAME, message="No reference for master on local found! Create new one.")
+            logger.info("No reference for master on local found! Create new one.")
             local_ref_doc = __query()
             local_ref_doc["ref_type"] = "master"
 
@@ -135,7 +139,7 @@ def sync():
         for doc in commit_docs:
             update_result = localdbtool_dbs["local"]["commit"].replace_one({"_id": doc["_id"]}, doc, upsert=True)
             commit_cnt += update_result.modified_count
-        loggingInfo(toolname=TOOLNAME, message="Downloaded %d commits from master server" % commit_doc)
+        logger.info("Downloaded %d commits from master server" % commit_doc)
 
         # Update ref for master
         __updateRef("local", "master", local_ref_doc, master_ref_doc["last_commit_id"])
@@ -182,7 +186,8 @@ def sync():
             copy_from = "local"
             copy_to = "master"
 
-        for collection_name in collection_names:
+        for ids_collection in commit_doc["ids"]:
+            collection_name = list(ids_collection)[0]
             # Treat fs.chunks with fs.files
             if "fs.chunks" == collection_name: continue
             # key cannot contain '.'. i.e. 'fs.files' --> 'fs_files'
@@ -190,7 +195,7 @@ def sync():
 
             replaced_count = 0
             replaced_chunk_count = 0
-            for oid in commit_doc[temp_collection_name]:
+            for oid in ids_collection[temp_collection_name]:
                 doc = localdb_dbs[copy_from][collection_name].find_one({"_id": oid})
                 if doc:
                     update_result = localdb_dbs[copy_to][collection_name].replace_one({"_id": oid}, doc, upsert=True)
@@ -201,14 +206,15 @@ def sync():
                             update_chunk_result = localdb_dbs[copy_to]["fs.chunks"].replace_one({"files_id": oid}, chunk_doc, upsert=True)
                             replaced_chunk_count += update_chunk_result.modified_count
                         else:
-                            loggingWarning(message="A fs.chunks doc not fount! files_id: %s" % oid)
+                            logger.warning("A fs.chunks doc not fount! files_id: %s" % oid)
                 else:
-                    loggingWarning(message="A %s doc not fount! files_id: %s" % (collection_name, oid) )
+                    logger.warning("A %s doc not fount! files_id: %s" % (collection_name, oid) )
 
     #================================
     # pull or push
     #================================
     def __pull_or_push(pull_or_push):
+        logger.setFuncName(pull_or_push)
         if pull_or_push == "pull":
             ref_type = "master"
         elif pull_or_push == "push":
@@ -217,26 +223,26 @@ def sync():
         # Get reference for master
         ref_doc = localdbtool_dbs["local"]["refs"].find_one({"ref_type": ref_type})
         if not ref_doc:
-            if pull_or_push == "pull": loggingWarning(message="No reference for %s found! '--sync-opt fetch' first!" % ref_type)
-            elif pull_or_push == "push": loggingWarning(message="No reference for %s found! '--sync-opt commit' first!" % ref_type)
+            if pull_or_push == "pull": logger.warning("No reference for %s found! '--sync-opt fetch' first!" % ref_type)
+            elif pull_or_push == "push": logger.warning("No reference for %s found! '--sync-opt commit' first!" % ref_type)
             return
 
         # Get reference for pull
         ref_pull_or_push_doc = localdbtool_dbs["local"]["refs"].find_one({"ref_type": pull_or_push})
         if not ref_pull_or_push_doc:
-            loggingInfo(toolname=TOOLNAME, message="No reference for %s on local found! Create new one." % pull_or_push)
+            logger.info("No reference for %s on local found! Create new one." % pull_or_push)
             ref_pull_or_push_doc = __query()
             ref_pull_or_push_doc["ref_type"] = pull_or_push
             ref_pull_or_push_doc["last_commit_id"] = "temporaly_last_commit_id"
 
         if ref_doc["last_commit_id"] == ref_pull_or_push_doc["last_commit_id"]:
-            loggingInfo(message="Already updated %s! Not thing to do!" % pull_or_push)
+            logger.info("Already updated %s! Not thing to do!" % pull_or_push)
             return
 
         # Get last commit
         last_commit_doc = localdbtool_dbs["local"]["commits"].find_one({"_id": ref_doc["last_commit_id"]})
         if not last_commit_doc:
-            loggingWarning(toolname=TOOLNAME, message="No last commit doc found!")
+            logger.warning("No last commit doc found!")
             return
         commit_doc = last_commit_doc
         commit_cnt = 0
@@ -258,13 +264,13 @@ def sync():
 
         # Merge
         if pull_or_push == "push": __merge()
-        loggingInfo(toolname=TOOLNAME, message="Finished %s with %d commits." % (pull_or_push, commit_cnt) )
+        logger.info("Finished %s with %d commits." % (pull_or_push, commit_cnt) )
 
     def __connectMongoDB(server_name, host, port, username, keypath):
         # Development environment
         if args.development_flg:
             url = "mongodb://%s:%d" % (host, port)
-            logging.info("%s server url is: %s" % (server_name, url) )
+            logger.info("%s server url is: %s" % (server_name, url) )
             return MongoClient(url)["localdb"], MongoClient(url)["localdbtools"]
 
         # Production environment
@@ -273,12 +279,12 @@ def sync():
                 key_file = open(keypath, "r")
                 key = key_file.read()
             else:
-                loggingErrorAndExit(message="%s API Key not exist!" % server_name, exit_code=1)
+                logger.error("%s API Key not exist!" % server_name, exit_code=1)
         else:
-            loggingErrorAndExit(message="%s user name or API Key not given!" % server_name, exit_code=1)
+            logger.error("%s user name or API Key not given!" % server_name, exit_code=1)
 
         url = "mongodb://%s:%s@%s:%d" % (username, key, host, port)
-        logging.info("%s server url is: %s" % (server_name, url) )
+        logger.info("%s server url is: %s" % (server_name, url) )
         return MongoClient(url)["localdb"], MongoClient(url)["localdbtools"]
 
     def __getLocalInfo():
@@ -321,7 +327,8 @@ def sync():
     args = getArgs()
 
     # Setup logging
-    setupLogging(args.logfile)
+    logger = Logger(TOOLNAME)
+    logger.setupLogging(logfile=args.logfile)
 
     # Connect mongoDB
     server_names = ["local", "master"]
@@ -336,7 +343,7 @@ def sync():
     last_sync_datetime_default = dateutil.parser.parse("2000-7-20T1:00:00.000Z")
 
     # Get collection names from server
-    collection_names = localdb_dbs["master"].collection_names()
+    collection_names = localdb_dbs["master"].list_collection_names()
 
     # Get current date time
     #current_datetime = datetime.datetime.now()
@@ -358,8 +365,7 @@ def sync():
         __pull_or_push("pull")
         __pull_or_push("push")
     else:
-        logging.error(TOOLNAME + "--sync-opt not given or not matched! exit!")
-        exit(1)
+        logger.error("--sync-opt not given or not matched! exit!", exit_code=1)
 
 
 if __name__ == '__main__': sync()
