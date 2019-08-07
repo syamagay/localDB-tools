@@ -174,8 +174,8 @@ a.data:active { color: #dc143c; }
                         <tr>
                     	    <form action="{{ url_for('edit_comment', id=component['_id'], collection=component['collection'], runId=session['runId']) }}" method="post" enctype="multipart/form-data">
                             <td scope="col" align="center" colspan="3"><textarea required="required" class="form-control input-normal" placeholder="comment" name = "text"></textarea></td>
-                            <td scope="col" align="center"><input type = "txt" required="required" class="form-control input-normal" placeholder="name" name = "text2"></td>
-                            <td scope="col" align="center"><input type = "txt" required="required" class="form-control input-normal" placeholder="institution" name = "text3"></td>
+                            <td scope="col" align="center" colspan="1"><input type="text" required="required" class="form-control input-normal" value = "{{ session['username'] }}" placeholder="name" name = "text2"></td>
+                            <td scope="col" align="center" colspan="1"><input type="text" required="required" class="form-control input-normal" value = "{{ session['institution'] }}" placeholder="institution" name = "text3"></td>
                             <td scope="col" align="center middle" >
                      	  	    <input type="hidden" value="{{ session['user_name'] }}" name="user">
                               {{ session['user_name'] }}

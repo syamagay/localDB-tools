@@ -140,7 +140,24 @@ def __init(db_cfg):
     ##################
     # Connection check
     max_server_delay = 1
-    client = MongoClient(url, serverSelectionTimeoutMS=max_server_delay)
+    ### check ssl
+    db_ssl = db_cfg.get('ssl', {}).get('enabled',False)
+    if db_ssl==True:
+        db_certfile = db_cfg.get('ssl', {}).get('PEMKeyFile',None)
+        db_ca_certs = db_cfg.get('ssl', {}).get('CAFile',None)
+        ### authenticate mechanism
+        if db_cfg.get('ssl', {}).get('authMechanism',None)=='MONGODB-X509':
+            url+='/?authMechanism=MONGODB-X509'
+    else:
+        db_certfile = None 
+        db_ca_certs = None 
+    client = MongoClient( url,
+                          serverSelectionTimeoutMS=max_server_delay,
+                          ssl_match_hostname=False,
+                          ssl=db_ssl,
+                          ssl_ca_certs=db_ca_certs,
+                          ssl_certfile=db_certfile
+    )
     localdb = client[db_cfg.get('dbName', 'localdb')]
     try:
         localdb['fs.files'].create_index([('hash', DESCENDING), ('_id', DESCENDING)])
@@ -351,6 +368,7 @@ def __write_scan(cache_dir, scanlog_json):
     if 'testType' in scanlog_json:
         test_type = scanlog_json['testType']
     else:
+        command = scanlog_json['exec']
         for i, com in enumerate(command.split(' ')):
             if com=='-s': 
                 scan_command = command.split(' ')[i+1]
@@ -569,7 +587,8 @@ def __upload_comp(comp_path):
     # If not, register site information by extracting mac address and hostname of the machine.
     # If the site information has already registered, this step will be skipped.
     site_json = register.toJson(args.site)
-    register.__set_site(site_json)
+    site_oid = register.__set_site(site_json)
+    register.__check_site_data(site_oid)
 
     ######
     # user
@@ -577,7 +596,8 @@ def __upload_comp(comp_path):
     # If not, register user information by extracting user name and hostname of the machine.
     # If the user information has already registered, this step will be skipped.
     user_json = register.toJson(args.user)
-    register.__set_user(user_json)
+    user_oid = register.__set_user(user_json)
+    register.__check_user_data(user_oid)
 
     ######################
     # Check component file
@@ -628,7 +648,7 @@ def __check_component(i_type):
     if i_type=='comp':
         file_path = home+'/.yarr/localdb/'+hostname+'_modules.csv'
         file_open = open(file_path, 'w')
-        query = {'dbVersion': 1, 'componentType': 'Module'}
+        query = {'dbVersion': 1, 'componentType': 'module'}
         component_entries = localdb.component.find(query)
         modules = []
         for component in component_entries:

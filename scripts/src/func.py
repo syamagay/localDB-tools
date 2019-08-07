@@ -14,6 +14,7 @@ import io
 import zipfile
 
 from flask         import url_for, session  # use Flask scheme
+from flask_pymongo import PyMongo
 from pymongo       import MongoClient, DESCENDING  # use mongodb scheme
 from bson.objectid import ObjectId  # handle bson format
 from binascii      import a2b_base64  # convert a block of base64 data back to binary
@@ -83,8 +84,13 @@ client = MongoClient( _MONGO_URL,
                       ssl_certfile=db_certfile
 )
 localdb = client[args.db]
-if args.username:
-    localdb.authenticate(args.username, args.password)
+if args.localdbkey:
+    password_text = open(args.localdbkey,"r")
+    password = password_text.read().split()
+    password_text.close()
+    localdb.authenticate(password[0],password[1])
+else: 
+    pass
 fs = gridfs.GridFS(localdb)
 
 #####
