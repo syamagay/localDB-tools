@@ -166,9 +166,9 @@ def init():
     if username and password:
         auth = '{0}:{1}@'.format(username,password)
 
-    MONGO_URL = 'mongodb://{0}{1}:{2}'.format(auth,args.host,args.port)
+    MONGO_URL = 'mongodb://{0}{1}:{2}/{3}'.format(auth,args.host,args.port,args.db)
     if db_ssl==True:
-        MONGO_URL+='/{0}?ssl=true&ssl_ca_certs={1}&ssl_certfile={2}&ssl_match_hostname=false&authMechanism=MONGODB-X509'.format(args.db,db_ca_certs,db_certfile)
+        MONGO_URL+='?ssl=true&ssl_ca_certs={0}&ssl_certfile={1}&ssl_match_hostname=false&authMechanism=MONGODB-X509'.format(db_ca_certs,db_certfile)
 
     return MONGO_URL
 

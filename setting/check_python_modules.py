@@ -23,21 +23,6 @@ else:
 
 print("[LDB] Welcome to Local Database Tools!")
 
-def checkPythonVersion():
-    print("[LDB] Check Python version ... " + str(sys.version_info[0]) + "." + str(sys.version_info[1]) + " ... ", end = "")
-    if sys.version_info[0] < 3:
-        print("Must use Python 3!")
-        exit(1)
-    else:
-        print("OK!")
-#    
-#        bash_paths = os.popen("echo $PATH").read()
-#        bash_paths = bash_paths.split(":")
-#        for bash_path in bash_paths:
-#            ls = os.popen("ls " + bash_path).read()
-#            if "python3" in ls:
-#                print("hoge")
-
 # Check python modules
 def checkPythonModule():
     print("[LDB] Check python modules: ")
@@ -69,5 +54,4 @@ def checkPythonModule():
 
 
 if __name__ == '__main__':
-    checkPythonVersion()
     checkPythonModule()

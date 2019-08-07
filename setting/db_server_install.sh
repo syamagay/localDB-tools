@@ -18,7 +18,7 @@ Usage:
     ./db_server_install.sh 
 
     - h    Show this usage 
-    - p    Open the port 27017 and 80
+    - p    Open the port 27017(mongod.service) and 80(httpd)
     - i    Initialize Local DB 
 EOF
 }
@@ -29,6 +29,21 @@ if [ `echo ${0} | grep bash` ]; then
     usage
     return
 fi
+
+port=false
+initialize=false
+while getopts hpi OPT
+do
+    case ${OPT} in
+        h ) usage 
+            exit ;;
+        p ) port=true ;;
+        i ) initialize=true ;; 
+        * ) usage
+            exit ;;
+    esac
+done
+
 shell_dir=$(cd $(dirname ${BASH_SOURCE}); pwd)
 ip=`hostname -i`
 today=`date +%y%m%d`
@@ -52,18 +67,6 @@ LOGDIR="${shell_dir}/instlog"
 if [ ! -d ${LOGDIR} ]; then
     mkdir ${LOGDIR}
 fi
-port=false
-initialize=false
-while getopts hpi OPT
-do
-    case ${OPT} in
-        h ) usage ;;
-        p ) port=true ;;
-        i ) initialize=true ;; 
-        * ) usage
-            exit ;;
-    esac
-done
 
 # Confirmation
 echo -e "[LDB] This script performs ..."

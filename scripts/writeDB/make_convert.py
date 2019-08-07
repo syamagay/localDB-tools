@@ -28,7 +28,7 @@ yarrdb = client['yarrdb']
 localdb = client['localdb']
 yarrfs = gridfs.GridFS( yarrdb )
 localfs = gridfs.GridFS( localdb )
-db_version = 1
+db_version = 1.1
 
 ### Set log file
 log_dir = './log'
@@ -54,6 +54,39 @@ def checkComponent(i_doc, i_new_id):
         cmp_id_str = registerComponent(i_doc, i_new_id)
     
     return cmp_id_str
+
+def verifyComponent(i_doc):
+    if i_doc['dbVersion']==db_version: return
+
+    ### user
+    query = { '_id': ObjectId(i_doc['user_id']) }
+    thisUser = localdb.user.find_one(query)
+    if not thisUser: user_id = registerUser()
+    else: user_id = str(thisUser['_id'])
+    ### site
+    query = { '_id': ObjectId(i_doc['address']) }
+    thisSite = localdb.institution.find_one(query)
+    if not thisSite: site_id = registerSite()
+    else: site_id = str(thisSite['_id'])
+
+    update_doc = {
+        'serialNumber' : i_doc['serialNumber'],
+        'name'         : i_doc['serialNumber'],
+        'chipType'     : i_doc['chipType'],
+        'componentType': i_doc['componentType'].lower().replace(' ','_'),
+        'children'     : i_doc.get('children',-1),
+        'chipId'       : i_doc.get('chipId',-1), 
+        'address'      : site_id, 
+        'user_id'      : user_id,
+        'proDB'        : False
+    }
+    query = { '_id': i_doc['_id'] }
+    localdb.component.update_one( query, { '$set': update_doc } )
+    query = [ { 'parent': str(i_doc['_id']) }, { 'child': str(i_doc['_id']) } ]
+
+    updateSys(str(i_doc['_id'], 'component')
+    if not localdb.childParentRelation.count_documents({ '$or': query })==0:
+        updateVer(str(i_doc['_id'], 'component')
 
 def registerComponent(i_doc, i_new_id):
     component_type = i_doc['componentType']
@@ -92,20 +125,21 @@ def registerComponent(i_doc, i_new_id):
     timestamp = datetime.datetime.utcnow()
     insert_doc = {
         'sys': {
-            'rev': 2,
+            'rev': 0,
             'cts': timestamp,
             'mts': timestamp
         },
         'serialNumber' : i_doc['serialNumber'],
+        'name'         : i_doc['serialNumber'],
         'chipType'     : chip_type,
-        'componentType': component_type,
+        'componentType': component_type.lower().replace(' ','_'),
         'children'     : children,
         'chipId'       : -1, 
-        'dbVersion'    : db_version,
         'address'      : site_id_str, 
-        'user_id'      : user_id_str 
+        'user_id'      : user_id_str,
+        'proDB'        : False
     } 
-    cmp_id = localdb.component.insert( insert_doc )
+    cmp_id = localdb.component.insert_one( insert_doc )
 
     if component_type == 'Front-end Chip':
         query = { 
@@ -117,7 +151,7 @@ def registerComponent(i_doc, i_new_id):
             timestamp = datetime.datetime.utcnow()
             insert_doc = {
                 'sys': {
-                    'rev': 2,
+                    'rev': 0,
                     'cts': timestamp,
                     'mts': timestamp
                 },
@@ -125,53 +159,87 @@ def registerComponent(i_doc, i_new_id):
                 'child'    : str(cmp_id),
                 'chipId'   : -1,
                 'status'   : 'active',
-                'dbVersion': db_version
             }
-            localdb.childParentRelation.insert( insert_doc )
+            localdb.childParentRelation.insert_one( insert_doc )
 
     write_log( '\t[Register] Component : {}'.format( i_doc['serialNumber'] ) )
 
     return str(cmp_id)
 
-def checkUser(i_user_name, i_institution, i_user_identity):
+def verifyChildParentRelation(i_doc):
+    if i_doc['dbVersion']==db_version: return
+
+    ### child
+    query = { '_id': ObjectId(i_doc['child']) }
+    thisChild = localdb.component.find_one(query)
+    ### parent
+    query = { '_id': ObjectId(i_doc['parent']) }
+    thisParent = localdb.component.find_one(query)
+    if thisChild:
+        if not i_doc['chipId']==thisChild['chipId']:
+            query = { '_id': i_doc['_id'] }
+            update_doc = { 'chipId': thisChild['chipId'] }
+            localdb.childParentRelation.update_one( query, { '$set': update_doc })
+
+    updateSys(str(i_doc['_id'], 'childParentRelation')
+    if thisChild and thisParent:
+        updateVer(str(i_doc['_id'], 'childParentRelation')
+
+def checkUser(i_user_name, i_institution, i_description, i_user, i_hostname):
     user_query = {
-        'userName'    : i_user_name,
-        'institution' : i_institution,
-        'userIdentity': i_user_identity
+        'userName'   : i_user_name,
+        'institution': i_institution,
+        'description': i_description,
+        'USER'       : i_user,
+        'HOSTNAME'   : i_hostname
     }
     thisUser = localdb.user.find_one( user_query )
     user_id = ""
     if thisUser:
         user_id = str(thisUser['_id'])
     else:
-        user_id = registerUser(i_user_name, i_institution, i_user_identity)
+        user_id = eegisterUser(i_user_name, i_institution, i_description)
     
     return user_id
 
-def registerUser(i_user_name, i_institution, i_user_identity):
-    timestamp = datetime.datetime.utcnow()
-    insert_doc = {
-        'sys': {
-            'rev': 2,
-            'cts': timestamp,
-            'mts': timestamp
-        },
-        'userName'    : i_user_name,
-        'institution' : i_institution,
-        'userIdentity': i_user_identity,
-        'userType'    : 'readWrite',
-        'dbVersion'   : db_version
+def verifySite(i_doc):
+    if i_doc['dbVersion']==db_version: return
+
+    update_doc = {
+        'userName'   : i_doc.get('userName' , os.environ['USER'])
+        'institution': i_doc.get('institution', os.environ['HOSTNAME'])
+        'description': i_doc.get('description', 'default')
+        'USER'       : i_doc.get('USER', os.environ['USER'])
+        'HOSTNAME'   : i_doc.get('HOSTNAME', os.environ['HOSTNAME'])
     }
-    user_id = localdb.user.insert( insert_doc )
+    query = { '_id': i_doc['_id'] }
+    localdb.user.update_one( query, { '$set': update_doc } )
+    updateSys(str(i_doc['_id'], 'user')
+
+def registerUser(i_user_name, i_institution, i_description, i_user, i_hostname):
+    insert_doc = {
+        'sys'        : {},
+        'userName'   : i_user_name,
+        'institution': i_institution,
+        'description': i_description,
+        'userType'   : 'readWrite',
+        'USER'       : i_user, 
+        'HOSTNAME'   : i_hostname, 
+        'dbVersion'  : db_version
+    }
+
+    user_id = localdb.user.insert_one( insert_doc )
 
     write_log( '\t[Register] User : {0} {1}'.format( i_user_name, i_institution ) )
     return str(user_id)
 
-def checkSite(i_address, i_institution):
+def checkSite(i_address, i_institution, i_hostname):
     site_query = {
         'address'    : i_address,
-        'institution': i_institution
+        'institution': i_institution,
+        'HOSTNAME'   : i_hostname
     }
+
     thisSite = localdb.institution.find_one( site_query )
     site_id_str = ''
     if thisSite:
@@ -181,19 +249,27 @@ def checkSite(i_address, i_institution):
     
     return site_id_str
 
-def registerSite(i_address, i_institution):
-    timestamp = datetime.datetime.utcnow()
-    insert_doc = {
-        'sys': {
-            'rev': 2,
-            'cts': timestamp,
-            'mts': timestamp
-        },
-        'name'       : '',
-        'address'    : i_address,
-        'institution': i_institution
+def verifySite(i_doc):
+    if i_doc['dbVersion']==db_version: return
+
+    update_doc = {
+        'address'    : i_doc.get('address', ':'.join(['{:02x}'.format((uuid.getnode() >> ele) & 0xff)for ele in range(0,8*6,8)][::-1])),
+        'institution': i_doc.get('institution', os.environ['HOSTNAME']),
+        'HOSTNAME'   : i_doc.get('hostname', os.environ['HOSTNAME'])
     }
-    site_id = localdb.institution.insert( insert_doc )
+    query = { '_id': i_doc['_id'] }
+    localdb.institution.update_one( query, { '$set': update_doc } )
+    updateSys(str(i_doc['_id'], 'institution')
+
+def registerSite(i_address, i_institution, i_hostname):
+    insert_doc = {
+        'sys'        : {},
+        'address'    : i_address,
+        'institution': i_institution,
+        'HOSTNAME'   : i_hostname
+    }
+
+    site_id = localdb.institution.insert_one( insert_doc )
 
     write_log( '\t[Register] Site : {0}'.format( i_institution ) )
     return str(site_id)
@@ -231,6 +307,41 @@ def checkTestRun(i_doc, i_serial_number):
 
     return tr_id_str
 
+def verifyTestRun(i_doc):
+    ### 
+    user_id = ''
+    site_id = ''
+    if 'userIdentity' in i_doc:
+        user_name     = i_doc['userIdentity']
+        institution   = i_doc['institution']
+        user_identity = 'default'
+    else:
+        query = { '_id': ObjectId(i_doc['user_id']) }
+        thisUser = yarrdb.user.find_one( query )
+        user_name     = thisUser['userName']
+        institution   = thisUser['institution']
+        user_identity = thisUser['userIdentity']
+    user_id_str = checkUser(user_name, institution, user_identity)
+    site_id_str = checkSite('', institution)
+
+    tr_query = {
+        'testType'    : i_doc['testType'],
+        'runNumber'   : i_doc['runNumber'],
+        'user_id'     : user_id_str,
+        'address'     : site_id_str,
+        'serialNumber': i_serial_number
+    }
+    thisRun = localdb.testRun.find_one( tr_query )
+    tr_id_str = ''
+    if thisRun:
+        tr_id_str = str(thisRun['_id'])
+    else:
+        i_doc.update( tr_query )
+        tr_id_str = registerTestRun(i_doc)
+
+    return tr_id_str
+
+
 def registerTestRun(i_doc):
     env_id = '...'
     if 'startTime' in i_doc:
@@ -246,7 +357,7 @@ def registerTestRun(i_doc):
     timestamp = datetime.datetime.utcnow()
     insert_doc = {
         'sys': {
-            'rev': 2,
+            'rev': 0,
             'cts': timestamp,
             'mts': timestamp
         },
@@ -275,7 +386,7 @@ def registerTestRun(i_doc):
         'user_id'     : i_doc['user_id'], 
         'dbVersion'   : db_version
     }
-    tr_id = localdb.testRun.insert( insert_doc )
+    tr_id = localdb.testRun.insert_one( insert_doc )
 
     write_log( '\t[Register] testRun : {0} {1} {2}'.format( i_doc['runNumber'], i_doc['testType'], i_doc['serialNumber'] ) )
     return str(tr_id)
@@ -294,6 +405,48 @@ def checkComponentTestRun(i_cmp_id, i_tr_id):
 
     return ctr_id_str
     
+def verifyComponentTestRun(i_doc):
+    if i_doc['dbVersion']==db_version: return
+
+    ### component
+    if 'component' in i_doc:
+        query = { '_id': ObjectId(i_doc['component']) }
+        thisCmp = localdb.component.find_one(query)
+        cmp_id = str(thisCmp['_id'])
+    else:
+        cmp_id = '...'
+    ### chip
+    if 'chip' in i_doc:
+        query = { '_id': ObjectId(i_doc['chip']) }
+        thisChip = localdb.chip.find_one(query)
+    if not thisChip and thisCmp:
+        chip_id = registerChip() ### TODO
+    else:
+        chip_id = i_doc.get('chip',None)
+   
+    update_doc = {
+        'component'  : cmp_id,
+        'testRun'    : i_tr_id,
+        'chip'       : chip_id,
+        'attachments': [],
+        'config'     : thisCpm['name'],
+        'name'       : thisCmp['name'],
+        'tx'         : -1, 
+        'rx'         : -1, 
+        'geomId'     : -1,
+        'beforeCfg'  : '...', 
+        'afterCfg'   : '...', 
+    }
+    query = { '_id': i_doc['_id'] }
+    localdb.componentTestRun.update_one( query, { '$set': update_doc } )
+    updateSys(str(i_doc['_id'], 'componentTestRun')
+ 
+    ### testRun
+    query = { '_id': ObjectIt(i_doc['testRun']) }
+    thisRun = localdb.testRun.find_one(query)
+    if thisRun and chip_id:
+        updateVer(str(i_doc['_id'], 'componentTestRun')
+ 
 def registerComponentTestRun(i_cmp_id, i_tr_id):
     query = { '_id': ObjectId(i_tr_id) }
     thisRun = localdb.testRun.find_one( query )
@@ -302,28 +455,25 @@ def registerComponentTestRun(i_cmp_id, i_tr_id):
     timestamp = datetime.datetime.utcnow()
     insert_doc = {
         'sys': {
-            'rev': 2,
+            'rev': 0,
             'cts': timestamp,
             'mts': timestamp
         },
         'component'  : i_cmp_id,
-        'state'      : '...',
-        'testType'   : thisRun['testType'],
         'testRun'    : i_tr_id,
-        'qaTest'     : False,
-        'runNumber'  : thisRun['runNumber'],
-        'passed'     : True,
-        'problems'   : True,
+        'chip'       : i_chip_id,
         'attachments': [],
+        'config'     : thisCpm['name'],
+        'name'       : thisCmp['name'],
         'tx'         : -1, 
         'rx'         : -1, 
-        'geomId'     : thisCmp.get('chipId',-1),
-        'chipId'     : thisCmp.get('chipId',-1),
+        'geomId'     : -1,
         'beforeCfg'  : '...', 
         'afterCfg'   : '...', 
         'dbVersion'  : db_version
     }
-    ctr_id = localdb.componentTestRun.insert( insert_doc )
+
+    ctr_id = localdb.componentTestRun.insert_one( insert_doc )
     query = { '_id': ObjectId(i_cmp_id) }
     thisComponent = localdb.component.find_one( query )
 
@@ -364,13 +514,13 @@ def registerEnvFromTr(i_start_time, i_finish_time, i_address):
         timestamp = datetime.datetime.utcnow()
         insert_doc.update({
             'sys': {
-                'rev': 2,
+                'rev': 0,
                 'cts': timestamp,
                 'mts': timestamp
             },
             'dbVersion': db_version
         })
-        env_id = localdb.environment.insert( insert_doc )
+        env_id = localdb.environment.insert_one( insert_doc )
 
     write_log( '\t[Register] Environment' )
     return str(env_id)
@@ -379,7 +529,7 @@ def registerEnvFromCtr(i_doc, date):
     timestamp = datetime.datetime.utcnow()
     insert_doc = {
         'sys': {
-            'rev': 2,
+            'rev': 0,
             'cts': timestamp,
             'mts': timestamp
         },
@@ -398,7 +548,7 @@ def registerEnvFromCtr(i_doc, date):
                 'num': 0
             }]
         })
-    env_id = localdb.environment.insert( insert_doc )
+    env_id = localdb.environment.insert_one( insert_doc )
 
     write_log( '\t[Register] Environment' )
     return str(env_id)
@@ -428,10 +578,9 @@ def registerConfigFromJson(config_id):
     else:
         data = localfs.put( binary, filename=filename, hash=shaHashed, dbVersion=db_version )   
         c_query = { 'files_id': data }
-        localdb.fs.chunks.update(
+        localdb.fs.chunks.update_many(
             c_query,
-            {'$set':{'dbVersion': db_version}},
-            multi=True
+            {'$set':{'dbVersion': db_version}}
         )
 
     config_doc = { 
@@ -441,7 +590,7 @@ def registerConfigFromJson(config_id):
         'format'  : 'fs.files',
         'data_id' : str(data) 
     }
-    config_id = localdb.config.insert( config_doc )
+    config_id = localdb.config.insert_one( config_doc )
     
     write_log( '\t[Register] Config : {0} {1}'.format( filename, title ))
     return str(config_id)
@@ -473,10 +622,9 @@ def registerConfig(attachment, chip_type, new_ctr):
     else:
         code = localfs.put( binary, filename='chipCfg.json', hash=shaHashed, dbVersion=db_version ) 
         c_query = { 'files_id': code }
-        localdb.fs.chunks.update(
+        localdb.fs.chunks.update_many(
             c_query,
-            {'$set':{'dbVersion': db_version}},
-            multi=True
+            {'$set':{'dbVersion': db_version}}
         )
 
     if chip_type in json_data:
@@ -493,9 +641,9 @@ def registerConfig(attachment, chip_type, new_ctr):
         'format'   : 'fs.files',
         'data_id'  : str(code)
     }
-    config_id = localdb.config.insert(insert_doc)
+    config_id = localdb.config.insert_one(insert_doc)
     ctr_query = { '_id': ObjectId(new_ctr['_id']) }
-    localdb.componentTestRun.update( ctr_query, { '$set': { '{}Cfg'.format(contentType): str(config_id) }}) 
+    localdb.componentTestRun.update_one( ctr_query, { '$set': { '{}Cfg'.format(contentType): str(config_id) }}) 
 
     write_log( '\t[Register] Config : {0} {1}'.format( 'chipCfg.json', '{}Cfg'.format(contentType) ))
     return return_doc
@@ -548,7 +696,7 @@ def registerDatFromDat(attachment, new_ctr_id):
     code = localfs.put( binary, filename=thisData['filename'] )  
     attachment.update({ 'code': str(code) })
     ctr_query = { '_id': ObjectId(new_ctr['_id']) }
-    localdb.componentTestRun.update( ctr_query, { '$push': { 'attachments': attachment }})
+    localdb.componentTestRun.update_one( ctr_query, { '$push': { 'attachments': attachment }})
 
     write_log( '\t[Register] Dat : {0}'.format( thisData['filename'] ))
     return attachment['title']
@@ -589,7 +737,7 @@ def registerDat(attachment, name, new_ctr_id, plots):
     binary = yarrfs.get(ObjectId(code)).read()
     code = localfs.put( binary, filename='{0}.dat'.format(filename) ) 
     ctr_query = { '_id': ObjectId(new_ctr['_id']) }
-    localdb.componentTestRun.update( ctr_query, { 
+    localdb.componentTestRun.update_one( ctr_query, { 
         '$push': { 
             'attachments': { 
                 'code'       : str(code),
@@ -630,7 +778,7 @@ def registerPng(attachment, name, new_ctr, plots):
 
     code = localfs.put( binary, filename='{0}.png'.format(filename) ) 
     ctr_query = { '_id': ObjectId(new_ctr['_id']) }
-    localdb.componentTestRun.update( ctr_query, { 
+    localdb.componentTestRun.update_one( ctr_query, { 
         '$push': { 
             'attachments': { 
                 'code'       : str(code),
@@ -649,12 +797,367 @@ def registerPng(attachment, name, new_ctr, plots):
 def addStage(stage, new_stage, new_trid):
     if (not stage == '') and new_stage == '...':
         query = { '_id': ObjectId(new_trid) }
-        localdb.testRun.update(
+        localdb.testRun.update_one(
             query,
             {'$set': {'stage': stage}}
         )
 
+def updateVer(i_oid, i_col):
+    query = { '_id': ObjectId(i_oid) }
+    this = localdb[i_col].find_one(query)
+
+    if not this: return
+    if this['dbVersion']==db_version: return
+
+    doc_value = { 'dbVersion': db_version }
+    localdb[i_col].update_one( query, doc_value )
+
+def updateSys(i_oid, i_col):
+    query = { '_id': ObjectId(i_oid) }
+    this = localdb[i_col].find_one(query)
+
+    if not this: return
+    if this['dbVersion']==db_version: return
+
+    now = datetime.utcnow()
+    if this.get('sys',{})=={}:
+        doc_value = { 
+            '$set': {
+                'sys': {
+                    'cts': now,
+                    'mts': now,
+                    'rev': 0
+                }
+            }
+        }
+    else:
+        doc_value = {
+            '$set': {
+                'sys': {
+                    'mts': now,
+                    'rev': this['sys']['rev']+1
+                }
+            }
+        }
+    localdb[i_col].update_one( query, doc_value )
+
+def verify():
+    print( '# Verify database scheme: localdb' )
+    print( datetime.datetime.now().strftime( '\t%Y-%m-%dT%H:%M:%S [Start]' ) )
+    write_log( '==============================================' )
+    write_log( '[Verification] database: localdb' )
+
+    ### component
+    write_log( '----------------------------------------------' )
+    write_log( '[Start] Component Collection' )
+    print( datetime.datetime.now().strftime( '\t%Y-%m-%dT%H:%M:%S Component Collection' )
+    entries = localdb.component.find()
+    component_ids = []
+    for entry in entries:
+        component_ids.append(str(entry['_id']))
+    for component_id in component_ids:
+        query = { '_id': ObjectId(component_id) }
+        thisCmp = localdb.component.find_one(query)
+        verifyComponent(thisCmp) # check and update if old component data
+
+    ### childParentRelation
+    write_log( '----------------------------------------------' )
+    write_log( '[Start] ChildParentRelation Collection' )
+    print( datetime.datetime.now().strftime( '\t%Y-%m-%dT%H:%M:%S ChildParentRelation Collection' )
+    entries = localdb.childParentRelation.find()
+    cpr_ids = []
+    for entry in entries:
+        cpr_ids.append(str(entry['_id']))
+    for cpr_id in cpr_ids:
+        query = { '_id': ObjectId(cpr_id) }
+        thisCpr = localdb.childParentRelation.find_one(query)
+        verifyChildParentRelation(thisCpr) # check and update if old childParentRelation data
+
+    ### user
+    write_log( '----------------------------------------------' )
+    write_log( '[Start] User Collection' )
+    print( datetime.datetime.now().strftime( '\t%Y-%m-%dT%H:%M:%S User Collection' )
+    entries = localdb.user.find()
+    user_ids = []
+    for entry in entries:
+        user_ids.append(str(entry['_id']))
+    for user_id in user_ids:
+        query = { '_id': ObjectId(user_id) }
+        thisUser = localdb.user.find_one(query)
+        verifyUser(thisUser) # check and update if old childParentRelation data
+   
+    ### site
+    write_log( '----------------------------------------------' )
+    write_log( '[Start] Institution Collection' )
+    print( datetime.datetime.now().strftime( '\t%Y-%m-%dT%H:%M:%S Institution Collection' )
+    entries = localdb.institution.find()
+    site_ids = []
+    for entry in entries:
+        site_ids.append(str(entry['_id']))
+    for site_id in site_ids:
+        query = { '_id': ObjectId(site_id) }
+        thisSite = localdb.institution.find_one(query)
+        verifySite(thisSite) # check and update if old childParentRelation data
+
+    ### testRun
+    write_log( '----------------------------------------------' )
+    write_log( '[Start] testRun Collection' )
+    print( datetime.datetime.now().strftime( '\t%Y-%m-%dT%H:%M:%S testRun Collection' )
+    entries = localdb.testRun.find()
+    tr_ids = []
+    for entry in entries:
+        tr_ids.append(str(entry['_id']))
+    for tr_id in tr_ids:
+        query = { '_id': ObjectId(tr_id) }
+        thisRun = localdb.testRun.find_one(query)
+        verifyTestRun(thisRun) # check and update if old childParentRelation data
+#TODO
+
+   
+
+ 
+    ### componentTestRun
+    write_log( '----------------------------------------------' )
+    write_log( '[Start] ComponentTestRun Collection' )
+    print( datetime.datetime.now().strftime( '\t%Y-%m-%dT%H:%M:%S ComponentTestRun Collection' )
+    entries = localdb.componentTestRun.find()
+    ctr_ids = []
+    for entry in entries:
+        ctr_ids.append(str(entry['_id']))
+    for ctr_id in ctr_ids:
+        query = { '_id': ObjectId(ctr_id) }
+        thisCtr = localdb.componentTestRun.find_one(query)
+        verifyComponentTestRun(thisCtr) # check and update if old componentTestRun data
+
+
+
+
+
+        
+        ### convert module - testRun (if registered)
+        query = { 'parent': str(thisModule['_id']) }
+        child_entries = localdb.childParentRelation.find( query )
+        ctr_query = []
+        ctr_query.append({'component':str(thisModule['_id'])})
+        for child in child_entries:
+            query = { '_id': ObjectId(child['child']) }
+            thisChip = localdb.component.find_one( query )
+            verifyComponent(thisChip, module_id) # check and update if old component data
+            ctr_query.append({'component':child['child']}) 
+        query = { '$or': ctr_query }
+        ctr_entries = localdb.componentTestRun.find( query )
+        trid_entries = []
+        for ctr_entry in ctr_entries:
+            trid_entries.append( ctr_entry['testRun'] )
+        new_trids = {}
+        for trid in trid_entries:
+            query = { '_id': ObjectId(trid) }
+            thisRun = localdb.testRun.find_one( query )
+            new_trid = verifyTestRun(thisRun, mo_serial_number) # check and insert if not exist test data
+            if new_trid in new_trids:
+                new_trids[new_trid].append( trid )
+            else:
+                new_trids.update({ new_trid: [] })
+                new_trids[new_trid].append( trid )
+
+        for new_trid in new_trids:
+            plots = []
+            new_tr_query = { '_id': ObjectId(new_trid) }
+            new_thisRun = localdb.testRun.find_one( new_tr_query )
+            write_log( '        runNumber: {}'.format( new_thisRun['runNumber'] ) )
+            # for module
+            new_ctrid = checkComponentTestRun(moduleid['new'], new_trid)
+            new_ctr_query = { '_id': ObjectId(new_ctrid) }
+            new_thisComponentTestRun = localdb.componentTestRun.find_one( new_ctr_query )
+            for trid in new_trids[new_trid]:
+                query = { '_id': ObjectId(trid) }
+                thisRun = yarrdb.testRun.find_one( query )
+                query = { 'component': moduleid['old'],
+                          'testRun': trid }
+                thisComponentTestRun = yarrdb.componentTestRun.find_one( query )
+                if thisComponentTestRun:
+                    attachments = thisRun.get('attachments',[])
+                    for attachment in attachments: 
+                        title = registerPng(attachment, mo_serial_number, new_thisComponentTestRun, plots)
+                        if not title == '':
+                            plots.append(title)
+            for chip in chipids:
+                new_ctrid = checkComponentTestRun(chip['new'], new_trid)
+                new_ctr_query = { '_id': ObjectId(new_ctrid) }
+                new_thisComponentTestRun = localdb.componentTestRun.find_one( new_ctr_query )
+
+                new_ch_query = { '_id': ObjectId(chip['new']) }
+                new_thisChip = localdb.component.find_one( new_ch_query )
+                chip_type = new_thisChip['chipType']
+                write_log( '        chip serial: {}'.format( new_thisChip['serialNumber'] ) )
+                if chip_type == "FEI4B": chip_type = "FE_I4B"
+
+                query = { '_id': ObjectId(chip['old']) }
+                thisChip = yarrdb.component.find_one( query )
+                chip_name = thisChip.get('name','')
+                for trid in new_trids[new_trid]:
+                    query = { '_id': ObjectId(trid) }
+                    thisRun = yarrdb.testRun.find_one( query )
+                    query = { 'component': chip['old'],
+                              'testRun': trid }
+                    thisComponentTestRun = yarrdb.componentTestRun.find_one( query )
+                    if thisComponentTestRun:
+                        # stage
+                        addStage(thisComponentTestRun.get('stage',''), new_thisRun['stage'], new_trid)
+                        addStage(thisRun.get('stage',''), new_thisRun['stage'], new_trid)
+                        # chiptype
+                        if new_thisRun['chipType'] == '...':
+                            localdb.testRun.update_one(
+                                new_tr_query,
+                                {'$set': {'chipType': chip_type }}
+                            )
+                            new_thisRun = localdb.testRun.find_one( new_tr_query )
+                        # environment
+                        if (not thisComponentTestRun.get('environments',[]) == []) and new_thisRun['environment'] == '...':
+                            env_id = registerEnvFromCtr(thisComponentTestRun, new_thisRun['startTime'])
+                            localdb.testRun.update_one(
+                                new_tr_query,
+                                {'$set': {'environment': env_id}}   
+                            )
+                            new_thisRun = localdb.testRun.find_one( new_tr_query )
+                        # controller config
+                        if 'ctrlCfg' in thisRun and new_thisRun['ctrlCfg'] == '...':
+                            ctrl_id = registerConfigFromJson(thisRun['ctrlCfg'])
+                            localdb.testRun.update_one(
+                                new_tr_query,
+                                {'$set': {'ctrlCfg': ctrl_id}}
+                            )
+                            new_thisRun = localdb.testRun.find_one( new_tr_query )
+                        # scan config
+                        if 'scanCfg' in thisRun and new_thisRun['scanCfg'] == '...':
+                            scan_id = registerConfigFromJson(thisRun['scanCfg'])
+                            localdb.testRun.update_one(
+                                new_tr_query,
+                                {'$set': {'scanCfg': scan_id}}
+                            )
+                            new_thisRun = localdb.testRun.find_one( new_tr_query )
+                        attachments = thisComponentTestRun.get('attachments',[])
+                        for attachment in attachments: 
+                            title = registerDatFromDat(attachment, new_ctrid)
+                            if not title == '':
+                                plots.append(title)
+
+                        if new_thisComponentTestRun.get('beforeCfg','...') == '...':
+                            if not thisComponentTestRun.get('beforeCfg', '...') == '...':
+                                config_id = registerConfigFromJson(thisComponentTestRun['beforeCfg'])
+                                localdb.componentTestRun.update_one(
+                                    new_ctr_query,
+                                    {'$set': {'beforeCfg': config_id}}
+                                )
+                                new_thisComponentTestRun = localdb.componentTestRun.find_one( new_ctr_query )
+                        if new_thisComponentTestRun.get('afterCfg','...') == '...':
+                            if not thisComponentTestRun.get('afterCfg', '...') == '...':
+                                config_id = registerConfigFromJson(thisComponentTestRun['afterCfg'])
+                                localdb.componentTestRun.update_one(
+                                    new_ctr_query,
+                                    {'$set': {'afterCfg': config_id}}
+                                )
+                                new_thisComponentTestRun = localdb.componentTestRun.find_one( new_ctr_query )
+                        attachments = thisRun.get('attachments',[])
+                        for attachment in attachments: 
+                            title = registerDat(attachment, chip_name, new_ctrid, plots)
+                            if not title == '':
+                                plots.append(title)
+                            if attachment['contentType'] == 'after': 
+                                if new_thisComponentTestRun.get('afterCfg','...') == '...':
+                                    return_doc = registerConfig(attachment, chip_type, new_thisComponentTestRun)
+                                    if not return_doc['chip_id'] == -1 and new_thisChip['chipId'] == -1:
+                                        localdb.component.update_one(
+                                            new_ch_query,
+                                            {'$set': { 'chipId': return_doc['chip_id'] }}
+                                        )
+                                        new_thisChip = localdb.component.find_one( new_ch_query )
+                                        query = { 'parent': new_mo_id, 'child': chip['new'] }
+                                        localdb.childParentRelation.update_one(
+                                            query,
+                                            {'$set': { 'chipId': return_doc['chip_id'] }}
+                                        )
+                                    if not return_doc['chip_id'] == -1 and new_thisComponentTestRun['geomId'] == -1:
+                                        localdb.component.update_one(
+                                            new_ctr_query,
+                                            {'$set': { 'geomId': return_doc['chip_id'] }}
+                                        )
+                                        new_thisComponentTestRun = localdb.componentTestRun.find_one( new_ctr_query )
+                                    if not return_doc['chip_id'] == -1 and new_thisComponentTestRun['chipId'] == -1:
+                                        localdb.component.update_one(
+                                            new_ctr_query,
+                                            {'$set': { 'chipId': return_doc['chip_id'] }}
+                                        )
+                                        new_thisComponentTestRun = localdb.componentTestRun.find_one( new_ctr_query )
+                                    if new_thisComponentTestRun['tx'] == -1 and not return_doc['tx'] == -1:
+                                        localdb.component.update_one(
+                                            new_ch_query,
+                                            {'$set': { 'tx': return_doc['tx'], 'rx': return_doc['rx'] }}
+                                        )
+                                        new_thisChip = localdb.component.find_one( new_ch_query )
+                            if attachment['contentType'] == 'before': 
+                                if new_thisComponentTestRun.get('beforeCfg','...') == '...':
+                                    return_doc = registerConfig(attachment, chip_type, new_thisComponentTestRun)
+                                    if not return_doc['chip_id'] == -1 and new_thisChip['chipId'] == -1:
+                                        localdb.component.update_one(
+                                            new_ch_query,
+                                            {'$set': { 'chipId': return_doc['chip_id'] }}
+                                        )
+                                        new_thisChip = localdb.component.find_one( new_ch_query )
+                                    if not return_doc['chip_id'] == -1 and new_thisComponentTestRun['geomId'] == -1:
+                                        localdb.component.update_one(
+                                            new_ctr_query,
+                                            {'$set': { 'geomId': return_doc['chip_id'] }}
+                                        )
+                                        new_thisComponentTestRun = localdb.componentTestRun.find_one( new_ctr_query )
+                                    if not return_doc['chip_id'] == -1 and new_thisComponentTestRun['chipId'] == -1:
+                                        localdb.component.update_one(
+                                            new_ctr_query,
+                                            {'$set': { 'chipId': return_doc['chip_id'] }}
+                                        )
+                                        new_thisComponentTestRun = localdb.componentTestRun.find_one( new_ctr_query )
+                                    if new_thisComponentTestRun['tx'] == -1 and not return_doc['tx'] == -1:
+                                        localdb.component.update_one(
+                                            new_ch_query,
+                                            {'$set': { 'tx': return_doc['tx'], 'rx': return_doc['rx'] }}
+                                        )
+                                        new_thisChip = localdb.component.find_one( new_ch_query )
+                if new_thisChip['chipId'] == -1:
+                    localdb.component.update_one(
+                        new_ch_query,
+                        {'$set': { 'chipId': 0 }}
+                    )
+            if new_thisRun.get('plots',[]) == []:
+                for plot in list(set(plots)):
+                    localdb.testRun.update_one(
+                        new_tr_query,
+                        {'$push': {'plots': plot}}
+                    )
+
+    
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+    
+
 def convert():
+
     start_time = datetime.datetime.now() 
     start_update_time = ''
     finish_update_time = ''
@@ -662,26 +1165,28 @@ def convert():
 
     # modify module document
     start_update_time = datetime.datetime.now() 
-    print( '# Convert database scheme' )
+    print( '# Convert database scheme: yarrdb -> localdb' )
     print( datetime.datetime.now().strftime( '\t%Y-%m-%dT%H:%M:%S [Start]' ) )
     write_log( '==============================================' )
     write_log( '[Convert] database: yarrdb' )
 
     query = { 'componentType' : 'Module' }
     entries = yarrdb.component.find( query )
-    moduleids = []
+    module_ids = []
     for entry in entries: # module entry
-        moduleids.append( str(entry['_id']) )
-    for moduleid in moduleids:
-        query = { '_id': ObjectId(moduleid) }
+        module_ids.append( str(entry['_id']) )
+    for module_id in module_ids:
+        query = { '_id': ObjectId(module_id) }
         thisModule = yarrdb.component.find_one( query )
 
         write_log( '----------------------------------------------' )
         write_log( '[Start] Module: {}'.format( thisModule['serialNumber'] ) )
 
         new_mo_id = checkComponent(thisModule, '') # check and insert if not exist component data
-        moduleid = {'old': str(thisModule['_id']),
-                    'new': new_mo_id}
+        module_id = { 
+            'old': str(thisModule['_id']),
+            'new': new_mo_id
+        }
         
         mo_serial_number = thisModule['serialNumber']
         print( datetime.datetime.now().strftime( '\t%Y-%m-%dT%H:%M:%S Module: {}'.format(mo_serial_number)) )
@@ -762,7 +1267,7 @@ def convert():
                         addStage(thisRun.get('stage',''), new_thisRun['stage'], new_trid)
                         # chiptype
                         if new_thisRun['chipType'] == '...':
-                            localdb.testRun.update(
+                            localdb.testRun.update_one(
                                 new_tr_query,
                                 {'$set': {'chipType': chip_type }}
                             )
@@ -770,7 +1275,7 @@ def convert():
                         # environment
                         if (not thisComponentTestRun.get('environments',[]) == []) and new_thisRun['environment'] == '...':
                             env_id = registerEnvFromCtr(thisComponentTestRun, new_thisRun['startTime'])
-                            localdb.testRun.update(
+                            localdb.testRun.update_one(
                                 new_tr_query,
                                 {'$set': {'environment': env_id}}   
                             )
@@ -778,7 +1283,7 @@ def convert():
                         # controller config
                         if 'ctrlCfg' in thisRun and new_thisRun['ctrlCfg'] == '...':
                             ctrl_id = registerConfigFromJson(thisRun['ctrlCfg'])
-                            localdb.testRun.update(
+                            localdb.testRun.update_one(
                                 new_tr_query,
                                 {'$set': {'ctrlCfg': ctrl_id}}
                             )
@@ -786,7 +1291,7 @@ def convert():
                         # scan config
                         if 'scanCfg' in thisRun and new_thisRun['scanCfg'] == '...':
                             scan_id = registerConfigFromJson(thisRun['scanCfg'])
-                            localdb.testRun.update(
+                            localdb.testRun.update_one(
                                 new_tr_query,
                                 {'$set': {'scanCfg': scan_id}}
                             )
@@ -800,7 +1305,7 @@ def convert():
                         if new_thisComponentTestRun.get('beforeCfg','...') == '...':
                             if not thisComponentTestRun.get('beforeCfg', '...') == '...':
                                 config_id = registerConfigFromJson(thisComponentTestRun['beforeCfg'])
-                                localdb.componentTestRun.update(
+                                localdb.componentTestRun.update_one(
                                     new_ctr_query,
                                     {'$set': {'beforeCfg': config_id}}
                                 )
@@ -808,7 +1313,7 @@ def convert():
                         if new_thisComponentTestRun.get('afterCfg','...') == '...':
                             if not thisComponentTestRun.get('afterCfg', '...') == '...':
                                 config_id = registerConfigFromJson(thisComponentTestRun['afterCfg'])
-                                localdb.componentTestRun.update(
+                                localdb.componentTestRun.update_one(
                                     new_ctr_query,
                                     {'$set': {'afterCfg': config_id}}
                                 )
@@ -822,30 +1327,30 @@ def convert():
                                 if new_thisComponentTestRun.get('afterCfg','...') == '...':
                                     return_doc = registerConfig(attachment, chip_type, new_thisComponentTestRun)
                                     if not return_doc['chip_id'] == -1 and new_thisChip['chipId'] == -1:
-                                        localdb.component.update(
+                                        localdb.component.update_one(
                                             new_ch_query,
                                             {'$set': { 'chipId': return_doc['chip_id'] }}
                                         )
                                         new_thisChip = localdb.component.find_one( new_ch_query )
                                         query = { 'parent': new_mo_id, 'child': chip['new'] }
-                                        localdb.childParentRelation.update(
+                                        localdb.childParentRelation.update_one(
                                             query,
                                             {'$set': { 'chipId': return_doc['chip_id'] }}
                                         )
                                     if not return_doc['chip_id'] == -1 and new_thisComponentTestRun['geomId'] == -1:
-                                        localdb.component.update(
+                                        localdb.component.update_one(
                                             new_ctr_query,
                                             {'$set': { 'geomId': return_doc['chip_id'] }}
                                         )
                                         new_thisComponentTestRun = localdb.componentTestRun.find_one( new_ctr_query )
                                     if not return_doc['chip_id'] == -1 and new_thisComponentTestRun['chipId'] == -1:
-                                        localdb.component.update(
+                                        localdb.component.update_one(
                                             new_ctr_query,
                                             {'$set': { 'chipId': return_doc['chip_id'] }}
                                         )
                                         new_thisComponentTestRun = localdb.componentTestRun.find_one( new_ctr_query )
                                     if new_thisComponentTestRun['tx'] == -1 and not return_doc['tx'] == -1:
-                                        localdb.component.update(
+                                        localdb.component.update_one(
                                             new_ch_query,
                                             {'$set': { 'tx': return_doc['tx'], 'rx': return_doc['rx'] }}
                                         )
@@ -854,37 +1359,37 @@ def convert():
                                 if new_thisComponentTestRun.get('beforeCfg','...') == '...':
                                     return_doc = registerConfig(attachment, chip_type, new_thisComponentTestRun)
                                     if not return_doc['chip_id'] == -1 and new_thisChip['chipId'] == -1:
-                                        localdb.component.update(
+                                        localdb.component.update_one(
                                             new_ch_query,
                                             {'$set': { 'chipId': return_doc['chip_id'] }}
                                         )
                                         new_thisChip = localdb.component.find_one( new_ch_query )
                                     if not return_doc['chip_id'] == -1 and new_thisComponentTestRun['geomId'] == -1:
-                                        localdb.component.update(
+                                        localdb.component.update_one(
                                             new_ctr_query,
                                             {'$set': { 'geomId': return_doc['chip_id'] }}
                                         )
                                         new_thisComponentTestRun = localdb.componentTestRun.find_one( new_ctr_query )
                                     if not return_doc['chip_id'] == -1 and new_thisComponentTestRun['chipId'] == -1:
-                                        localdb.component.update(
+                                        localdb.component.update_one(
                                             new_ctr_query,
                                             {'$set': { 'chipId': return_doc['chip_id'] }}
                                         )
                                         new_thisComponentTestRun = localdb.componentTestRun.find_one( new_ctr_query )
                                     if new_thisComponentTestRun['tx'] == -1 and not return_doc['tx'] == -1:
-                                        localdb.component.update(
+                                        localdb.component.update_one(
                                             new_ch_query,
                                             {'$set': { 'tx': return_doc['tx'], 'rx': return_doc['rx'] }}
                                         )
                                         new_thisChip = localdb.component.find_one( new_ch_query )
                 if new_thisChip['chipId'] == -1:
-                    localdb.component.update(
+                    localdb.component.update_one(
                         new_ch_query,
                         {'$set': { 'chipId': 0 }}
                     )
             if new_thisRun.get('plots',[]) == []:
                 for plot in list(set(plots)):
-                    localdb.testRun.update(
+                    localdb.testRun.update_one(
                         new_tr_query,
                         {'$push': {'plots': plot}}
                     )

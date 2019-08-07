@@ -26,7 +26,7 @@ EOF
 
 # Start
 if [ `echo ${0} | grep bash` ]; then
-    echo "[LDB] DO NOT 'source'"
+    echo -e "[LDB] DO NOT 'source'"
     usage
     return
 fi
@@ -126,12 +126,20 @@ fi
 
 # Check python module
 echo -e "[LDB] Check python modules..."
+if ! which python3 > /dev/null 2>&1; then
+    echo -e "[LDB ERROR] Not found the command: python3"
+    exit
+fi
+/usr/bin/env python3 ${shell_dir}/check_python_version.py
+if [ $? = 1 ]; then
+    echo -e "[LDB ERROR] Python version 3.4 or later is required."
+    exit
+fi
 /usr/bin/env python3 ${shell_dir}/check_python_modules.py
 if [ $? = 1 ]; then
-    echo -e "[LDB] Failed!!!"
-    echo -e "[LDB] Install the missing modules by:"
-    echo -e "[LDB] pip3 install --user -r ${shell_dir}/requirements-pip.txt"
-    echo -e "[LDB] exit..."
+    echo -e "[LDB ERROR] There are missing pip modules."
+    echo -e "[LDB ERROR] Install them by:"
+    echo -e "[LDB ERROR] pip3 install --user -r ${shell_dir}/requirements-pip.txt"
     exit
 fi
 echo -e "[LDB] Done."
@@ -143,6 +151,7 @@ if [ -f ${readme} ]; then
     rm ${readme}
 fi
 
+echo -e "-----------------------------"
 echo -e "# scanConsole with Local DB" | tee -a ${readme}
 echo -e "" | tee -a ${readme}
 
@@ -170,43 +179,34 @@ fi
 
 # settings
 echo -e "## Settings" | tee -a ${readme}
-echo -e "- 'Makefile'" | tee -a ${readme}
-echo -e "  - description: install required softwares and setup Local DB functions for the machine." | tee -a ${readme}
-echo -e "  - requirements: sudo user, git, net-tools" | tee -a ${readme}
 echo -e "- './setup_tool.sh'" | tee -a ${readme}
 echo -e "  - description: setup Local DB functions for the user local." | tee -a ${readme}
 echo -e "  - requirements: required softwares" | tee -a ${readme}
 echo -e "" | tee -a ${readme}
 
-# all function
-ITSNAME="LocalDB Tools"
-echo -e "## $ITSNAME" | tee -a ${readme}
-echo -e "'source ${HOME}/.local/lib/localdb-tools/enable' can enable tab-completion" | tee -a ${readme}
-echo -e "" | tee -a ${readme}
-
 # upload.py
 ITSNAME="LocalDB Tool Setup Upload Tool"
 echo -e "### $ITSNAME" | tee -a ${readme}
-echo -e "- 'localdbtool-upload --scan <path to result directory>' can upload scan data" | tee -a ${readme}
-echo -e "- 'localdbtool-upload --dcs <path to result directory>' can upload dcs data based on scan data" | tee -a ${readme}
-echo -e "- 'localdbtool-upload --cache' can upload every cache data" | tee -a ${readme}
-echo -e "- 'localdbtool-upload --help' can show more usage." | tee -a ${readme}
+echo -e "- '${shell_dir}/../bin/localdbtool-upload scan <path to result directory>' can upload scan data" | tee -a ${readme}
+echo -e "- '${shell_dir}/../bin/localdbtool-upload dcs <path to result directory>' can upload dcs data based on scan data" | tee -a ${readme}
+echo -e "- '${shell_dir}/../bin/localdbtool-upload cache' can upload every cache data" | tee -a ${readme}
+echo -e "- '${shell_dir}/../bin/localdbtool-upload --help' can show more usage." | tee -a ${readme}
 echo -e "" | tee -a ${readme}
 
 # retrieve.py
 ITSNAME="LocalDB Tool Setup Retrieve Tool"
 echo -e "### $ITSNAME" | tee -a ${readme}
-echo -e "- 'localdbtool-retrieve init' can initialize retrieve repository" | tee -a ${readme}
-echo -e "- 'localdbtool-retrieve remote add <remote name>' can add remote repository for Local DB/Master Server" | tee -a ${readme}
-echo -e "- 'localdbtool-retrieve --help' can show more usage." | tee -a ${readme}
+echo -e "- '${shell_dir}/../bin/localdbtool-retrieve init' can initialize retrieve repository" | tee -a ${readme}
+echo -e "- '${shell_dir}/../bin/localdbtool-retrieve remote add <remote name>' can add remote repository for Local DB/Master Server" | tee -a ${readme}
+echo -e "- '${shell_dir}/../bin/localdbtool-retrieve --help' can show more usage." | tee -a ${readme}
 echo -e "" | tee -a ${readme}
 
 # finish
 ITSNAME="Quick Trial"
 echo -e "## $ITSNAME" | tee -a ${readme}
 echo -e "$ source ${HOME}/.local/lib/localdb-tools/enable" | tee -a ${readme}
-echo -e "$ localdbtool-retrieve init" | tee -a ${readme}
-echo -e "$ localdbtool-retrieve remote add origin" | tee -a ${readme}
-echo -e "$ localdbtool-retrieve log origin" | tee -a ${readme}
+echo -e "$ ${shell_dir}/../bin/localdbtool-retrieve init" | tee -a ${readme}
+echo -e "$ ${shell_dir}/../bin/localdbtool-retrieve remote add origin" | tee -a ${readme}
+echo -e "$ ${shell_dir}/../bin/localdbtool-retrieve log origin" | tee -a ${readme}
 echo -e "" | tee -a ${readme}
 echo -e "[LDB] This description is saved as ${readme}"
