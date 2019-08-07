@@ -38,7 +38,7 @@ from pymongo            import MongoClient
 from bson.objectid      import ObjectId 
 from werkzeug           import secure_filename # for upload system
 from PIL                import Image
-from getpass          import getpass
+from getpass            import getpass
 
 # For retriever
 from retrievers.component import retrieve_component_api
