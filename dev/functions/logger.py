@@ -41,15 +41,15 @@ class Logger:
         self.funcname = funcname
 
     def info(self, message):
-        logging.info(self.toolname + self.funcname + " " + message)
+        logging.info(self.toolname + " " + message)
 
-    def warning(message):
-        logging.warning(self.toolname + self.funcname + " " + message)
+    def warning(self, message):
+        logging.warning(self.toolname + " " + message)
 
-    def debug(message):
+    def debug(self, message):
         logging.debug(self.toolname + self.funcname + " " + message)
 
-    def error(message, exit_code=100):
+    def error(self, message, exit_code=100):
         logging.error(self.toolname + self.funcname + " " + message)
         exit(exit_code)
 
