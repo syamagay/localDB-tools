@@ -98,19 +98,6 @@ auth = HTTPDigestAuth()
 
 dbv=args.version
  
-# MongoDB settings
-if args.localdbkey:
-    password_text = open(args.localdbkey,"r")
-    password = password_text.read().split()
-    password_text.close()
-    MONGO_URL = 'mongodb://' + password[0] + ':' + password[1] + '@' + args.host + ':' + str(args.port) 
-else:
-    MONGO_URL = 'mongodb://' + args.host + ':' + str(args.port) 
-url = 'mongodb://' + args.host + ':' + str(args.port) 
-print("Connect to mongoDB server: " + url + "/" + args.db)
-global mongo
-global fs
-global USER_FUNCTION
 
 # MongoDB settings
 def init():
