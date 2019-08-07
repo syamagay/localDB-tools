@@ -21,6 +21,7 @@ def getArgs():
     parser.add_argument("--password", "-p", help="User password",    type=str)
     parser.add_argument("--fhost",          help="Flask Host",       type=str)
     parser.add_argument("--fport",          help="Flask Port",       type=int)
+    parser.add_argument("--localdbkey", "-k", help="User Info",      type=str)
     parser.add_argument("--userdb",         help="userdb",           type=str, default="localdb_user")
     parser.add_argument("--lokaldbkey", "-k", help="User Info",      type=str)
     parser.add_argument("--fhost",          help="Flask Host",       type=str, default="localhost")

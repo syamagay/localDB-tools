@@ -106,7 +106,8 @@ if args.localdbkey:
     MONGO_URL = 'mongodb://' + password[0] + ':' + password[1] + '@' + args.host + ':' + str(args.port) 
 else:
     MONGO_URL = 'mongodb://' + args.host + ':' + str(args.port) 
-print("Connect to mongoDB server: " + MONGO_URL + "/" + args.db)
+url = 'mongodb://' + args.host + ':' + str(args.port) 
+print("Connect to mongoDB server: " + url + "/" + args.db)
 global mongo
 global fs
 global USER_FUNCTION
