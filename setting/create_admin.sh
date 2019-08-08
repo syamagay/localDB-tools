@@ -60,7 +60,7 @@ if [ ${ans} != "y" ]; then
     exit
 fi
 
-read -p "Input your username: " USER
+read -p "Input your account name: " USER
 sudo echo ""
 
 echo "Local DB Server IP address: ${dbip}"
@@ -84,32 +84,30 @@ fi
 sudo systemctl start mongod.service
 sudo systemctl enable mongod.service
 
-read -p "Register admin's name: " user
+read -p "Register localDB admin's name: " user
 echo ""
-read -sp "Register admin's Password: " password
+read -sp "Register localDB admin's Password: " password
 echo ""
 #read -sp "Secret string: " string
 #echo ""
 
+password_hash=`echo -n ${password}|md5sum|sed -e "s/-//"|sed -e "s/ //g"`
 
 
 mongo --host ${dbip} --port ${dbport} <<EOF
 
 use admin
-db.createUser({user: '${user}', pwd: '${password}', roles: [{role: 'root', db: 'admin'}]})  
+db.createUser({user: '${user}', pwd: '${password}', roles: [{role: 'root', db: 'admin'}])  
 
 use localdb
-db.createUser({user: '${user}', pwd: '${password}', roles: [{role: 'readWrite', db: 'localdb'}]}) 
-
-use localdb_user
-db.createUser({user: '${user}', pwd: '${password}', roles: [{role: 'readWrite', db: 'localdb_user'}]}) 
+db.createUser({user: '${user}', pwd: '${password_hash}', roles: [{role: 'readWrite', db: 'localdb'},{role: 'readWrite', db: 'localdb_user'}]}) 
 
 EOF
 
 if  [ ${auth} -eq 0 ]; then
 
     echo ${user} > /home/${USER}/.localdbkey
-    echo ${password} >> /home/${USER}/.localdbkey
+    echo -n ${password_hash} >> /home/${USER}/.localdbkey
     chmod 700 /home/${USER}/
     chmod 700 /home/${USER}/.localdbkey
     chown ${USER}:${USER} /home/${USER}/.localdbkey
@@ -141,7 +139,7 @@ elif [ ${auth} -eq 1 ]; then
     echo ""
 
     echo ${user} > /home/${USER}/.localdbkey
-    echo ${password} >> /home/${USER}/.localdbkey
+    echo ${password_hash} >> /home/${USER}/.localdbkey
     chmod 700 /home/${USER}/
     chmod 700 /home/${USER}/.localdbkey
     chown ${USER}:${USER} /home/${USER}/.localdbkey
