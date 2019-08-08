@@ -1478,6 +1478,13 @@ def set_time():
 
     return redirect( request.headers.get("Referer") )
 
+#--------------------
+# Error handlers
+#--------------------
+@app.errorhandler(404)
+def page_not_found(e):
+    return render_template('404.html'), 404
+
 if __name__ == '__main__':
     MONGO_URL = init()
     global mongo
