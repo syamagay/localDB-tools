@@ -20,40 +20,26 @@ def sync_statistics():
 
     def __connectMongoDB(host, port, username, keypath):
         # Development environment
-        #if args.development_flg:
-        url = "mongodb://%s:%d" % (host, port)
+        if args.is_development:
+            url = "mongodb://%s:%d" % (host, port)
+            logging.info("server url is: %s" % (url) )
+            return MongoClient(url)["localdbtools"]
+
+        # Production environment
+        if username and keypath:
+            if os.path.exists(keypath):
+                key_file = open(keypath, "r")
+                key = key_file.read()
+            else:
+                logging.error("API Key not exist!")
+                exit(1)
+        else:
+            logging.error("user name or API Key not given!")
+            exit(1)
+        url = "mongodb://%s:%s@%s:%d" % (username, key, host, port)
         logging.info("server url is: %s" % (url) )
         return MongoClient(url)["localdbtools"]
 
-        ## Production environment
-        #if username and keypath:
-        #    if os.path.exists(keypath):
-        #        key_file = open(keypath, "r")
-        #        key = key_file.read()
-        #    else:
-        #        logging.error("API Key not exist!")
-        #        exit(1)
-        #else:
-        #    logging.error("user name or API Key not given!")
-        #    exit(1)
-
-        #url = "mongodb://%s:%s@%s:%d" % (username, key, host, port)
-        #logging.info("server url is: %s" % (url) )
-        #return MongoClient(url)["localdbtools"]
-
-    localdbtools_db = __connectMongoDB(args.host, args.port, args.username, args.password)
-
-    last_commit_doc = localdbtools_db["commits"].find_one({}, sort=[('$natural', -1)])
-
-    marker_x = [] # commit_datetimes
-    marker_y = [] # commit_layer
-    line_x = []
-    line_y = []
-    commit_description = [] # text
-
-    #commit_count = 0
-    #merge_count = 0
-    layer_count = 0
     def __getCommitRelationship(commit_doc, layer_count, marker_x, marker_y, line_x, line_y):
         while True:
             #==========================
@@ -74,13 +60,13 @@ def sync_statistics():
             #==========================
             # parent ---------- child
             #                |
-            # parent_master ---
+            # parent_merge ---
             #==========================
-            if commit_doc["commit_type"] == "merge" and commit_doc["parent_master"] != "":
-                # line between parent_master and child
+            if commit_doc["commit_type"] == "merge" and commit_doc["parent_merge"] != "":
+                # line between parent_merge and child
                 line_x.append(commit_doc["sys"]["cts"])
                 line_y.append(layer_count)
-                parent_master_commit_doc = localdbtools_db["commits"].find_one({"_id": commit_doc["parent_master"]})
+                parent_master_commit_doc = localdbtools_db["commits"].find_one({"_id": commit_doc["parent_merge"]})
                 line_x.append(parent_master_commit_doc["sys"]["cts"])
                 line_y.append(layer_count+1)
                 #merge_count += 1
@@ -90,25 +76,33 @@ def sync_statistics():
             #commit_count += 1
             commit_doc = parent_commit_doc
 
+    # Connect to DB localdbtools
+    localdbtools_db = __connectMongoDB(args.host, args.port, args.username, args.password)
+
+    # Get head reference
+    master_head_ref_doc = localdbtools_db["refs"].find_one({"ref_type": "head"})
+    if not master_head_ref_doc:
+        return render_template("sync_statistics.html")
+
+    # Get last commit
+    last_commit_doc = localdbtools_db["commits"].find_one({"_id": master_head_ref_doc["last_commit_id"]})
+    if not last_commit_doc:
+        return render_template("sync_statistics.html")
+
+    marker_x = [] # commit_datetimes
+    marker_y = [] # commit_layer
+    line_x = []
+    line_y = []
+    commit_description = [] # text
+    #commit_count = 0
+    #merge_count = 0
+    layer_count = 0
     __getCommitRelationship(last_commit_doc, layer_count, marker_x, marker_y, line_x, line_y)
 
     #print(marker_x)
     #print(marker_y)
     #print(line_x)
     #print(line_y)
-
-    #for commit_doc in commit_docs:
-    #    commit_datetimes.append(commit_doc["sys"]["cts"])
-    #    ids_count = 0
-    #    if commit_doc["commit_type"] == "merge":
-    #        commit_ids.append(1)
-    #        continue
-
-    #    for collection_ids in commit_doc["ids"]:
-    #        ids_count += len(collection_ids)
-    #    #for collection_name in collection_names:
-    #    #    ids_count += len(commit_doc["collection_name"])
-    #    commit_ids.append(ids_count)
 
     graph = dict(
             data = [
@@ -164,6 +158,7 @@ def sync_statistics():
     graph_json = json.dumps(graph, cls=plotly.utils.PlotlyJSONEncoder)
     layout_json = json.dumps(layout, cls=plotly.utils.PlotlyJSONEncoder)
 
+    # Only work online mode
     #figure = Figure(data=graph, layout=layout)
     #plotly.plotly.image.save_as(figure, filename='tmp/'+city, format='jpeg')
 

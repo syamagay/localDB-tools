@@ -44,7 +44,7 @@ def getArgs():
 
     # Flags
     parser.add_argument("-y", help="Yes to confirmation", action="store_true")
-    parser.add_argument("--development_flg", help="Yes to confirmation", action="store_true")
+    parser.add_argument("--is_development", help="Yes to confirmation", action="store_true")
 
     # Others
     parser.add_argument("--dbVersion", "-d", help="DB Version", type=float, default="1.")
@@ -65,7 +65,7 @@ def getArgs():
             if "port" in conf["master"]:        args.mport = conf["master"]["port"]
             if "username" in conf["master"]:    args.musername = conf["master"]["username"]
             if "password" in conf["master"]:    args.mpassword = conf["master"]["password"]
-        if "development_flg" in conf:           args.development_flg = conf["development_flg"]
+        if "is_development" in conf:            args.is_development = conf["is_development"]
         if "dbVersion" in conf:                 args.dbVersion = conf["dbVersion"]
         if "logfile" in conf:                   args.dbVersion = conf["logfile"]
 

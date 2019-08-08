@@ -339,7 +339,7 @@ def sync():
 
     def __connectMongoDB(server_name, host, port, username, keypath):
         # Development environment
-        if args.development_flg:
+        if args.is_development:
             url = "mongodb://%s:%d" % (host, port)
             logger.info("%s server url is: %s" % (server_name, url) )
             return MongoClient(url)["localdb"], MongoClient(url)["localdbtools"]
