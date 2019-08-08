@@ -97,7 +97,7 @@ password_hash=`echo -n ${password}|md5sum|sed -e "s/-//"|sed -e "s/ //g"`
 mongo --host ${dbip} --port ${dbport} <<EOF
 
 use admin
-db.createUser({user: '${user}', pwd: '${password}', roles: [{role: 'root', db: 'admin'}])  
+db.createUser({user: '${user}', pwd: '${password}', roles: [{role: 'root', db: 'admin'}]})  
 
 use localdb
 db.createUser({user: '${user}', pwd: '${password_hash}', roles: [{role: 'readWrite', db: 'localdb'},{role: 'readWrite', db: 'localdb_user'}]}) 
