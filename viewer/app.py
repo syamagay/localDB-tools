@@ -1137,14 +1137,15 @@ def edit_description():
 @app.route('/edit_comment', methods=['GET','POST'])
 def edit_comment():
 
-    thistime = datetime.utcnow()
+    thistime = datetime.datetime.utcnow()
     mongo.db.comments.insert( 
     { 
         'sys'          : { 'rev': 0,'cts': thistime,'mts': thistime}, 
         'componentId'  : request.args.get( 'id', -1 ),
         'runId'        : request.args.get( 'runId', -1 ),
         'comment'      :request.form.get('text').replace('\r\n','<br>'),
-        'componentType':request.form.get('unit'),
+        'componentType':session['unit'],
+        'collection'   :session['collection'],
         #'name'         :session['username'],
         'userId'       :session['userId'],
         'name'         :request.form.get('text2'),
@@ -1154,21 +1155,19 @@ def edit_comment():
     } 
     )
     
-    runid = request.args.get( 'runId', -1 )
 
-    if not runid == -1:
-        query = { '_id': ObjectId(runid) }
-        this_test = mongo.db.testRun.find_one( query )
-        
-        if not this_test['dummy']:
-            forUrl = 'show_component'
-        else:
-            forUrl = 'show_dummy'
-
-        return redirect( url_for(forUrl, id=request.args.get( 'id' ), runId=request.args.get( 'runId' ) ))
-    else:
-        forUrl = 'show_component'
-        return redirect( url_for(forUrl, id=request.form.get( 'id' )))
+#    if not runid == -1:
+#        query = { '_id': ObjectId(runid) }
+#        this_test = mongo.db.testRun.find_one( query )
+#        
+#        if not this_test['dummy']:
+#            forUrl = 'show_component'
+#        else:
+#            forUrl = 'show_dummy'
+#
+#        return redirect( url_for(forUrl, id=request.args.get( 'id' ), runId=request.args.get( 'runId' ) ))
+#    else:
+    return redirect( request.headers.get("Referer") )
 
 @app.route('/remove_comment', methods=['GET','POST'])
 def remove_comment():
@@ -1305,7 +1304,7 @@ def logout():
 if args.localdbkey:
     users = {password[0]:password[1]}
 else:
-    users = {'username':'password'}
+    users = {'username':hashlib.md5( 'password'.encode('utf-8') ).hexdigest()}
 
 @auth.get_password
 def get_pw(username):

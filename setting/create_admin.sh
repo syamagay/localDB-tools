@@ -81,8 +81,8 @@ if [ ${answer} != "y" ]; then
     exit
 fi
 
-sudo systemctl start mongod.service
-sudo systemctl enable mongod.service
+#sudo systemctl start mongod.service
+#sudo systemctl enable mongod.service
 
 read -p "Register localDB admin's name: " user
 echo ""
