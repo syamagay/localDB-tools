@@ -598,7 +598,7 @@ def setResultIndex():
             scan: { 
                 'num'     : len(run_index),
                 'run'     : run_index, 
-                'testType': test_type.replace('_',' ') 
+                'testType': scan.replace('_',' ') 
             }
         })
         test_index.append( scan )
