@@ -99,7 +99,7 @@ app.config['SECRET_KEY'] = os.urandom(24)
 #app.config['SECRET_KEY'] = 'key'
 auth = HTTPBasicAuth()
 
-dbv=args.version
+dbv=1.01
 
 if args.localdbkey:
     password_text = open(args.localdbkey,"r")
@@ -1257,7 +1257,6 @@ def login():
     mongo     = PyMongo(app, uri=MONGO_URL+'/'+args.userdb+'?authSource=localdb')
 #    mongo     = PyMongo(app, uri=MONGO_URL+'/'+args.userdb)
     fs = gridfs.GridFS(mongo.db)
-    dbv=args.version
 
     pre_url = request.headers.get("Referer")
     pre_url_lastpass = pre_url.split('/')
@@ -1327,7 +1326,6 @@ def signup():
     mongo     = PyMongo(app, uri=MONGO_URL+'/'+args.userdb+'?authSource=localdb')
 #    mongo     = PyMongo(app, uri=MONGO_URL+'/'+args.userdb)
     fs = gridfs.GridFS(mongo.db)
-    dbv=args.version
 
     stage = request.form.get('stage','input')
     userinfo = request.form.getlist('userinfo')
@@ -1396,7 +1394,6 @@ def register_password():
     mongo     = PyMongo(app, uri=MONGO_URL+'/'+args.userdb+'?authSource=localdb')
 #    mongo     = PyMongo(app, uri=MONGO_URL+'/'+args.userdb)
     fs = gridfs.GridFS(mongo.db)
-    dbv=args.version
 
     stage = request.form.get('stage','input')
     userinfo = request.form.getlist('userinfo')

@@ -16,14 +16,12 @@ def getArgs():
     parser.add_argument("--host",           help="Host",             type=str)
     parser.add_argument("--port",           help="Port",             type=int)
     parser.add_argument("--db",             help="Db",               type=str)
-    parser.add_argument("--version",        help="DB Version",       type=int)
     parser.add_argument("--username", "-u", help="User name",        type=str)
     parser.add_argument("--password", "-p", help="User password",    type=str)
     parser.add_argument("--fhost",          help="Flask Host",       type=str)
     parser.add_argument("--fport",          help="Flask Port",       type=int)
     parser.add_argument("--localdbkey", "-k", help="User Info",      type=str)
-    parser.add_argument("--userdb",         help="userdb",           type=str, default="localdb_user")
-    parser.add_argument("--fpython",        help="Python Version",   type=int, default=2)
+    parser.add_argument("--userdb",         help="userdb",           type=str)
     parser.add_argument("--ssl",            help="Enable ssl",       action='store_true')
     parser.add_argument("--sslPEMKeyFile",  help="Specify client certificate", type=str)
     parser.add_argument("--sslCAFile",      help="Specify CA certificate", type=str)
@@ -38,7 +36,6 @@ def getArgs():
             if "host"       in conf["mongoDB"] and not args.host          : args.host            = conf["mongoDB"]["host"]
             if "port"       in conf["mongoDB"] and not args.port          : args.port            = conf["mongoDB"]["port"]
             if "db"         in conf["mongoDB"] and not args.db            : args.db              = conf["mongoDB"]["db"]
-            if "version"    in conf["mongoDB"] and not args.version       : args.version         = conf["mongoDB"]["version"]
             if "username"   in conf["mongoDB"] and not args.username      : args.username       = conf["mongoDB"]["username"]
             if "password"   in conf["mongoDB"] and not args.password      : args.password       = conf["mongoDB"]["password"]
             if "localdbkey" in conf["mongoDB"] and not args.localdbkey    : args.localdbkey     = conf["mongoDB"]["localdbkey"]
@@ -54,10 +51,11 @@ def getArgs():
         if "is_development" in conf and not args.is_development: args.is_development = conf["is_development"]
 
     # default
-    if not args.host: args.host="localhost"
-    if not args.port: args.port=27017
-    if not args.db: args.db="localdb"
-    if not args.fhost: args.fhost="localhost"
-    if not args.fport: args.fport=5000
+    if not args.host   : args.host  = "localhost"
+    if not args.port   : args.port  = 27017
+    if not args.db     : args.db    = "localdb"
+    if not args.fhost  : args.fhost = "localhost"
+    if not args.fport  : args.fport = 5000
+    if not args.userdb : args.userdb = "localdb_user"
 
     return args

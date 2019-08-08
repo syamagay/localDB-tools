@@ -4,7 +4,6 @@ mongoDB:
     host: DBIPADDRESS # IP address running mongoDB
     port: DBPORT     # port number running mongoDB
     db: localdb     # local database name
-    version: 1
 
     # For localdb authentication
     localdbkey: #localdbkeypass # username of account with administrator authority in mongoDB
