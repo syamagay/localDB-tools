@@ -37,7 +37,7 @@ from flask_pymongo      import PyMongo
 from flask_httpauth     import HTTPBasicAuth
 from flask_httpauth     import HTTPDigestAuth
 from flask_mail         import Mail, Message
-from pymongo            import MongoClient
+from pymongo            import MongoClient, errors
 from bson.objectid      import ObjectId 
 from werkzeug           import secure_filename # for upload system
 from PIL                import Image
