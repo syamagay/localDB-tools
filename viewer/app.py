@@ -29,9 +29,12 @@ import gridfs                          # gridfs system
 import io
 import yaml
 import pytz
+import string
+import secrets
 
 from flask              import Flask, request, redirect, url_for, render_template, session, make_response, jsonify, send_file, send_from_directory
 from flask_pymongo      import PyMongo
+from flask_httpauth     import HTTPBasicAuth
 from flask_httpauth     import HTTPDigestAuth
 from flask_mail         import Mail, Message
 from pymongo            import MongoClient
@@ -94,10 +97,14 @@ app.register_blueprint(static.app)
 # secret_key
 app.config['SECRET_KEY'] = os.urandom(24)
 #app.config['SECRET_KEY'] = 'key'
-auth = HTTPDigestAuth()
+auth = HTTPBasicAuth()
 
 dbv=args.version
- 
+
+if args.localdbkey:
+    password_text = open(args.localdbkey,"r")
+    password = password_text.read().split()
+    password_text.close()
 
 # MongoDB settings
 def init():
@@ -132,8 +139,8 @@ def init():
         print('Need user authentication.')
         USER_FUNCTION = True
         ### Need user authentication
-        if args.username: username = args.username
-        if args.password: password = args.password
+        if args.localdbkey: username = password[0]
+        if args.localdbkey: password = password[1]
         through = False
         while through==False:
             if not username or not password: 
@@ -152,8 +159,7 @@ def init():
                 localdb.authenticate(username, password)
                 through = True
             except errors.OperationFailure as err: 
-                args.username = None
-                args.password = None
+                args.localdbkey = None
                 print('Authentication failed.')
                 answer = input('Try again? [y/n(skip)]\n> ')
                 print('')
@@ -1249,7 +1255,8 @@ def login():
         MONGO_URL = 'mongodb://' + password[0] + ':' + password[1] + '@' + args.host + ':' + str(args.port) 
     else:
         MONGO_URL = 'mongodb://' + args.host + ':' + str(args.port) 
-    mongo     = PyMongo(app, uri=MONGO_URL+'/'+args.userdb)
+    mongo     = PyMongo(app, uri=MONGO_URL+'/'+args.userdb+'?authSource=localdb')
+#    mongo     = PyMongo(app, uri=MONGO_URL+'/'+args.userdb)
     fs = gridfs.GridFS(mongo.db)
     dbv=args.version
 
@@ -1303,8 +1310,13 @@ else:
 @auth.get_password
 def get_pw(username):
     if username in users:
-        return users.get(username)
+        return users.get(username)  
     return None
+
+@auth.hash_password
+def hash_pw(password):
+    return hashlib.md5( password.encode('utf-8') ).hexdigest()
+
 
 @app.route('/signup',methods=['GET','POST'])
 @auth.login_required
@@ -1313,7 +1325,8 @@ def signup():
         MONGO_URL = 'mongodb://' + password[0] + ':' + password[1] + '@' + args.host + ':' + str(args.port) 
     else:
         MONGO_URL = 'mongodb://' + args.host + ':' + str(args.port) 
-    mongo     = PyMongo(app, uri=MONGO_URL+'/'+args.userdb)
+    mongo     = PyMongo(app, uri=MONGO_URL+'/'+args.userdb+'?authSource=localdb')
+#    mongo     = PyMongo(app, uri=MONGO_URL+'/'+args.userdb)
     fs = gridfs.GridFS(mongo.db)
     dbv=args.version
 
@@ -1376,11 +1389,13 @@ def signup():
 
 @app.route('/register_password',methods=['GET','POST'])
 def register_password():
+
     if args.localdbkey:
         MONGO_URL = 'mongodb://' + password[0] + ':' + password[1] + '@' + args.host + ':' + str(args.port) 
     else:
         MONGO_URL = 'mongodb://' + args.host + ':' + str(args.port) 
-    mongo     = PyMongo(app, uri=MONGO_URL+'/'+args.userdb)
+    mongo     = PyMongo(app, uri=MONGO_URL+'/'+args.userdb+'?authSource=localdb')
+#    mongo     = PyMongo(app, uri=MONGO_URL+'/'+args.userdb)
     fs = gridfs.GridFS(mongo.db)
     dbv=args.version
 
