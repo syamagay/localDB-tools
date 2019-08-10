@@ -447,7 +447,8 @@ def show_component():
     result_index = setResultIndex() 
     results = setResults()     
     roots = setRoots()    
-    dcs = setDCS()
+    ###dcs = setDCS() ### TODO update
+    dcs = {}
 
     component = { 
         '_id'        : session.get('this',None),
@@ -602,7 +603,8 @@ def show_dummy():
     result_index = {}
     results      = setResults()
     roots        = setRoots()    
-    dcs          = setDCS()
+    ### dcs          = setDCS() ### TODO UPDATE
+    dcs = {}
 
     component = { 
         '_id'         : session['this'],

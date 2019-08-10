@@ -186,7 +186,8 @@ def setTimezone():
     return timezones 
 
 def setEnv(thisTestRun):
-    env_list = thisTestRun.get('environments',[])
+    #env_list = thisTestRun.get('environments',[])
+    env_list = []
     env_dict = { 'list': env_list,
                  'num' : len(env_list) }
     return env_dict
@@ -721,15 +722,15 @@ def setResults():
             })
         elif key=='address' and not this_run[key]=='...':
             results['info'].update({ 'site': this_site['institution'].replace('_', ' ') })
-        elif key=='environment':
-            value = ''
-            if not this_run[key]=='...':
-                query = { '_id': ObjectId(this_run[key]) }
-                this_dcs = localdb.environment.find_one(query)
-                for dcs_key in this_dcs:
-                    if dcs_key=='_id' or dcs_key=='sys' or dcs_key=='dbVersion': continue
-                    value+='{}<br>'.format(dcs_key)
-            results['info'].update({ key: value })
+        #elif key=='environment':
+        #    value = ''
+        #    if not this_run[key]=='...':
+        #        query = { '_id': ObjectId(this_run[key]) }
+        #        this_dcs = localdb.environment.find_one(query)
+        #        for dcs_key in this_dcs:
+        #            if dcs_key=='_id' or dcs_key=='sys' or dcs_key=='dbVersion': continue
+        #            value+='{}<br>'.format(dcs_key)
+        #    results['info'].update({ key: value })
         elif type(this_run[key])==type([]):
             value = ''
             for i in this_run[key]:
