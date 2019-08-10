@@ -969,7 +969,7 @@ def setDCS():
 
     query = { '_id': ObjectId(session['runId']) }
     this_run = localdb.testRun.find_one( query )
-    if this_run['environment']=="...":
+    if this_run.get('environment','...')=="...":
         dcs_data.update({ 'dcs_data_exist' : False })
         return dcs_data
 
