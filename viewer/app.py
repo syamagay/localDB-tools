@@ -118,9 +118,6 @@ def init():
         db_ca_certs = args.sslCAFile
         db_certfile = args.sslPEMKeyFile
         url+='/?ssl=true&ssl_ca_certs={0}&ssl_certfile={1}&ssl_match_hostname=false&authMechanism=MONGODB-X509'.format(db_ca_certs,db_certfile)
-    else:
-        db_ca_certs = None 
-        db_certfile = None 
     client = MongoClient( url,
                           serverSelectionTimeoutMS=max_server_delay,
     )
