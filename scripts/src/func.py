@@ -31,10 +31,11 @@ except:
     DOROOT = False 
 
 # dcsPlot
+from scripts.src import dcs_plot
 try:
-    from scripts.src import dcs_plot
     import time
     DODCS=True
+    DCScandidates=['vdda_voltage','vdda_current','vddd_voltage','vddd_current','hv_voltage','hv_current','temprature']
 except:
     DODCS= False
 
@@ -941,30 +942,70 @@ def writeConfig(mo_serial_number,config_type):
     
     filename = TMP_DIR + '/' + str(session.get('uuid','localuser')) + '/config/' + str(mo_serial_number) + '_' + str(config_type) + '.zip'
     return filename
+def writeDcsDat(chipname,envId,dcsPlotList):
+    query={ "_id" : ObjectId(envId) }
+    environments=localdb.environment.find_one(query)
+    for candidate in DCScandidates :
+        if dcsPlotList.get(candidate) is None :
+            dcsPlotList[candidate]={}
+        env_data_num=environments.get(candidate)
+        if not env_data_num is None :
+            num=0
+            for env_data_list in env_data_num :
+                if dcsPlotList[candidate].get(num) is None :
+                    dcsPlotList[candidate][num]={}
+                file_path=TMP_DIR + '/' + str(session.get('uuid','localuser')) + '/dcs/dat/'+str(chipname)+'_'+str(candidate)+'_'+str(num)+'.dat'
+                if env_data_list.get('data'):
+                    with open(file_path,'w') as f:
+                        description=env_data_list['description']
+                        f.write(candidate+'\n')
+                        f.write(str(num)+'\n')
+                        f.write(chipname+'\n')
+                        f.write(description+'\n')
+                        for env_data in env_data_list['data']:
+                            text=str(time.mktime(env_data['date'].timetuple()))+' '+str(env_data['value'])+'\n'
+                            f.write(text)
+                    dcsPlotList[candidate][num].update({ chipname : { 'dat' : file_path }} )
+                num+=1
+    return dcsPlotList
 
 def make_dcsplot(runId):
-
-    environmentId=localdb.testRun.find_one({"_id":ObjectId(runId)}).get('environment')
+    query={ "testRun" : runId }
+    environmentIds=[]
+    chipnames=[]
+    dcsPlotList={}
+    comp_this_run=localdb.componentTestRun.find(query)
+    for chip_this_run in comp_this_run :
+        environmentId=chip_this_run.get("environment")
+        if not environmentId == "..." and not environmentId is None :
+            environmentIds.append(environmentId)
+            chipnames.append(chip_this_run.get('name'))
+    for chipname, envId in zip(chipnames,environmentIds) :
+        dcsPlotList=writeDcsDat(chipname,envId,dcsPlotList)
 
     startTime=localdb.testRun.find_one({"_id":ObjectId(runId)}).get('startTime')
     finishTime=localdb.testRun.find_one({"_id":ObjectId(runId)}).get('finishTime')
     startTime=time.mktime(startTime.timetuple())
-    finishTime=time.mktime(finishTime.timetuple())
-
-    DCS_data_block=localdb.environment.find_one({"_id":ObjectId(environmentId)})
+    finishTime=time.mktime(finishTime.timetuple())    
 
     if not session['dcsStat'].get('timeRange') :
         session['dcsStat'].update({'timeRange' : [startTime-10,finishTime+10]})
     if not session['dcsStat'].get('RunTime') :
         session['dcsStat'].update({'RunTime' : [startTime,finishTime]})
 
-    session['dcsList']=dcs_plot.dcs_plot(DCS_data_block,startTime,finishTime,session['dcsList'])
+    session['dcsPlot']=dcs_plot.dcs_plot(dcsPlotList)
+            
+    
 def setDCS():
     dcs_data={}
-    session['dcsList']={}
+    session['dcsPlot']={}
     DCS_DIR  = TMP_DIR + '/' + str(session.get('uuid','localuser')) + '/dcs'
+    DCS_dat_DIR=DCS_DIR+'/dat'
+    DCS_plot_DIR=DCS_DIR+'/plot'
 
     cleanDir(DCS_DIR)
+    cleanDir(DCS_dat_DIR)
+    cleanDir(DCS_plot_DIR)
 
     if not session.get( 'runId' ) : return dcs_data    
 
@@ -988,13 +1029,13 @@ def setDCS():
     results['other']=[]
     results['stat']={}
 
-    dcs_status=make_dcsplot(session['runId'])
+    make_dcsplot(session['runId'])
 
-    if session.get('dcsList'):
-        for dcsType in session.get( 'dcsList' ):
-            if session['dcsList'][dcsType].get( 'file_num' ) :
-                file_num=session['dcsList'][dcsType].get('file_num')
-                fileList=session['dcsList'][dcsType].get('filename')
+    if session.get('dcsPlot'):
+        for dcsType in session.get( 'dcsPlot' ):
+            if session['dcsPlot'][dcsType].get( 'file_num' ) :
+                file_num=session['dcsPlot'][dcsType].get('file_num')
+                fileList=session['dcsPlot'][dcsType].get('filename')
                 if file_num==2 :
                     for i,filename in zip(["1","2"],fileList) :
                         if os.path.isfile( filename ) :
@@ -1003,17 +1044,17 @@ def setDCS():
                             binary_image.close()
                             url.update({ i : bin2image( 'png', code_base64 ) })
                     results['iv'].append({ 'dcsType' : dcsType ,
-                                           'keyName' : session['dcsList'][dcsType].get('keyName'),
+                                           'keyName' : session['dcsPlot'][dcsType].get('keyName'),
                                            'runId'   : session.get('runId'),
                                            'url_v'   : url.get("1"),
                                            'url_i'   : url.get("2"),
                                            'sortkey' : '{}0'.format(dcsType),
-                                           'v_min'   : session['dcsList'][dcsType].get('v_min'),
-                                           'v_max'   : session['dcsList'][dcsType].get('v_max'),
-                                           'v_step'  : session['dcsList'][dcsType].get('v_step'),
-                                           'i_min'   : session['dcsList'][dcsType].get('i_min'),
-                                           'i_max'   : session['dcsList'][dcsType].get('i_max'),
-                                           'i_step'  : session['dcsList'][dcsType].get('i_step')
+                                           'v_min'   : session['dcsPlot'][dcsType].get('v_min'),
+                                           'v_max'   : session['dcsPlot'][dcsType].get('v_max'),
+                                           'v_step'  : session['dcsPlot'][dcsType].get('v_step'),
+                                           'i_min'   : session['dcsPlot'][dcsType].get('i_min'),
+                                           'i_max'   : session['dcsPlot'][dcsType].get('i_max'),
+                                           'i_step'  : session['dcsPlot'][dcsType].get('i_step')
                                        })
                 if file_num==1 :
                     for filename in fileList :
@@ -1028,9 +1069,9 @@ def setDCS():
                                               'runId'   : session.get('runId'),
                                               'url'     : url.get("1"),
                                               'sortkey' : '{}0'.format(dcsType),
-                                              'min'     : session['dcsList'][dcsType].get('min'),
-                                              'max'     : session['dcsList'][dcsType].get('max'),
-                                              'step'    : session['dcsList'][dcsType].get('step')
+                                              'min'     : session['dcsPlot'][dcsType].get('min'),
+                                              'max'     : session['dcsPlot'][dcsType].get('max'),
+                                              'step'    : session['dcsPlot'][dcsType].get('step')
                                           })
     timeRange=[]
     timeRange.append(setDatetime(datetime.fromtimestamp(session['dcsStat'].get('timeRange')[0])))
