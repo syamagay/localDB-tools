@@ -437,9 +437,8 @@ def show_component():
         comments.append(comment)
     
     # set summary 
-#    summary = setSummary()
+    summary = setSummary()
 
-    summary={}
     # set results
     result_index = setResultIndex() 
     results = setResults()     

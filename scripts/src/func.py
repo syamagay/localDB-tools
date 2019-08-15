@@ -197,12 +197,15 @@ def setEnv(thisTestRun):
 # summary plot for each stage in component page
 def setSummary():
 
-    query = { '_id': ObjectId(session['this']) } 
-    this_cmp = localdb.component.find_one(query)
-    chip_type = this_cmp['chipType']
-    serial_number = this_cmp['serialNumber']
-
     summary_index = []
+
+    if not session.get('this',None):
+        return summary_index
+
+    query = { '_id': ObjectId(session['this']) } 
+    this_cmp = localdb[session['collection']].find_one(query)
+    chip_type = this_cmp['chipType']
+    serial_number = this_cmp['name']
 
     entries = {}
     # pick runs with 'summary: True' for each stage
@@ -662,7 +665,7 @@ def setResults():
                 query = { '_id': ObjectId(this_ctr[key]) }
                 this_config = localdb.config.find_one(query)
                 config_files[key]['data'].append({
-                    'filename'  : '{}.json'.format(this_ctr['config']),
+                    'filename'  : '{}.json'.format(this_ctr.get('config',this_ctr['name'])),
                     'code'      : this_config['data_id'],
                     '_id'       : this_ctr[key],
                     'chip_name' : this_ctr['name'],
