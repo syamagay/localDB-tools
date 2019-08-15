@@ -281,7 +281,7 @@ def checkComponentTestRun(i_oid=None, i_cmp_oid=None, i_tr_oid=None):
                 plots.append(title)
         if attachment['contentType']=='after' or attachment['contentType']=='before': 
             registerConfig(attachment, oid)
-    for attachment in this_new.get('attachments',[]): 
+    for attachment in this_old.get('attachments',[]): 
         title = registerDatFromDat(attachment, oid)
         if not title == '':
             plots.append(title)
