@@ -15,11 +15,11 @@ from   pymongo       import MongoClient
 from   bson.objectid import ObjectId   
 
 ### Set DBs
-url = 'mongodb://127.0.0.1:28000' 
+url = 'mongodb://127.0.0.1:27017' 
 client = MongoClient( url )
 new_db = 'localdb'
-copy_db = 'localdb_save'
-old_db  = 'atlaspc9'
+copy_db = 'localdb_replica'
+old_db  = 'yarrdb'
 yarrdb  = client[old_db]
 localdb = client[new_db]
 yarrfs  = gridfs.GridFS( yarrdb )
