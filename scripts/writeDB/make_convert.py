@@ -562,10 +562,16 @@ def updateTestRun(i_oid):
         chip_type = this_chip['chipType']
         break
 
+    ### config
+    config_doc = {}
+    for key in this:
+        if 'Cfg' in key and not this[key]=='...':
+            config_doc.update({ key: updateConfig(this[key]) })
+
     ### environment
     dcs = updateEnvironment(col, this.get('environment', '...'))
 
-    start_time = this.get('startTime', this['sys']['cts'])
+    start_time = this.get('startTime', this['sys'].get('cts',this['sys']['mts']))
     finish_time = this.get('finishTime', None)
     if not finish_time: finish_time = start_time
 
@@ -587,6 +593,7 @@ def updateTestRun(i_oid):
             'finishTime' : finish_time
         }
     }
+    update_doc['$set'].update(config_doc)
     query = { '_id': ObjectId(i_oid) }
     localdb[col].update_one( query, update_doc )
     return True
@@ -598,7 +605,7 @@ def updateComponentTestRun(i_oid):
 
     ### chip
     thisChip = None
-    if not this.get('chip', 'module')=='module':
+    if not this.get('chip', 'module')=='module' and not this.get('chip','...')=='...':
         query = { 
             '_id'      : ObjectId(this['chip']),
             'dbVersion': db_version
@@ -623,19 +630,21 @@ def updateComponentTestRun(i_oid):
     if not thisChip and thisCmp:
         chip_oid = checkChip(str(thisCmp['_id'])) 
     else:
-        chip_oid = this.get('chip',None)
+        chip_oid = this.get('chip', '...')
 
     ### testRun
     query = { '_id': ObjectId(this['testRun']) }
     thisRun = localdb.testRun.find_one(query)
 
-    if not thisRun or not chip_oid:
-        write_log( '\t[Failed] {0:<20} : Not found testRun or chip document: {1}'.format(col, i_oid))
+    if not thisRun:
+        write_log( '\t[Failed] {0:<20} : Not found testRun: {1}'.format(col, i_oid))
         disabled(i_oid, col)
         return False
 
     if chip_oid=='module':
         name = thisCmp['serialNumber']
+    elif chip_oid=='...':
+        name = this.get('name', 'DisabledChip')
     else:
         query = { '_id': ObjectId(chip_oid) }
         thisChip = localdb.chip.find_one(query)
@@ -644,7 +653,7 @@ def updateComponentTestRun(i_oid):
     ### attachments
     attachments = []
     for this_attachment in this.get('attachments', []):
-        if updateAttachment(this_attachment['code']):
+        if updateAttachment(this_attachment['code'], this_attachment['contentType']):
             attachments.append(this_attachment)
 
     ### config
@@ -724,6 +733,9 @@ def updateEnvironment(i_col, i_oid):
         write_log( '\t[Update] {0:<20} Disabled original document: {1}'.format(col, i_oid))
         disabled(i_oid, col)
 
+    elif i_col=='componentTestRun':
+        updateVer(i_oid, col)
+
     updateSys(i_oid, col)
     write_log( '\t[Update] {0:<20} : {1}'.format(col, str(i_oid)))
     return True
@@ -758,7 +770,7 @@ def updateConfig(i_oid):
     write_log( '\t[Update] {0:<20} : {1}'.format('config', i_oid))
     return i_oid
 
-def updateAttachment(i_oid):
+def updateAttachment(i_oid, i_type):
 
     ### fs.files
     query = { '_id': ObjectId(i_oid) }
@@ -770,6 +782,15 @@ def updateAttachment(i_oid):
 
     if not this_file or this_chunks==0:
         return False
+
+    if i_type=='dat' and is_dat(localfs.get(ObjectId(i_oid)).read()):
+        write_log( '\t[Failed] {0:<20} : Not dat data: {1}'.format('fs.files', i_oid))
+        disabled(i_oid, 'fs.files')
+        return False
+    if i_type=='png' and is_png(localfs.get(ObjectId(i_oid)).read()):
+        write_log( '\t[Failed] {0:<20} : Not png data: {1}'.format('fs.files', i_oid))
+        disabled(i_oid, 'fs.files')
+        return False 
 
     updateVer(i_oid, 'fs.files')
     updateSys(i_oid, 'fs.files')
@@ -1131,7 +1152,7 @@ def verifyComponentTestRun(i_oid):
             disabled(i_oid, col)
             return False
     ### chip
-    if not this.get('chip', 'module')=='module':
+    if not this.get('chip', 'module')=='module' and not this.get('chip','...')=='...':
         query = { 
             '_id'      : ObjectId(this['chip']),
             'dbVersion': db_version
@@ -1705,7 +1726,7 @@ def confirm():
     cols = localdb.list_collection_names()
     for col in cols:
         if col=='fs.chunks': continue
-        query = { 'dbVersion': {'$ne': db_version} }
+        query = { 'dbVersion': {'$ne': db_version}, 'update_failed': {'$ne': True} }
         entries = localdb[col].find(query, projection={'_id':1})
         for entry in entries:
             write_log( '\t[Failed] {0:<20} : Not match DB version: {1}'.format(col, str(entry['_id'])))
