@@ -783,11 +783,11 @@ def updateAttachment(i_oid, i_type):
     if not this_file or this_chunks==0:
         return False
 
-    if i_type=='dat' and is_dat(localfs.get(ObjectId(i_oid)).read()):
+    if i_type=='dat' and not is_dat(localfs.get(ObjectId(i_oid)).read()):
         write_log( '\t[Failed] {0:<20} : Not dat data: {1}'.format('fs.files', i_oid))
         disabled(i_oid, 'fs.files')
         return False
-    if i_type=='png' and is_png(localfs.get(ObjectId(i_oid)).read()):
+    if i_type=='png' and not is_png(localfs.get(ObjectId(i_oid)).read()):
         write_log( '\t[Failed] {0:<20} : Not png data: {1}'.format('fs.files', i_oid))
         disabled(i_oid, 'fs.files')
         return False 
