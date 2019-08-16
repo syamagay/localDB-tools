@@ -43,11 +43,11 @@ def sync():
     #================================
     def __status():
         logger.setFuncName("status")
-        commit_cnt = __pull(True)
-        logger.info(TOOLNAME + "You have " + str(commit_cnt) + " commits to pull!")
+        #commit_count = __pull_or_push(True)
+        #logger.info("You have %d commits to pull!" % commit_count)
 
-        doc_cnt = __commit(True)
-        logger.info(TOOLNAME + "You have " + str(doc_cnt) + " documents to commit!")
+        doc_count = __commit(True)
+        logger.info("You have %d documents to commit!" % doc_count)
 
     #================================
     # commit
@@ -71,7 +71,7 @@ def sync():
 
         # Construct a new commit doc
         commit_doc = __query()
-        commit_doc["master_user"] = localInfo["master_user"]
+        commit_doc["local_server_config_id"] = local_server_config_id
         if last_commit_doc: commit_doc["parent"] = last_commit_doc["_id"]
         else: commit_doc["parent"] = ""
         commit_doc["commit_type"] = "commit"
@@ -110,7 +110,7 @@ def sync():
             # Insert commit and update ref for local
             insert_one_result = localdbtool_dbs["local"]["commits"].insert_one(commit_doc)
             __updateRef("local", "head", local_head_ref_doc, insert_one_result.inserted_id)
-            __insert_log(insert_one_result.inserted_id, "commit")
+            #__insert_log(insert_one_result.inserted_id, "commit")
             logger.info("Finished commit! Total %d documents. The last commit id is %s." % (doc_count, str(insert_one_result.inserted_id)) )
 
     #================================
@@ -118,6 +118,11 @@ def sync():
     #================================
     def __fetch():
         logger.setFuncName("fetch")
+
+        # Download server documents
+        server_docs = localdbtool_dbs["master"]["servers"].find()
+        for server_doc in server_docs:
+            localdbtool_dbs["local"]["servers"].replace_one({"_id": server_doc["_id"]}, server_doc, upsert=True)
 
         # Get head reference on master
         master_head_ref_doc = localdbtool_dbs["master"]["refs"].find_one({"ref_type": "head"})
@@ -165,18 +170,14 @@ def sync():
                 local_remote_ref_doc["last_commit_id"] = ""
         # Create a merge commit and insert
         commit_doc = __query()
-        commit_doc["master_user"] = localInfo["master_user"]
+        commit_doc["local_server_config_id"] = local_server_config_id
         commit_doc["parent"] = local_head_ref_doc["last_commit_id"]
         commit_doc["parent_merge"] = local_remote_ref_doc["last_commit_id"]
         commit_doc["commit_type"] = "merge"
         insert_one_result = localdbtool_dbs["local"]["commits"].insert_one(commit_doc)
         commit_doc["_id"] = insert_one_result.inserted_id
-        #localdbtool_dbs["master"]["commits"].insert_one(commit_doc)
-        __insert_log(commit_doc["_id"], "merge")
         # Update refs
         __updateRef("local", "head", local_head_ref_doc, commit_doc["_id"])
-        #__updateRef("local", "remote", local_remote_ref_doc, commit_doc["_id"])
-        #__updateRef("master", "head", master_head_ref_doc, commit_doc["_id"])
         return commit_doc
 
     #================================
@@ -190,6 +191,12 @@ def sync():
         elif pull_or_push == "push":
             copy_from = "local"
             copy_to = "master"
+
+        # Check in logs
+        log_doc = localdbtool_dbs["local"]["logs"].find_one({"commit_id": commit_doc["_id"]})
+        if log_doc:
+            logger.warning("Commit already exists in 'logs'! Cannot %s! _id: '%s'" % (pull_or_push, commit_doc["_id"]) )
+            return -1
 
         for ids_collection in commit_doc["ids"]:
             # Get collection names from key, no fs.chunks
@@ -223,7 +230,8 @@ def sync():
         # Upload commit doc when push
         if pull_or_push == "push": update_result = localdbtool_dbs[copy_to]["commits"].replace_one({"_id": commit_doc["_id"]}, commit_doc, upsert=True)
         if update_result.modified_count != 0: logger.warning("commit doc _id '%s' was already exist!" % (str(commit_doc["_id"])) )
-        if pull_or_push == "pull": __insert_log(commit_doc["_id"], "pull")
+        #if pull_or_push == "pull": __insert_log(commit_doc["_id"], "pull")
+        __insert_log(commit_doc["_id"], pull_or_push)
 
         return id_count
 
@@ -239,7 +247,10 @@ def sync():
             # parent --- child
             #==========================
             if commit_doc["commit_type"] == "commit":
-                if pull_or_push == "pull" or pull_or_push == "push": count[1] += __pull_or_push_from_commit(pull_or_push, commit_doc)
+                if pull_or_push == "pull" or pull_or_push == "push":
+                    id_count = __pull_or_push_from_commit(pull_or_push, commit_doc)
+                    if id_count == -1: return False
+                    else: count[1] += id_count
                 count[0] += 1
             #==========================
             # parent ---------- child
@@ -251,9 +262,11 @@ def sync():
                 if pull_or_push == "push":
                     update_result = localdbtool_dbs["master"]["commits"].replace_one({"_id": commit_doc["_id"]}, commit_doc, upsert=True)
                     if update_result.modified_count != 0: logger.warning("commit document alread exist! _id: '%s'" % commit_doc["_id"])
+                    else: __insert_log(commit_doc["_id"], "push")
                 parent_merge_commit_doc = localdbtool_dbs["local"]["commits"].find_one({"_id": commit_doc["parent_merge"]})
                 if not parent_merge_commit_doc: logger.error("Parent merge commit document not found! _id: '%s'" % commit_doc["parent_merge"])
-                if not __get_commit_tree(count, pull_or_push, stopper_commit_id, parent_merge_commit_doc): return False
+                #if not __get_commit_tree(count, pull_or_push, stopper_commit_id, parent_merge_commit_doc): return False
+                __get_commit_tree(count, pull_or_push, stopper_commit_id, parent_merge_commit_doc)
 
             # Get parent commit
             commit_doc = localdbtool_dbs["local"]["commits"].find_one({"_id": commit_doc["parent"]})
@@ -359,24 +372,57 @@ def sync():
         return MongoClient(url)["localdb"], MongoClient(url)["localdbtools"]
 
     def __getLocalInfo():
-        # Get machine host name, user name and mac address
-        myInfo = {}
-        myInfo["local_machine_hostname"] = os.environ["HOSTNAME"]
-        myInfo["local_machine_user"] = os.environ["USER"]
-        mac = get_mac()
-        myInfo["local_machine_mac"] = "".join(c + ":" if i % 2 else c for i, c in enumerate(hex(mac)[2:].zfill(12)))[:-1]
+        # Find sync config
+        sync_config_doc = localdbtool_dbs["local"]["configs"].find_one({"config_type": "sync"})
 
-        # Attach user name on master server
-        myInfo["master_user"] = args.musername
+        if sync_config_doc:
+            local_server_config_id = sync_config_doc["_id"]
+        else:
+            # If no sync config, create new and insert
+            logger.warning("Local server config not found! Create newn one...")
+            sync_config_doc = __query()
+            sync_config_doc["config_type"] = "sync"
 
-        # Get network info
-        ipinfo_url = "https://ipinfo.io"
-        ipinfo_request = requests.get(ipinfo_url)
-        ipinfo_json = json.loads(ipinfo_request.text)
-        myInfo["local_network_ip"] = ipinfo_json["ip"]
-        myInfo["local_network_loc"] = ipinfo_json["loc"]
-        myInfo["local_network_hostname"] = ipinfo_json["hostname"]
-        return myInfo
+            # Get machine host name, user name and mac address
+            sync_config_doc["machine"] = {}
+            sync_config_doc["machine"]["hostname"] = os.environ["HOSTNAME"]
+            sync_config_doc["machine"]["user"] = os.environ["USER"]
+            mac = get_mac()
+            sync_config_doc["machine"]["mac"] = "".join(c + ":" if i % 2 else c for i, c in enumerate(hex(mac)[2:].zfill(12)))[:-1]
+
+            # Get network info
+            ipinfo_url = "https://ipinfo.io"
+            ipinfo_request = requests.get(ipinfo_url)
+            if ipinfo_request:
+                ipinfo_json = json.loads(ipinfo_request.text)
+                sync_config_doc["network"] = {}
+                sync_config_doc["network"]["ip"] = ipinfo_json["ip"]
+                sync_config_doc["network"]["hostname"] = ipinfo_json["hostname"]
+                sync_config_doc["network"]["city"] = ipinfo_json["city"]
+                sync_config_doc["network"]["region"] = ipinfo_json["region"]
+                sync_config_doc["network"]["country"] = ipinfo_json["country"]
+                sync_config_doc["network"]["loc"] = ipinfo_json["loc"]
+            else:
+                if not args.f:
+                    logger.error("Cannot connect to network! If you want to ignore this, please use '-f' option!")
+
+            #json_file = open("sync_config.json", "w+", encoding="utf-8")
+            #json.dump(sync_config_doc, json_file, ensure_ascii=False, indent=4)
+            # Insert
+            insert_one_result = localdbtool_dbs["local"]["configs"].insert_one(sync_config_doc)
+            local_server_config_id = insert_one_result.inserted_id
+            sync_config_doc["_id"] = local_server_config_id
+            # Insert to local server collection
+            localdbtool_dbs["local"]["servers"].insert_one(sync_config_doc)
+
+        # Push local server config to master if not exist
+        master_server_doc = localdbtool_dbs["master"]["servers"].find_one({"_id": local_server_config_id})
+        if not master_server_doc:
+            localdbtool_dbs["master"]["servers"].replace_one({"_id": local_server_config_id}, sync_config_doc, upsert=True)
+
+        logger.debug("Local server config id: %s" % local_server_config_id)
+
+        return local_server_config_id
 
 
     #================================================================================
@@ -390,14 +436,15 @@ def sync():
 
     # Setup logging
     logger = Logger(TOOLNAME)
-    logger.setupLogging(logfile=args.logfile)
+    if args.logfile: logger.setupLogging(logfile=args.logfile)
+    else: logger.setupLogging()
 
     # Connect mongoDB
     server_names = ["local", "master"]
     temp_local_db_localdb, temp_local_db_localdbtools = __connectMongoDB("local", args.host, args.port, args.username, args.keypath)
     temp_master_db_localdb, temp_master_db_localdbtools = __connectMongoDB("master", args.mhost, args.mport, args.musername, args.mkeypath)
 
-    # Debbug
+    # Debug
     from bson import SON
     c = MongoClient("mongodb://localhost:27011")
     result = c.admin.command(SON([
@@ -426,8 +473,7 @@ def sync():
     current_datetime = datetime.datetime.utcnow()
 
     # Get localDB server config
-    localInfo = __getLocalInfo()
-
+    local_server_config_id = __getLocalInfo()
 
     # process sync option
     if args.sync_opt == "status": __status()
@@ -436,12 +482,14 @@ def sync():
     elif args.sync_opt == "pull": __pull_or_push("pull")
     elif args.sync_opt == "push": __pull_or_push("push")
     elif args.sync_opt == "auto":
-        __commit()
         __fetch()
         __pull_or_push("pull")
+        __commit()
         __pull_or_push("push")
     else:
         logger.error("--sync-opt not given or not matched! exit!", exit_code=1)
+
+    logger.info("All done.")
 
 
 if __name__ == '__main__': sync()
