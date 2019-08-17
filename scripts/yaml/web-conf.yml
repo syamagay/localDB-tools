@@ -4,19 +4,21 @@ mongoDB:
     host: DBIPADDRESS # IP address running mongoDB
     port: DBPORT     # port number running mongoDB
     db: localdb     # local database name
+    username: # username of user account in MongoDB
+    password: # password of user account in MongoDB
+    keyFile: # path/to/user/key/file
+    ssl:
+        enabled: False
+        CAFile: # path/to/CA/file
+        PEMKeyFile: # path/to/certificate/file 
+    tls:
+        enabled: False
+        CAFile: # path/to/CA/file 
+        CertificateFile: # path/to/certificate/file
+    auth: #x509
 
-    # For localdb authentication
-    localdbkey: #localdbkeypass # username of account with administrator authority in mongoDB
-    
-    # For userdb authentication
 userDB:
     db: localdb_user
-
-
-ssl:
-    enabled: False
-    #CAFile: path/to/CA/file
-    #PEMKeyFile: path/to/certificate/file
 
 flask:
     host: 127.0.0.1 # IP address running app.py

@@ -4,7 +4,7 @@ retrieve_remote_api = Blueprint('retrieve_remote_api', __name__)
 
 @retrieve_remote_api.route('/retrieve/remote', methods=['GET'])
 def retrieve_remote():
-    localdb = LocalDB.getMongo().db
+    localdb = LocalDB.getDB()
 
     return_json = { 'modules': [] }
     query = { 'componentType': 'Module' }

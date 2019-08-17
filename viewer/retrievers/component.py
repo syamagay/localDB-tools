@@ -4,7 +4,7 @@ retrieve_component_api = Blueprint('retrieve_component_api', __name__)
 
 @retrieve_component_api.route('/retrieve/component', methods=['GET'])
 def retrieve_component():
-    localdb = LocalDB.getMongo().db
+    localdb = LocalDB.getDB()
     return_json = {}
 
     run_oid = None

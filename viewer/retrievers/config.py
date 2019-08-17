@@ -4,7 +4,7 @@ retrieve_config_api = Blueprint('retrieve_config_api', __name__)
 
 @retrieve_config_api.route('/retrieve/config', methods=['GET'])
 def retrieve_config():
-    localdb = LocalDB.getMongo().db
+    localdb = LocalDB.getDB()
     fs = gridfs.GridFS(localdb)
 
     get_list = {}

@@ -53,9 +53,9 @@ from plotly.graph_objs import *
 # Global Variables
 #-----------------------------------------------------------------
 class LocalDB:
-    db_mongo = ""
-    def getMongo():
-        return LocalDB.db_mongo
+    localdb = ""
+    def getDB():
+        return LocalDB.localdb
 
-    def setMongo(mongo):
-        LocalDB.db_mongo = mongo
+    def setDB(db):
+        LocalDB.localdb = db

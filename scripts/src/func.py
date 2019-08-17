@@ -14,8 +14,7 @@ import io
 import zipfile
 
 from flask         import url_for, session  # use Flask scheme
-from flask_pymongo import PyMongo
-from pymongo       import MongoClient, DESCENDING  # use mongodb scheme
+from pymongo       import MongoClient, DESCENDING, errors  # use mongodb scheme
 from bson.objectid import ObjectId  # handle bson format
 from binascii      import a2b_base64  # convert a block of base64 data back to binary
 from pdf2image     import convert_from_path  # convert pdf to image
@@ -38,24 +37,6 @@ try:
 except:
     DODCS= False
 
-# directories 
-"""
- /
- `-- tmp
-      |-- [username who execute app.py]
-               |-- [reader1's userid] ... reader's directory (created and reset in app.py) 
-               |      :
-               |-- [reader#'s userid]
-               |        |-- dat    ... dat files  (reset in writeDat())
-               |        |-- plot   ... plot files (reset in makePlot()) 
-               |        |-- before ... previous summary plots in add_summary function (reset in first time setsummary_test())
-               |        `-- after  ... modified summary plots in add_summary function (reset in first time setsummary_test())
-               | 
-               |-- thumbnail ... summary plots (reset after add_summary function)
-               |        `-- [reader's userid] ... summary plots for user (created and reset in show_summary())
-               `-- json ... json file ; <reader's userid>_parameter.json (created in makePlot())
-"""
-
 TMP_DIR       = '/tmp/{}'.format(pwd.getpwuid(os.geteuid()).pw_name) 
 UPLOAD_DIR    = '{}/upload'.format(TMP_DIR)
 THUMBNAIL_DIR = '{}/thumbnail'.format(TMP_DIR)
@@ -65,32 +46,102 @@ _DIRS = [UPLOAD_DIR, STATIC_DIR, THUMBNAIL_DIR, JSON_DIR]
 
 # MongoDB setting
 args = getArgs()
-_MONGO_URL = 'mongodb://' + args.host + ':' + str(args.port) 
-### check ssl
-db_ssl = args.ssl
-if db_ssl==True:
-    db_ca_certs = args.sslCAFile
-    db_certfile = args.sslPEMKeyFile
-    _MONGO_URL+='/?authMechanism=MONGODB-X509'
-else:
-    db_ca_certs = None 
-    db_certfile = None 
-_max_server_delay = 10
-client = MongoClient( _MONGO_URL,
-                      serverSelectionTimeoutMS=_max_server_delay,
-                      ssl_match_hostname=False,
-                      ssl=db_ssl,
-                      ssl_ca_certs=db_ca_certs,
-                      ssl_certfile=db_certfile
-)
+def readKey(i_path):
+    file_text = open(i_path, 'r')
+    file_keys = file_text.read().split()
+    keys = {
+        'username': file_keys[0],
+        'password': file_keys[1]
+    }
+    file_text.close()
+    return keys
+
+def init():
+    url = 'mongodb://{0}:{1}'.format(args.host,args.port)
+
+    ### check ssl
+    db_tls = args.tls
+    db_ssl = args.ssl
+    if db_tls:
+        db_ca_certs = args.tlsCAFile
+        db_certfile = args.tlsCertificateKeyFile
+    elif db_ssl:
+        db_ca_certs = args.sslCAFile
+        db_certfile = args.sslPEMKeyFile
+
+    ### check tls
+    if db_ssl or db_tls:
+        url+='/?ssl=true&ssl_ca_certs={0}&ssl_certfile={1}&ssl_match_hostname=false'.format(db_ca_certs,db_certfile)
+        ### check auth mechanism
+        db_auth = args.auth
+        if db_auth=='x509':
+            url+='&authMechanism=MONGODB-X509'
+            authSource = '$external'
+
+    max_server_delay = 10
+    client = MongoClient( 
+        url,
+        serverSelectionTimeoutMS=max_server_delay,
+    )
+    localdb = client[args.db]
+    username = None
+    password = None
+    authSource = args.db
+
+    try:
+        localdb.list_collection_names()
+
+    except errors.ServerSelectionTimeoutError as err:
+        ### Connection failed
+        print('The connection of Local DB {} is BAD.'.format(url))
+        print(err)
+        sys.exit(1)
+
+    except errors.OperationFailure as err: 
+        ### Need user authentication
+        print('Need user authentication.')
+        ### check user and password
+        if args.KeyFile:
+            keys = readKey(args.KeyFile)
+            username = keys['username']
+            password = keys['password']
+        through = False
+        while through==False:
+            if not username or not password: 
+                answer = input('Continue? [y/n(skip)]\n> ')
+                print('')
+                if answer.lower()=='y':
+                    username = None
+                    password = None
+                else:
+                    sys.exit(1)
+                username = input('User name > ')
+                print('')
+                password = getpass('Password > ')
+                print('')
+            try:
+                localdb.authenticate(username, password)
+                through = True
+            except errors.OperationFailure as err: 
+                args.localdbkey = None
+                print('Authentication failed.')
+                answer = input('Try again? [y/n(skip)]\n> ')
+                print('')
+                if answer.lower()=='y':
+                    username = input('User name > ')
+                    print('')
+                    password = getpass('Password > ')
+                    print('')
+                else:
+                    sys.exit(1)
+
+    client = MongoClient(url, username=username, password=password, authSource=authSource)
+
+    return client
+
+client = init()
 localdb = client[args.db]
-if args.localdbkey:
-    password_text = open(args.localdbkey,"r")
-    password = password_text.read().split()
-    password_text.close()
-    localdb.authenticate(password[0],password[1])
-else: 
-    pass
+userdb = client[args.userdb]
 fs = gridfs.GridFS(localdb)
 
 #####
