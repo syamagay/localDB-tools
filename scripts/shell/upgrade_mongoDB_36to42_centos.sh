@@ -22,6 +22,7 @@ data="{\"text\":\"
 data_path=/var/lib/mongo
 backup_path=./mongoDB-backup
 
+port=27777
 
 #----------------------
 # Stop mongoDB daemon
@@ -57,14 +58,14 @@ echo -e \
 sudo yum update -y
 
 # Open mongoDB temporary
-sudo mongod --port 27777 &
+sudo mongod --port ${port} --dbpath ${data_path} &
 sleep 15
 
 # Upgrade mongoDB data to 4.0
-mongo --port 27777 --eval "db.adminCommand( { setFeatureCompatibilityVersion: "4.0" } )"
+mongo --port ${port} --dbpath ${data_path} --eval "db.adminCommand( { setFeatureCompatibilityVersion: "4.0" } )"
 
 # Shutdown temporary mongoDB
-mongod --port 27777 --shutdown
+mongod --port ${port} --dbpath ${data_path} --shutdown
 
 
 #----------------------
@@ -82,14 +83,14 @@ echo -e \
 sudo yum update -y
 
 # Open mongoDB temporary
-sudo mongod --port 27777 &
+sudo mongod --port ${port} --dbpath ${data_path} &
 sleep 15
 
 # Upgrade mongoDB data to 4.0
-mongo --port 27777 --eval "db.adminCommand( { setFeatureCompatibilityVersion: "4.2" } )"
+mongo --port ${port} --dbpath ${data_path} --eval "db.adminCommand( { setFeatureCompatibilityVersion: "4.2" } )"
 
 # Shutdown temporary mongoDB
-mongod --port 27777 --shutdown
+mongod --port ${port} --dbpath ${data_path} --shutdown
 
 
 #----------------------
