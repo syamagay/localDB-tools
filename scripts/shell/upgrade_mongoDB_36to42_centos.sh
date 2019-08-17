@@ -25,6 +25,12 @@ backup_path=./mongoDB-backup
 port=27777
 
 #----------------------
+# Set expands variables and prints a little + sign before the line
+#----------------------
+set -x
+
+
+#----------------------
 # Stop mongoDB daemon
 #----------------------
 sudo systemctl stop mongod.service
@@ -48,13 +54,13 @@ sudo tar zcvf ${backup_path}/mongo_`date +%y%m%d_%H%M%S`.tar.gz ${data_path} \
 #----------------------
 # Update mongoDB bin to 4.0
 echo -e \
-    "[mongodb-org-4.0]\n" \
-    "name=MongoDB Repository\n" \
-    "baseurl=https://repo.mongodb.org/yum/redhat/$releasever/mongodb-org/4.0/x86_64/\n" \
-    "gpgcheck=1\n" \
-    "enabled=1\n" \
-    "gpgkey=https://www.mongodb.org/static/pgp/server-4.0.asc" \
-    | sudo tee /etc/yum.repos.d/mongodb-org-4.2.repo
+"[mongodb-org-4.0]
+name=MongoDB Repository
+baseurl=https://repo.mongodb.org/yum/redhat/\$releasever/mongodb-org/4.0/x86_64/
+gpgcheck=1
+enabled=1
+gpgkey=https://www.mongodb.org/static/pgp/server-4.0.asc" \
+    | sudo tee /etc/yum.repos.d/mongodb-org-4.0.repo
 sudo yum update -y
 
 # Open mongoDB temporary
@@ -62,7 +68,7 @@ sudo mongod --port ${port} --dbpath ${data_path} &
 sleep 15
 
 # Upgrade mongoDB data to 4.0
-mongo --port ${port} --dbpath ${data_path} --eval "db.adminCommand( { setFeatureCompatibilityVersion: "4.0" } )"
+mongo --port ${port} --eval "db.adminCommand( { setFeatureCompatibilityVersion: '4.0' } )"
 
 # Shutdown temporary mongoDB
 mongod --port ${port} --dbpath ${data_path} --shutdown
@@ -73,13 +79,13 @@ mongod --port ${port} --dbpath ${data_path} --shutdown
 #----------------------
 # Update mongoDB bin to 4.2
 echo -e \
-    "[mongodb-org-4.2]" \
-    "name=MongoDB Repository" \
-    "baseurl=https://repo.mongodb.org/yum/redhat/$releasever/mongodb-org/4.2/x86_64/" \
-    "gpgcheck=1" \
-    "enabled=1" \
-    "gpgkey=https://www.mongodb.org/static/pgp/server-4.2.asc" \
-    | sudo tee /etc/yum.repos.d/mongodb-org-4.0.repo
+"[mongodb-org-4.2]
+name=MongoDB Repository
+baseurl=https://repo.mongodb.org/yum/redhat/\$releasever/mongodb-org/4.2/x86_64/
+gpgcheck=1
+enabled=1
+gpgkey=https://www.mongodb.org/static/pgp/server-4.2.asc" \
+    | sudo tee /etc/yum.repos.d/mongodb-org-4.2.repo
 sudo yum update -y
 
 # Open mongoDB temporary
@@ -87,7 +93,7 @@ sudo mongod --port ${port} --dbpath ${data_path} &
 sleep 15
 
 # Upgrade mongoDB data to 4.0
-mongo --port ${port} --dbpath ${data_path} --eval "db.adminCommand( { setFeatureCompatibilityVersion: "4.2" } )"
+mongo --port ${port} --eval "db.adminCommand( { setFeatureCompatibilityVersion: '4.2' } )"
 
 # Shutdown temporary mongoDB
 mongod --port ${port} --dbpath ${data_path} --shutdown
@@ -97,6 +103,13 @@ mongod --port ${port} --dbpath ${data_path} --shutdown
 # Clean
 #----------------------
 sudo rm -f /etc/yum.repos.d/mongodb-org-3.6.repo /etc/yum.repos.d/mongodb-org-4.0.repo
+
+
+#----------------------
+# Change permission, context
+#----------------------
+sudo chcon -R -u system_u -t mongod_var_lib_t /var/lib/mongo/
+sudo chown -R mongod:mongod /var/lib/mongo
 
 
 #----------------------
