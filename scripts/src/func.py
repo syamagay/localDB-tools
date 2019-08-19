@@ -1019,22 +1019,39 @@ def writeDcsDat(chipname,envId,dcsPlotList):
                         for env_data in env_data_list['data']:
                             text=str(time.mktime(env_data['date'].timetuple()))+' '+str(env_data['value'])+'\n'
                             f.write(text)
-                    dcsPlotList[candidate][num].update({ chipname : { 'dat' : file_path }} )
+                    
+                    dcsPlotList[candidate][num][chipname]={ 'dat' : file_path } 
                 num+=1
     return dcsPlotList
 
 def make_dcsplot(runId):
-    query={ "testRun" : runId }
-    environmentIds=[]
-    chipnames=[]
     dcsPlotList={}
-    comp_this_run=localdb.componentTestRun.find(query)
-    for chip_this_run in comp_this_run :
-        environmentId=chip_this_run.get("environment")
+    collection=session['collection']
+    chip_oids = []
+    if session['unit']=='module':
+        query = { 'parent': session['this'] }
+        cpr_entries = localdb.childParentRelation.find(query)
+        for this_cpr in cpr_entries:
+            chip_oids.append( this_cpr['child'] )
+    elif session['this']:
+        chip_oids.append( session['this'] )
+    else:
+        query = { 'testRun': run_oid }
+        ctr_entries = localdb.componentTestRun.find(query)
+        for this_ctr in ctr_entries:
+            chip_oids.append(this_ctr['chip'])
+
+    for cmp_oid in chip_oids :
+        query={ "testRun"  : runId,
+                collection : cmp_oid}
+        environmentIds=[]
+        comp_this_run=localdb.componentTestRun.find_one(query)
+
+        environmentId=comp_this_run.get("environment")
         if not environmentId == "..." and not environmentId is None :
-            environmentIds.append(environmentId)
-            chipnames.append(chip_this_run.get('name'))
-    for chipname, envId in zip(chipnames,environmentIds) :
+            envId=environmentId
+            chipname=comp_this_run.get('name')
+            
         dcsPlotList=writeDcsDat(chipname,envId,dcsPlotList)
 
     startTime=localdb.testRun.find_one({"_id":ObjectId(runId)}).get('startTime')
@@ -1082,7 +1099,6 @@ def setDCS():
     results['iv']=[]
     results['other']=[]
     results['stat']={}
-
     make_dcsplot(session['runId'])
 
     if session.get('dcsPlot'):
