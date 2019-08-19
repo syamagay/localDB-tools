@@ -33,7 +33,6 @@ import string
 import secrets
 
 from flask              import Flask, request, redirect, url_for, render_template, session, make_response, jsonify, send_file, send_from_directory
-from flask_pymongo      import PyMongo
 from flask_httpauth     import HTTPBasicAuth
 from flask_httpauth     import HTTPDigestAuth
 from flask_mail         import Mail, Message
@@ -43,12 +42,16 @@ from werkzeug           import secure_filename # for upload system
 from PIL                import Image
 from getpass            import getpass
 
+LocalDB.setDB(localdb)
+
+print(localdb.list_collection_names())
+
 # For retriever
 from retrievers.component import retrieve_component_api
-from retrievers.testrun import retrieve_testrun_api
-from retrievers.config import retrieve_config_api
-from retrievers.log import retrieve_log_api
-from retrievers.remote import retrieve_remote_api
+from retrievers.testrun   import retrieve_testrun_api
+from retrievers.config    import retrieve_config_api
+from retrievers.log       import retrieve_log_api
+from retrievers.remote    import retrieve_remote_api
 
 if os.path.isdir( TMP_DIR ): 
     shutil.rmtree( TMP_DIR )
@@ -101,84 +104,6 @@ auth = HTTPBasicAuth()
 
 dbv=1.01
 
-if args.localdbkey:
-    password_text = open(args.localdbkey,"r")
-    password = password_text.read().split()
-    password_text.close()
-
-# MongoDB settings
-def init():
-    global USER_FUNCTION
-    USER_FUNCTION = False
-    max_server_delay = 10
-    url = 'mongodb://{0}:{1}'.format(args.host,args.port)
-    ### check ssl
-    db_ssl = args.ssl
-    if db_ssl==True:
-        db_ca_certs = args.sslCAFile
-        db_certfile = args.sslPEMKeyFile
-        url+='/?ssl=true&ssl_ca_certs={0}&ssl_certfile={1}&ssl_match_hostname=false&authMechanism=MONGODB-X509'.format(db_ca_certs,db_certfile)
-    else:
-        db_ca_certs = None 
-        db_certfile = None 
-    client = MongoClient( url,
-                          serverSelectionTimeoutMS=max_server_delay,
-    )
-    localdb = client[args.db]
-    username = None
-    password = None
-    auth = ''
-    try:
-        localdb.collection_names()
-    except errors.ServerSelectionTimeoutError as err:
-        ### Connection failed
-        print('The connection of Local DB {} is BAD.'.format(url))
-        print(err)
-        sys.exit(1)
-    except errors.OperationFailure as err: 
-        print('Need user authentication.')
-        USER_FUNCTION = True
-        ### Need user authentication
-        if args.localdbkey: username = password[0]
-        if args.localdbkey: password = password[1]
-        through = False
-        while through==False:
-            if not username or not password: 
-                answer = input('Continue? [y/n(skip)]\n> ')
-                print('')
-                if answer.lower()=='y':
-                    username = None
-                    password = None
-                else:
-                    sys.exit(1)
-                username = input('User name > ')
-                print('')
-                password = getpass('Password > ')
-                print('')
-            try:
-                localdb.authenticate(username, password)
-                through = True
-            except errors.OperationFailure as err: 
-                args.localdbkey = None
-                print('Authentication failed.')
-                answer = input('Try again? [y/n(skip)]\n> ')
-                print('')
-                if answer.lower()=='y':
-                    username = input('User name > ')
-                    print('')
-                    password = getpass('Password > ')
-                    print('')
-                else:
-                    sys.exit(1)
-    if username and password:
-        auth = '{0}:{1}@'.format(username,password)
-
-    MONGO_URL = 'mongodb://{0}{1}:{2}/{3}'.format(auth,args.host,args.port,args.db)
-    if db_ssl==True:
-        MONGO_URL+='?ssl=true&ssl_ca_certs={0}&ssl_certfile={1}&ssl_match_hostname=false&authMechanism=MONGODB-X509'.format(db_ca_certs,db_certfile)
-
-    return MONGO_URL
-
 ############
 ### Top Page 
 @app.route('/', methods=['GET'])
@@ -189,7 +114,6 @@ def show_toppage():
         if os.path.isdir( user_dir ): shutil.rmtree( user_dir )
     else:
         session['uuid'] = str( uuid.uuid4() ) 
-
     makeDir()
     cleanDir( STATIC_DIR )
     session.pop( 'signup', None )
@@ -206,28 +130,28 @@ def show_modules_and_chips():
         '$or': [{'componentType': 'module'}, {'componentType': 'Module'}], 
         'dbVersion'    : dbv 
     }
-    module_entries = mongo.db.component.find( query )
+    module_entries = localdb.component.find( query )
     module_ids = []
     for module in module_entries:
         module_ids.append(str(module['_id']))
     modules = {}
     for module_id in module_ids:
         query = { '_id': ObjectId(module_id) }
-        this_module = mongo.db.component.find_one( query )
+        this_module = localdb.component.find_one( query )
         chip_type = this_module['chipType']
         if not chip_type in modules:
             modules.update({ chip_type: { 'modules': [], 'num': '' } })
 
         ### child chips
         query = { 'parent': module_id }
-        child_entries = mongo.db.childParentRelation.find( query )
+        child_entries = localdb.childParentRelation.find( query )
         chip_ids = []
         for child in child_entries:
             chip_ids.append(child['child'])
         chips = []
         for chip_id in chip_ids:
             query = { '_id': ObjectId(chip_id) }
-            this_chip = mongo.db.component.find_one( query )
+            this_chip = localdb.component.find_one( query )
             try:
                 name = this_chip['name']
             except:
@@ -241,7 +165,7 @@ def show_modules_and_chips():
 
         ### Latest Scan
         query = { 'component': module_id  }
-        run_entries = mongo.db.componentTestRun.find(query).sort([( '$natural', -1 )]).limit(1)
+        run_entries = localdb.componentTestRun.find(query).sort([( '$natural', -1 )]).limit(1)
         result = { 
             'stage'   : None, 
             'runId'   : None,
@@ -251,13 +175,13 @@ def show_modules_and_chips():
         }
         for this_ctr in run_entries:
             query = { '_id': ObjectId(this_ctr['testRun']) }
-            this_run = mongo.db.testRun.find_one(query)
+            this_run = localdb.testRun.find_one(query)
             ### user
             query = { '_id': ObjectId(this_run['user_id']) }
-            this_user = mongo.db.user.find_one(query)
+            this_user = localdb.user.find_one(query)
             ### site
             query = { '_id': ObjectId(this_run['address']) }
-            this_site = mongo.db.institution.find_one(query)
+            this_site = localdb.institution.find_one(query)
             result.update({ 
                 'stage'   : this_run['stage'].replace('_', ' '), 
                 'runId'   : str(this_run['_id']),
@@ -298,21 +222,21 @@ def show_chips():
 
     ### query chips
     query = { 'dbVersion': dbv }
-    chip_entries = mongo.db.chip.find( query )
+    chip_entries = localdb.chip.find( query )
     chip_ids = []
     for chip in chip_entries:
         chip_ids.append(str(chip['_id']))
     chips = {}
     for chip_id in chip_ids:
         query = { '_id': ObjectId(chip_id) }
-        this_chip = mongo.db.chip.find_one( query )
+        this_chip = localdb.chip.find_one( query )
         chip_type = this_chip['chipType']
         if not chip_type in chips:
             chips.update({ chip_type: { 'chips': [], 'num': '' } })
 
         ### Latest Result
         query = { 'chip': chip_id }
-        run_entries = mongo.db.componentTestRun.find(query).sort([( '$natural', -1 )]).limit(1)
+        run_entries = localdb.componentTestRun.find(query).sort([( '$natural', -1 )]).limit(1)
         result = { 
             'stage'   : None, 
             'runId'   : None,
@@ -322,13 +246,13 @@ def show_chips():
         }
         for this_ctr in run_entries:
             query = { '_id': ObjectId(this_ctr['testRun']) }
-            this_run = mongo.db.testRun.find_one(query)
+            this_run = localdb.testRun.find_one(query)
             ### user
             query = { '_id': ObjectId(this_run['user_id']) }
-            this_user = mongo.db.user.find_one(query)
+            this_user = localdb.user.find_one(query)
             ### site
             query = { '_id': ObjectId(this_run['address']) }
-            this_site = mongo.db.institution.find_one(query)
+            this_site = localdb.institution.find_one(query)
             result.update({ 
                 'stage'   : this_run['stage'].replace('_', ' '), 
                 'runId'   : str(this_run['_id']),
@@ -377,7 +301,7 @@ def show_component():
     if session.get('this',None):
         ### this component
         query = { '_id': ObjectId(session['this']) }
-        this_cmp = mongo.db[session['collection']].find_one( query )
+        this_cmp = localdb[session['collection']].find_one( query )
 
         # component type
         cmp_type = str(this_cmp['componentType']).lower().replace(' ','_')
@@ -388,7 +312,7 @@ def show_component():
             parent_id = session['this']
         else:
             query = { 'child': session['this'] }
-            this_cpr = mongo.db.childParentRelation.find_one( query )
+            this_cpr = localdb.childParentRelation.find_one( query )
             if this_cpr: parent_id = this_cpr['parent']
             else: parent_id = None
 
@@ -398,12 +322,12 @@ def show_component():
         if parent_id:
             ### this module
             query = { '_id': ObjectId(parent_id) }
-            this_module = mongo.db.component.find_one( query )
+            this_module = localdb.component.find_one( query )
             comment_query.append({ 'componentId': parent_id })
             
             ### chips of module
             query = { 'parent': parent_id }
-            child_entries = mongo.db.childParentRelation.find( query )
+            child_entries = localdb.childParentRelation.find( query )
             chip_ids = []
             for child in child_entries:
                 chip_ids.append(child['child'])
@@ -412,7 +336,7 @@ def show_component():
             ### set chip and module information
             for chip_id in chip_ids:
                 query = { '_id': ObjectId(chip_id) }
-                this_chip = mongo.db.component.find_one( query )
+                this_chip = localdb.component.find_one( query )
                 component_chips.append({ 
                     '_id'         : chip_id,
                     'collection'  : 'component',
@@ -435,14 +359,13 @@ def show_component():
 
     # comment
     comments=[]
-    comment_entries = mongo.db.comments.find({ '$or':comment_query })
+    comment_entries = localdb.comments.find({ '$or':comment_query })
     for comment in comment_entries:
         comments.append(comment)
     
     # set summary 
-#    summary = setSummary()
+    summary = setSummary()
 
-    summary={}
     # set results
     result_index = setResultIndex() 
     results = setResults()     
@@ -473,8 +396,8 @@ def show_scans():
     sort_cnt = int(request.args.get('p',0))
 
     query = { 'dbVersion': dbv }
-    run_entries = mongo.db.testRun.find(query).sort([( '$natural', -1 )] )
-    run_counts = mongo.db.testRun.count_documents(query)
+    run_entries = localdb.testRun.find(query).sort([( '$natural', -1 )] )
+    run_counts = localdb.testRun.count_documents(query)
     run_ids = []
     for i, this_run in enumerate(run_entries):
         if i//max_num<sort_cnt: continue
@@ -498,18 +421,18 @@ def show_scans():
 
     for run_id in run_ids:
         query = { '_id': ObjectId(run_id) }
-        this_run = mongo.db.testRun.find_one (query)
+        this_run = localdb.testRun.find_one (query)
         ### user
         query = { '_id': ObjectId(this_run['user_id']) }
-        this_user = mongo.db.user.find_one(query)
+        this_user = localdb.user.find_one(query)
         user_name = this_user['userName'].replace('_', ' ')
         ### site
         query = { '_id': ObjectId(this_run['address']) }
-        this_site = mongo.db.institution.find_one(query)
+        this_site = localdb.institution.find_one(query)
         site_name = this_site['institution'].replace('_', ' ')
         ### component
         query = { 'testRun': run_id }
-        ctr_entries = mongo.db.componentTestRun.find(query)
+        ctr_entries = localdb.componentTestRun.find(query)
         components = []
         for this_ctr in ctr_entries:
             if not this_ctr['component']=='...':
@@ -556,7 +479,7 @@ def show_dummy():
     session['this'] = serial_number
     session['runId'] = request.args.get( 'runId' )
     query = { '_id': ObjectId(session['runId']) }
-    this_run = mongo.db.testRun.find_one(query)
+    this_run = localdb.testRun.find_one(query)
 
     # this component
     if session['this']==this_run['name']: cmp_type = 'Module'
@@ -575,7 +498,7 @@ def show_dummy():
     # get comments for this module
     query = {'runId':session['runId']}
     comments=[]
-    comment_entries = mongo.db.comments.find(query)
+    comment_entries = localdb.comments.find(query)
     for comment in comment_entries:
         comments.append(comment)
   
@@ -586,7 +509,7 @@ def show_dummy():
         'testRun': session['runId'], 
         'component':{'$ne': this_run['name']} 
     }
-    ctr_entries = mongo.db.componentTestRun.find(query)
+    ctr_entries = localdb.componentTestRun.find(query)
     for ctr_entry in ctr_entries:
         component_chips.append({
             '_id': ctr_entry['component'],
@@ -720,12 +643,12 @@ def select_summary():
     # this component
     query = { '_id': ObjectId(session['this']) }
 
-    if not str(mongo.db.component.find_one( query )['componentType']).lower().replace(' ','_') == 'Module'.lower().replace(' ','_'):
+    if not str(localdb.component.find_one( query )['componentType']).lower().replace(' ','_') == 'Module'.lower().replace(' ','_'):
         query = { 'child': session['this'] }
-        session['this'] = mongo.db.childParentRelation.find_one( query )['parent']
+        session['this'] = localdb.childParentRelation.find_one( query )['parent']
 
     query = { '_id': ObjectId(session['this']) }
-    this_cmp = mongo.db.component.find_one( query )
+    this_cmp = localdb.component.find_one( query )
 
     unit = 'module'
 
@@ -753,18 +676,18 @@ def select_summary():
     # chips and parent
     chips = []
     query = [{ 'parent': session['this'] },{ 'child': session['this'] }]
-    child_entries = mongo.db.childParentRelation.find({ '$or': query })
+    child_entries = localdb.childParentRelation.find({ '$or': query })
     for child in child_entries:
         chips.append({ 'component': child['child'] })
         parent_id = child['parent']
 
     # this module
     query = { '_id': ObjectId(parent_id) }
-    this_module = mongo.db.component.find_one( query )
+    this_module = localdb.component.find_one( query )
 
     # chips of module
     query = { 'parent': parent_id }
-    child_entries = mongo.db.childParentRelation.find( query )
+    child_entries = localdb.childParentRelation.find( query )
     chip_ids = []
     for child in child_entries:
         chip_ids.append(child['child'])
@@ -774,7 +697,7 @@ def select_summary():
     component_chips = []
     for chip_id in chip_ids:
         query = { '_id': ObjectId(chip_id) }
-        this_chip = mongo.db.component.find_one( query )
+        this_chip = localdb.component.find_one( query )
         #str(component['componentType']).lower().replace(' ','_') = str(this_chip['componentType']).lower().replace(' ','_')
         component_chips.append({ '_id'        : chip_id,
                                  'serialNumber': this_chip['serialNumber'] })
@@ -782,7 +705,7 @@ def select_summary():
                'serialNumber': this_module['serialNumber'] }
 
     query = { '$or': chips }
-    run_entries = mongo.db.componentTestRun.find( query )
+    run_entries = localdb.componentTestRun.find( query )
     stages = []
     for run in run_entries:
         stages.append( run.get('stage') )
@@ -814,7 +737,7 @@ def add_summary():
 
     componentId = request.args.get( 'id' )
     query = { '_id': ObjectId( componentId ) }
-    this_cmp = mongo.db.component.find_one( query )
+    this_cmp = localdb.component.find_one( query )
 
     for scan in session['summaryList']['before']:
 
@@ -827,7 +750,7 @@ def add_summary():
 
             # insert testRun and componentTestRun
             query = { 'testRun': session['summaryList']['after'][scan]['runId'] }
-            this_ctr = mongo.db.componentTestRun.find_one( query ) 
+            this_ctr = localdb.componentTestRun.find_one( query ) 
 
             if this_ctr['component'] == componentId: 
                 runoid = session['summaryList']['after'][scan]['runId']  
@@ -837,7 +760,7 @@ def add_summary():
 
                 moduleComponentTestRun = this_ctr
                 query = { '_id': ObjectId(session['summaryList']['after'][scan]['runId']) }
-                moduleTestRun = mongo.db.testRun.find_one( query )
+                moduleTestRun = localdb.testRun.find_one( query )
                 moduleComponentTestRun.pop( '_id', None )
                 moduleTestRun.pop( '_id', None )
 
@@ -845,19 +768,19 @@ def add_summary():
                 moduleTestRun.update({ 'sys': { 'rev': 0,
                                                  'cts': thistime,
                                                  'mts': thistime }})
-                runoid = str(mongo.db.testRun.insert( moduleTestRun ))
+                runoid = str(localdb.testRun.insert( moduleTestRun ))
                 moduleComponentTestRun.update({ 'component': componentId,
                                                 'testRun' : runoid,
                                                 'sys'       : { 'rev': 0,
                                                                   'cts': thistime,
                                                                   'mts': thistime }})
-                mongo.db.componentTestRun.insert( moduleComponentTestRun )
+                localdb.componentTestRun.insert( moduleComponentTestRun )
 
             # add attachments into module TestRun
             query = { 'component': componentId, 'testRun': runoid }
-            this_ctr = mongo.db.componentTestRun.find_one( query )
+            this_ctr = localdb.componentTestRun.find_one( query )
             query = { '_id': ObjectId(runoid) }
-            thisRun = mongo.db.testRun.find_one( query )
+            thisRun = localdb.testRun.find_one( query )
 
             for mapType in session.get('plotList'):
                 if session['plotList'][mapType]['HistoType'] == 1: continue
@@ -869,7 +792,7 @@ def add_summary():
                     for attachment in thisRun['attachments']:
                         if filename == attachment.get('filename'):
                             fs.delete( ObjectId(attachment.get('code')) )
-                            mongo.db.testRun.update( query, { '$pull': { 'attachments': { 'code': attachment.get('code') }}}) 
+                            localdb.testRun.update( query, { '$pull': { 'attachments': { 'code': attachment.get('code') }}}) 
 
 
                     filepath = '{0}/{1}/plot/{2}_{3}_{4}.png'.format(TMP_DIR, str(session.get('uuid')), str(thisRun['testType']), str(mapType), i)
@@ -877,7 +800,7 @@ def add_summary():
                         binary_image = open( filepath, 'rb' )
                         image = fs.put( binary_image.read(), filename='{}.png'.format(filename) )
                         binary_image.close()
-                        mongo.db.testRun.update( query, { '$push': { 'attachments': { 'code'      : str(image),
+                        localdb.testRun.update( query, { '$push': { 'attachments': { 'code'      : str(image),
                                                                                         'dateTime'  : datetime.datetime.utcnow(),
                                                                                         'title'     : 'title',
                                                                                         'description': 'describe',
@@ -886,13 +809,13 @@ def add_summary():
         # remove 'summary: True' in current summary run
         if session['summaryList']['before'][scan]['runId']:
             query = { '_id': ObjectId(session['summaryList']['before'][scan]['runId']) }
-            thisRun = mongo.db.testRun.find_one( query )
+            thisRun = localdb.testRun.find_one( query )
 
             keys = [ 'runNumber', 'institution', 'userIdentity', 'testType' ]
             query_id = dict( [ (key, thisRun[key]) for key in keys ] )
-            mongo.db.testRun.update( query_id, { '$set': { 'summary': False }}, multi=True )
+            localdb.testRun.update( query_id, { '$set': { 'summary': False }}, multi=True )
 
-            mongo.db.testRun.update( query_id, { '$push': { 'comments': { 'userIdentity': session['userIdentity'],
+            localdb.testRun.update( query_id, { '$push': { 'comments': { 'userIdentity': session['userIdentity'],
                                                                             'userid'     : session['uuid'],
                                                                             'comment'    : session['summaryList']['after'][scan]['comment'], 
                                                                             'after'      : session['summaryList']['after'][scan]['runId'],
@@ -902,31 +825,31 @@ def add_summary():
             updateData( 'testRun', query_id ) 
 
         query = { 'component': componentId, 'stage': session['stage'], 'testType': scan }
-        entries = mongo.db.componentTestRun.find( query )
+        entries = localdb.componentTestRun.find( query )
         run_ids = []
         for entry in entries:
             run_ids.append(entry['testRun'])
         for run_id in run_ids:
             query = { '_id': ObjectId(run_id)}
-            thisRun = mongo.db.testRun.find_one( query )
+            thisRun = localdb.testRun.find_one( query )
             keys = [ 'runNumber', 'institution', 'userIdentity', 'testType' ]
             query_id = dict( [ (key, thisRun[key]) for key in keys ] )
-            run_entries = mongo.db.testRun.find( query_id )
+            run_entries = localdb.testRun.find( query_id )
             for run in run_entries:
                 if run.get( 'summary' ):
                     query = { '_id': run['_id'] }
-                    mongo.db.testRun.update( query, { '$set': { 'summary': False }} )
+                    localdb.testRun.update( query, { '$set': { 'summary': False }} )
                     updateData( 'testRun', query )
 
         # add 'summary: True' in selected run
         if session['summaryList']['after'][scan]['runId']:
             query = { '_id': ObjectId(session['summaryList']['after'][scan]['runId']) }
-            thisRun = mongo.db.testRun.find_one( query )
+            thisRun = localdb.testRun.find_one( query )
 
             keys = [ 'runNumber', 'institution', 'userIdentity', 'testType' ]
             query_id = dict( [ (key, thisRun[key]) for key in keys ] )
 
-            mongo.db.testRun.update( query_id, { '$set': { 'summary': True }}, multi=True )
+            localdb.testRun.update( query_id, { '$set': { 'summary': True }}, multi=True )
             updateData( 'testRun', query_id ) 
 
     # pop session
@@ -949,7 +872,7 @@ def show_summary():
     stage = request.args.get('stage')
 
     query = { '_id': ObjectId(code) }
-    data = mongo.db.fs.files.find_one( query )
+    data = localdb.fs.files.find_one( query )
     if not 'png' in data['filename']: 
         filePath = '{0}/{1}/{2}_{3}_{4}.png'.format( THUMBNAIL_DIR, session.get( 'uuid' ), stage, scan, data['filename'] )
     else:
@@ -978,7 +901,7 @@ def show_summary_selected():
     mapType = request.args.get( 'mapType' )
 
     query = { '_id': ObjectId(runoid) }
-    thisRun = mongo.db.testRun.find_one( query )
+    thisRun = localdb.testRun.find_one( query )
 
     makePlot( runoid )
 
@@ -1031,15 +954,15 @@ def tag():
     query = { '_id': ObjectId(session.get('tagid')) }
     collection = str(session.get('collection'))
 
-    data_entries = mongo.db[collection].find_one( query )['attachments']
+    data_entries = localdb[collection].find_one( query )['attachments']
     for data in data_entries:
         if data['code'] == request.args.get( 'code' ):
             if session.get('tag') == 'tag':
-                 mongo.db[collection].update( query, { '$set': { 'attachments.{}.display'.format( data_entries.index(data) ): True }})
+                 localdb[collection].update( query, { '$set': { 'attachments.{}.display'.format( data_entries.index(data) ): True }})
                  updateData( collection, query )
             elif session.get('tag') == 'untag':
-                 mongo.db[collection].update( query, { '$unset': { 'attachments.{}.display'.format( data_entries.index(data) ): True }})
-                 mongo.db[collection].update( query, { '$set' : { 'attachments.{}.description'.format( data_entries.index(data) ): '' }})
+                 localdb[collection].update( query, { '$unset': { 'attachments.{}.display'.format( data_entries.index(data) ): True }})
+                 localdb[collection].update( query, { '$set' : { 'attachments.{}.description'.format( data_entries.index(data) ): '' }})
                  updateData( collection, query )
             else:
                  print('can\'t get tag session')
@@ -1086,19 +1009,19 @@ def add_attachment_result():
     
     chips = []
     query = { 'parent': request.form.get( 'id' ) } 
-    child_entries = mongo.db.childParentRelation.find( query )
+    child_entries = localdb.childParentRelation.find( query )
     for child in child_entries:
         chips.append( { 'component': child['child'] } )
     query = { '$or': chips, 'runNumber': int( runNumber ) }
-    query = { '_id': ObjectId(mongo.db.componentTestRun.find_one( query )['testRun']) }
-    thisRun = mongo.db.testRun.find_one( query )
-    this_ctr = mongo.db.componentTestRun.find_one({ 'testRun': str(thisRun['_id']) })
+    query = { '_id': ObjectId(localdb.componentTestRun.find_one( query )['testRun']) }
+    thisRun = localdb.testRun.find_one( query )
+    this_ctr = localdb.componentTestRun.find_one({ 'testRun': str(thisRun['_id']) })
     env_dict = setEnv( this_ctr )
  
     query = { '_id': image }
-    date = mongo.db.fs.files.find_one( query )['uploadDate']
+    date = localdb.fs.files.find_one( query )['uploadDate']
     query = { '_id': ObjectId(request.form.get('id')) }
-    mongo.db.component.update( query, { '$push': { 'attachments': { 'code'      : str(image),
+    localdb.component.update( query, { '$push': { 'attachments': { 'code'      : str(image),
                                                                       'dateTime'  : date,
                                                                       'title'     : '',
                                                                       'description': '',
@@ -1124,11 +1047,11 @@ def edit_description():
         query = { '_id': ObjectId(request.form.get('id')) }
     else:
         return render_template( 'error.html', txt='something error', timezones=setTimezone() )
-    data_entries = mongo.db[ str(col) ].find_one( query )['attachments']
+    data_entries = localdb[ str(col) ].find_one( query )['attachments']
     for data in data_entries:
         if data['code'] == request.form.get( 'code' ):
             if 'display' in data:
-                mongo.db[ str(col) ].update( query, { '$set': { 'attachments.{}.description'.format( data_entries.index(data) ): request.form.get('description') }})
+                localdb[ str(col) ].update( query, { '$set': { 'attachments.{}.description'.format( data_entries.index(data) ): request.form.get('description') }})
 
                 updateData( str(col), query )
 
@@ -1140,7 +1063,7 @@ def edit_description():
 def edit_comment():
 
     thistime = datetime.datetime.utcnow()
-    mongo.db.comments.insert( 
+    localdb.comments.insert( 
     { 
         'sys'          : { 'rev': 0,'cts': thistime,'mts': thistime}, 
         'componentId'  : request.args.get( 'id', -1 ),
@@ -1160,7 +1083,7 @@ def edit_comment():
 
 #    if not runid == -1:
 #        query = { '_id': ObjectId(runid) }
-#        this_test = mongo.db.testRun.find_one( query )
+#        this_test = localdb.testRun.find_one( query )
 #        
 #        if not this_test['dummy']:
 #            forUrl = 'show_component'
@@ -1175,26 +1098,26 @@ def edit_comment():
 def remove_comment():
 
     query = { '_id': ObjectId(request.form.get( 'id' ))}
-    this_cmp = mongo.db.component.find_one( query )
+    this_cmp = localdb.component.find_one( query )
 
     if str(this_cmp['componentType']).lower().replace(' ','_') == 'Module'.lower().replace(' ','_'):
         query = { 'parent': request.form.get('id') }
     else:
         query = { 'child': request.form.get('id') }
-        parentoid = mongo.db.childParentRelation.find_one( query )['parent']
+        parentoid = localdb.childParentRelation.find_one( query )['parent']
         query = { 'parent': parentoid }
 
-    child_entries = mongo.db.childParentRelation.find( query )
+    child_entries = localdb.childParentRelation.find( query )
     component_chips = []
     for child in child_entries:
         component_chips.append({ 'component': child['child'] })
 
     query = { '$or': component_chips, 'runNumber': int(request.form.get( 'runNumber' )) }
 
-    run_entries = mongo.db.componentTestRun.find( query )
+    run_entries = localdb.componentTestRun.find( query )
     for run in run_entries:
         query = { '_id': ObjectId(run['testRun']) }
-        mongo.db.testRun.update( query, { '$pull': { 'comments': { 'user': request.form.get( 'user' ) }}} )
+        localdb.testRun.update( query, { '$pull': { 'comments': { 'user': request.form.get( 'user' ) }}} )
         updateData( 'testRun', query )
 
     forUrl = 'show_component'
@@ -1219,9 +1142,9 @@ def add_attachment():
         binary_image.close()
         
         query = { '_id': image }
-        date = mongo.db.fs.files.find_one( query )['uploadDate']
+        date = localdb.fs.files.find_one( query )['uploadDate']
         query = { '_id': ObjectId(request.form.get('id')) }
-        mongo.db.component.update( query, { '$push': { 'attachments': { 'code'      : str(image),
+        localdb.component.update( query, { '$push': { 'attachments': { 'code'      : str(image),
                                                                           'dateTime'  : date,
                                                                           'title'     : 'title',
                                                                           'description': description,
@@ -1242,7 +1165,7 @@ def remove_attachment():
     
     fs.delete( ObjectId(code) )
     query = { '_id': ObjectId(request.form.get('id')) }
-    mongo.db.component.update( query, { '$pull': { 'attachments': { 'code': code }}}) 
+    localdb.component.update( query, { '$pull': { 'attachments': { 'code': code }}}) 
     updateData( 'component', query )
 
     forUrl = 'show_component'
@@ -1251,22 +1174,13 @@ def remove_attachment():
 
 @app.route('/login',methods=['POST'])
 def login():
-
-    if args.localdbkey:
-        MONGO_URL = 'mongodb://' + password[0] + ':' + password[1] + '@' + args.host + ':' + str(args.port) 
-    else:
-        MONGO_URL = 'mongodb://' + args.host + ':' + str(args.port) 
-    mongo     = PyMongo(app, uri=MONGO_URL+'/'+args.userdb+'?authSource=localdb')
-#    mongo     = PyMongo(app, uri=MONGO_URL+'/'+args.userdb)
-    fs = gridfs.GridFS(mongo.db)
-
     pre_url = request.headers.get("Referer")
     pre_url_lastpass = pre_url.split('/')
 
     query = { 'username':request.form['username'] }
-    user = mongo.db.user.find_one(query)
+    user = userdb.user.find_one(query)
     query = {}
-    string = mongo.db.string.find_one(query)
+    string = userdb.string.find_one(query)
     if user == None:
         txt = 'This user does not exist'
         if not pre_url_lastpass[-1] == 'login':
@@ -1302,11 +1216,6 @@ def logout():
     return redirect( pre_url )
 #    return render_template( 'toppage.html', timezones=setTimezone() )
 
-if args.localdbkey:
-    users = {password[0]:password[1]}
-else:
-    users = {'username':hashlib.md5( 'password'.encode('utf-8') ).hexdigest()}
-
 @auth.get_password
 def get_pw(username):
     if username in users:
@@ -1321,14 +1230,6 @@ def hash_pw(password):
 @app.route('/signup',methods=['GET','POST'])
 @auth.login_required
 def signup():
-    if args.localdbkey:
-        MONGO_URL = 'mongodb://' + password[0] + ':' + password[1] + '@' + args.host + ':' + str(args.port) 
-    else:
-        MONGO_URL = 'mongodb://' + args.host + ':' + str(args.port) 
-    mongo     = PyMongo(app, uri=MONGO_URL+'/'+args.userdb+'?authSource=localdb')
-#    mongo     = PyMongo(app, uri=MONGO_URL+'/'+args.userdb)
-    fs = gridfs.GridFS(mongo.db)
-
     stage = request.form.get('stage','input')
     userinfo = request.form.getlist('userinfo')
     if userinfo==[]:
@@ -1345,7 +1246,7 @@ def signup():
             text = 'Please make sure your Email match'
             stage = 'input'
             return render_template( 'signup.html', userInfo=userinfo, passtext=text, stage=stage, timezones=setTimezone() )
-        if mongo.db.user.find({'username': userinfo[0]}).count() == 1:
+        if userdb.user.find({'username': userinfo[0]}).count() == 1:
             text = 'This username is already in use, please select an alternative.'
             stage = 'input'
             return render_template( 'signup.html', userInfo=userinfo, nametext=text, stage=stage, timezones=setTimezone() )
@@ -1356,7 +1257,7 @@ def signup():
                 return render_template( 'signup.html', userInfo=userinfo, stage=stage, timezones=setTimezone() )
             else:
                 thistime = datetime.datetime.now()
-                mongo.db.user.insert( 
+                userdb.user.insert( 
                 {    
                     'sys'          : { 'rev': 0,'cts': thistime,'mts': thistime}, 
                     'username'     :userinfo[0],
@@ -1388,27 +1289,18 @@ def signup():
 
 @app.route('/register_password',methods=['GET','POST'])
 def register_password():
-
-    if args.localdbkey:
-        MONGO_URL = 'mongodb://' + password[0] + ':' + password[1] + '@' + args.host + ':' + str(args.port) 
-    else:
-        MONGO_URL = 'mongodb://' + args.host + ':' + str(args.port) 
-    mongo     = PyMongo(app, uri=MONGO_URL+'/'+args.userdb+'?authSource=localdb')
-#    mongo     = PyMongo(app, uri=MONGO_URL+'/'+args.userdb)
-    fs = gridfs.GridFS(mongo.db)
-
     stage = request.form.get('stage','input')
     userinfo = request.form.getlist('userinfo')
     if userinfo==[]:   
         session.pop('registerpass',None)
     if session.get('registerpass',None):
-        if mongo.db.user.find({'username': userinfo[0]}).count() == 0:
+        if userdb.user.find({'username': userinfo[0]}).count() == 0:
             text = 'This username does not exist'
             stage = 'input'
             return render_template( 'register_password.html', userInfo=userinfo, nametext=text, stage=stage, timezones=setTimezone() )
         else:
             query = { 'username' : userinfo[0] }
-            userdata = mongo.db.user.find_one(query)
+            userdata = userdb.user.find_one(query)
             if not userdata['Email'] == userinfo[1] :
                 text = 'This Email is not correct'
                 stage = 'input'
@@ -1425,7 +1317,7 @@ def register_password():
                                   recipients=[userinfo[1]])
                     msg.html = 'Your pin number is ' + pin_number + '. ' + '(You cannot reply to this Email address.)'   
                     mail.send(msg)
-                    mongo.db.user.update(query,{'$set':{'pinnumber':hashlib.md5( pin_number.encode('utf-8') ).hexdigest()}}) 
+                    userdb.user.update(query,{'$set':{'pinnumber':hashlib.md5( pin_number.encode('utf-8') ).hexdigest()}}) 
                     return render_template( 'register_password.html', userInfo=userinfo, stage=stage, timezones=setTimezone() )
                 else:
                     if not userdata['pinnumber'] == hashlib.md5( userinfo[2].encode('utf-8') ).hexdigest(): 
@@ -1437,8 +1329,8 @@ def register_password():
                         stage = 'confirm'
                         return render_template( 'register_password.html', userInfo=userinfo, nametext4=text, stage=stage, timezones=setTimezone() )
                     else: 
-                        mongo.db.user.update(query,{'$unset':{'pinnumber':''}}) 
-                        mongo.db.user.update(query,{'$set':{'password':hashlib.md5( userinfo[3].encode('utf-8') ).hexdigest()}}) 
+                        userdb.user.update(query,{'$unset':{'pinnumber':''}}) 
+                        userdb.user.update(query,{'$set':{'password':hashlib.md5( userinfo[3].encode('utf-8') ).hexdigest()}}) 
                         session.pop('registerpass')
                         return render_template( 'register_password.html', userInfo=userinfo, stage=stage, timezones=setTimezone() )
         
@@ -1451,9 +1343,9 @@ def register_password():
  
 @app.route('/admin',methods=['GET','POST'])
 def admin_page():
-    request_entries = mongo.db.request.find({}, { 'userName': 0, 'password': 0 })
-    user_entries = mongo.db.user.find({ 'type': 'user' }, { 'userName': 0, 'password': 0 })
-    admin_entries = mongo.db.user.find({ 'type': 'administrator' }, { 'userName': 0, 'password': 0 })
+    request_entries = localdb.request.find({}, { 'userName': 0, 'password': 0 })
+    user_entries = localdb.user.find({ 'type': 'user' }, { 'userName': 0, 'password': 0 })
+    admin_entries = localdb.user.find({ 'type': 'administrator' }, { 'userName': 0, 'password': 0 })
     request = []
     for req in request_entries:
         req.update({ 'authority': 3,
@@ -1476,7 +1368,7 @@ def add_user():
     for user in user_entries:
         if approval[user_entries.index( user )] == 'approve':
             query = { '_id': ObjectId( user ) }
-            userinfo = mongo.db.request.find_one( query )
+            userinfo = localdb.request.find_one( query )
             userinfo.update({ 'authority': authority[user_entries.index( user )] })
             addUser( userinfo ) 
             removeRequest( user )
@@ -1499,11 +1391,4 @@ def page_not_found(e):
     return render_template('404.html'), 404
 
 if __name__ == '__main__':
-    MONGO_URL = init()
-    global mongo
-    global fs
-    mongo = PyMongo(app, uri=MONGO_URL)
-    LocalDB.setMongo(mongo)
-    fs = gridfs.GridFS(mongo.db)
     app.run(host=args.fhost, port=args.fport, threaded=True)
-

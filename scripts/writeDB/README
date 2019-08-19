@@ -1,0 +1,17 @@
+# make_convert.py
+
+You can convert DB structure to the latest version by the convertor. <br>
+You should replicate DB before the conversion. <br>
+
+```
+$ sudo systemctl stop mongod.service
+$ date=`date +"%y%m%d"`
+$ tar zcvf mongo-${date}.tar.gz /var/lib/mongo
+$ sudo systemctl restart mongod.service
+$ cd localdb-tools/scripts/writeDB
+$ python3 make_covert.py
+# Do you replicate DB: localdb ---> localdb_copy? (y/n) > y
+# Continue to convert DB: yarrdb/localdb(old) ---> localdb(latest)? (y/n) > y    
+<lot texts>
+```
+

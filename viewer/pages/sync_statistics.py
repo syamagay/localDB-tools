@@ -6,7 +6,6 @@ import sys
 sys.path.append( os.path.dirname(os.path.dirname(os.path.abspath(__file__)) ) )
 
 from scripts.src.func import *
-
 from configs.development import *
 
 
@@ -40,22 +39,45 @@ def sync_statistics():
         logging.info("server url is: %s" % (url) )
         return MongoClient(url)["localdbtools"]
 
-    def __getCommitRelationship(commit_doc, layer_count, marker_x, marker_y, line_x, line_y):
+    def __check_dup(x_list, y_list, x, y):
+        if x in x_list and y in y_list: return True
+        else: return False
+
+    def __getCommitRelationship(commit_doc, marker_x, marker_y, line_x, line_y):
         while True:
             #==========================
             # parent --- child
             #==========================
+            # Get child layer
+            if commit_doc["local_server_config_id"] in layer_list:
+                child_layer = layer_list.index(commit_doc["local_server_config_id"])
+            else:
+                layer_list.append(commit_doc["local_server_config_id"])
+                child_layer = len(layer_list) - 1
+
             # child
+            if __check_dup(marker_x, marker_y, commit_doc["sys"]["cts"], child_layer): break
             marker_x.append(commit_doc["sys"]["cts"])
-            marker_y.append(layer_count)
+            marker_y.append(child_layer)
+            commit_description.append("_id: %s" % str(commit_doc["_id"]))
+
+            # Get parent layer
+            if commit_doc["parent"] == "": break
+            commit_description[-1] = commit_description[-1] + "<br>parent: %s" % str(commit_doc["parent"])
+            parent_commit_doc = localdbtools_db["commits"].find_one({"_id": commit_doc["parent"]})
+            if parent_commit_doc["local_server_config_id"] in layer_list:
+                parent_layer = layer_list.index(parent_commit_doc["local_server_config_id"])
+            else:
+                layer_list.append(parent_commit_doc["local_server_config_id"])
+                parent_layer = len(layer_list) - 1
 
             # line between parent and child
-            if commit_doc["parent"] == "" or commit_doc["parent"] == "no_parent_commit_id": break
             line_x.append(commit_doc["sys"]["cts"])
-            line_y.append(layer_count)
-            parent_commit_doc = localdbtools_db["commits"].find_one({"_id": commit_doc["parent"]})
+            line_y.append(child_layer)
             line_x.append(parent_commit_doc["sys"]["cts"])
-            line_y.append(layer_count)
+            line_y.append(parent_layer)
+            line_x.append(None)
+            line_y.append(None)
 
             #==========================
             # parent ---------- child
@@ -63,14 +85,24 @@ def sync_statistics():
             # parent_merge ---
             #==========================
             if commit_doc["commit_type"] == "merge" and commit_doc["parent_merge"] != "":
+                commit_description[-1] = commit_description[-1] + "<br>parent_merge: %s" % str(commit_doc["parent_merge"])
+                # Get parent merge layer
+                parent_merge_commit_doc = localdbtools_db["commits"].find_one({"_id": commit_doc["parent_merge"]})
+                if parent_merge_commit_doc["local_server_config_id"] in layer_list:
+                    parent_merge_layer = layer_list.index(parent_merge_commit_doc["local_server_config_id"])
+                else:
+                    layer_list.append(parent_merge_commit_doc["local_server_config_id"])
+                    parent_merge_layer = len(layer_list) - 1
+
                 # line between parent_merge and child
                 line_x.append(commit_doc["sys"]["cts"])
-                line_y.append(layer_count)
-                parent_master_commit_doc = localdbtools_db["commits"].find_one({"_id": commit_doc["parent_merge"]})
-                line_x.append(parent_master_commit_doc["sys"]["cts"])
-                line_y.append(layer_count+1)
+                line_y.append(child_layer)
+                line_x.append(parent_merge_commit_doc["sys"]["cts"])
+                line_y.append(parent_merge_layer)
+                line_x.append(None)
+                line_y.append(None)
                 #merge_count += 1
-                __getCommitRelationship(parent_master_commit_doc, layer_count+1, marker_x, marker_y, line_x, line_y)
+                __getCommitRelationship(parent_merge_commit_doc, marker_x, marker_y, line_x, line_y)
 
             # Go to parent commit
             #commit_count += 1
@@ -96,13 +128,15 @@ def sync_statistics():
     commit_description = [] # text
     #commit_count = 0
     #merge_count = 0
-    layer_count = 0
-    __getCommitRelationship(last_commit_doc, layer_count, marker_x, marker_y, line_x, line_y)
+    layer_list = []
+    __getCommitRelationship(last_commit_doc, marker_x, marker_y, line_x, line_y)
 
-    #print(marker_x)
-    #print(marker_y)
-    #print(line_x)
-    #print(line_y)
+    logging.debug("maker length: %d" % len(marker_x))
+    #for i in range(len(marker_x)):
+    #    logging.debug("marker (%s, %s)" % (str(marker_x[i]), str(marker_y[i])))
+    logging.debug("line length: %d" % len(line_x))
+    #for i in range(len(line_x)):
+    #    logging.debug("i: %d, line (%s, %s)" % (i, str(line_x[i]), str(line_y[i])) )
 
     graph = dict(
             data = [
@@ -111,12 +145,12 @@ def sync_statistics():
                             y = marker_y,
                             text = commit_description,
                             type ="scatter",
-                            name = "hoge",
-                            mode = 'markers+text',
+                            name = "commits",
+                            mode = 'markers',
                             marker = dict(
                                     symbol = 'circle-dot',
-                                    size = 18, 
-                                    color = '#6175c1',    #'#DB4551', 
+                                    size = 18,
+                                    color = '#6175c1',    #'#DB4551',
                                     line = dict(color = 'rgb(50,50,50)', width = 1)
                                 ),
                             textposition = 'top center',

@@ -10,7 +10,7 @@ def retrieve_log():
         time = converted_time.strftime('%Y/%m/%d %H:%M:%S')
         return time
 
-    localdb = LocalDB.getMongo().db
+    localdb = LocalDB.getDB()
     return_json = {}
 
     run_query = {}

@@ -23,7 +23,7 @@ def getArgs():
 
     parser = argparse.ArgumentParser(formatter_class=argparse.ArgumentDefaultsHelpFormatter)
 #    parser.add_argument("menu", nargs="+", help="Choose: "+menus_str, type=str)
-    parser.add_argument("--config", "-f", help="Config file path", type=str)
+    parser.add_argument("--config", help="Config file path", type=str)
 
     # Local
     parser.add_argument("--host", help="LocalDB Server Host", type=str, default="localhost")
@@ -43,6 +43,7 @@ def getArgs():
     parser.add_argument("--sync-opt", help="Synchronization option", type=str)
 
     # Flags
+    parser.add_argument("-f", help="Enable force", action="store_true")
     parser.add_argument("-y", help="Yes to confirmation", action="store_true")
     parser.add_argument("--is_development", help="Yes to confirmation", action="store_true")
 

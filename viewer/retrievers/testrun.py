@@ -10,7 +10,7 @@ def retrieve_testrun():
         time = converted_time.strftime('%Y/%m/%d %H:%M:%S')
         return time
 
-    localdb = LocalDB.getMongo().db
+    localdb = LocalDB.getDB()
 
     run_id = request.args.get('testRun', None)
     return_json = {}
